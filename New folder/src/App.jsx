@@ -200,7 +200,7 @@ export default function OrderApp() {
   const [dbError, setDbError] = useState("");
 
   useEffect(() => {
-    supabaseFetch("products?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,stock_awal&aktif=eq.true")
+    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli")
       .then(async (rows) => {
         let stockMap = {};
         try {
@@ -260,7 +260,7 @@ export default function OrderApp() {
     if (!kode) { setLoginError("Isi dulu Kode Toko-nya."); return; }
 
     try {
-      const rows = await supabaseFetch(`clients?select=*&kode=eq.${kode}&status=eq.aktif`);
+      const rows = await supabaseFetch(`v_client_login?select=*&kode=eq.${kode}&status=eq.aktif`);
       if (rows.length > 0) {
         const r = rows[0];
         setToko({ id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota, jenisBayar: r.jenis_pembayaran });
