@@ -25,6 +25,9 @@ const CATEGORY_META = {
   "Keramik": { icon: LayoutGrid, bg: "#F0DCD6", fg: "#9A4630" },
   "Sparepart": { icon: Wrench, bg: "#DCE6F0", fg: "#2C5985" },
 };
+// Dipakai kalau kategori barang belum ada di daftar di atas (misal kategori baru
+// yang ditambahkan lewat menu Product di Dashboard) - supaya tidak bikin app crash.
+const DEFAULT_CATEGORY_META = { icon: Package, bg: "#EDEAE3", fg: "#6B6F75" };
 
 const SAMPLE_PRODUCTS = [
   { kode: "B001", nama: "Semen 50kg", kategori: "Bahan Bangunan", satuan: "Sak", harga: 65000, hargaAsli: null, stock: 200, isiPerKoli: 0 },
@@ -1061,7 +1064,9 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // KATALOG
 // ============================================================
 function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin }) {
-  const categories = ["Semua", ...Object.keys(CATEGORY_META)];
+  // Gabungkan kategori bawaan dengan kategori baru (kalau ada) dari produk asli di database
+  const kategoriDariProduk = Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)));
+  const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
   return (
     <div>
       <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22 }}>
@@ -1103,7 +1108,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
 
       <div style={{ padding: "12px 20px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {products.map((p) => {
-          const meta = CATEGORY_META[p.kategori];
+          const meta = CATEGORY_META[p.kategori] || DEFAULT_CATEGORY_META;
           const Icon = meta.icon;
           const qty = cart[p.kode] || 0;
           return (
@@ -1172,7 +1177,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
 // DETAIL PRODUK
 // ============================================================
 function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLogin }) {
-  const meta = CATEGORY_META[product.kategori];
+  const meta = CATEGORY_META[product.kategori] || DEFAULT_CATEGORY_META;
   const Icon = meta.icon;
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 90 }}>
@@ -1416,7 +1421,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
       <div style={{ padding: "8px 20px" }}>
         {items.map((p) => {
-          const meta = CATEGORY_META[p.kategori];
+          const meta = CATEGORY_META[p.kategori] || DEFAULT_CATEGORY_META;
           const Icon = meta.icon;
           const r = hitungRincianItem(p, p.qty);
           const checked = checkedItems[p.kode] !== false;
