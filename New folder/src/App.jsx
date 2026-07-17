@@ -313,7 +313,7 @@ export default function OrderApp() {
       acc.totalBayar += r.totalSetelahDiskon;
       return acc;
     }, { subtotalSebelum: 0, totalDiskon: 0, totalBayar: 0 });
-  }, [cart, checkedItems]);
+  }, [cart, checkedItems, products]);
   const cartTotal = cartRincian.totalBayar;
   const belowMinimum = cartTotal > 0 && cartTotal < MIN_CHECKOUT;
 
@@ -844,7 +844,7 @@ export default function OrderApp() {
       {screen === "akun" && (
         <AccountScreen
           toko={toko} orders={orders}
-          onReorder={openReorderPreview}
+          onOpenOrderUlang={() => setScreen("order-ulang-list")}
           onMarkPaid={markOrderPaid}
           pointsBalance={pointsBalance}
           onOpenRekening={() => setScreen("akun-rekening")}
@@ -864,11 +864,19 @@ export default function OrderApp() {
         />
       )}
 
+      {screen === "order-ulang-list" && (
+        <OrderUlangListScreen
+          orders={orders}
+          onReorder={openReorderPreview}
+          onBack={() => setScreen("akun")}
+        />
+      )}
+
       {screen === "reorder-confirm" && reorderPreview && (
         <ReorderConfirmScreen
           order={reorderPreview}
           onConfirm={() => confirmReorder(reorderPreview)}
-          onBack={() => setScreen("akun")}
+          onBack={() => setScreen("order-ulang-list")}
         />
       )}
 
@@ -1756,7 +1764,7 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onReorder, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onLogout }) {
+function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onLogout }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const counts = {
@@ -1818,32 +1826,8 @@ function AccountScreen({ toko, orders, onReorder, onMarkPaid, pointsBalance, onO
         </button>
       </div>
 
-      <div style={{ padding: "16px 20px 8px" }}>
-        <h2 className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Order Ulang</h2>
-        <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 10px" }}>Salin order sebelumnya, tidak perlu pilih barang dari awal.</p>
-        {orders.length === 0 ? (
-          <p style={{ fontSize: 12.5, color: "#9CA0A6", padding: "12px 0" }}>Belum ada riwayat order.</p>
-        ) : (
-          orders.slice(0, 5).map((o) => (
-            <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{o.id}</p>
-                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {o.items.map((i) => i.nama).join(", ")}
-                </p>
-              </div>
-              <button
-                onClick={() => onReorder(o)}
-                style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 12px", borderRadius: 9, border: "none", background: "#F7F5F1", color: "#24272B", fontSize: 12, fontWeight: 700, flexShrink: 0 }}
-              >
-                <RotateCcw size={13} /> Order Ulang
-              </button>
-            </div>
-          ))
-        )}
-      </div>
-
       <div style={{ padding: "8px 20px 4px" }}>
+        <MenuRow icon={RotateCcw} label="Order Ulang" onClick={onOpenOrderUlang} />
         <MenuRow icon={Star} label="Poin Saya" onClick={onOpenPoin} />
         <MenuRow icon={CreditCard} label="Ketentuan Pembayaran & Rekening Bank" onClick={onOpenRekening} />
         <MenuRow icon={Headphones} label="Service Centre" onClick={onOpenCS} />
@@ -1978,6 +1962,44 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
         ))
       )}
       {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+    </div>
+  );
+}
+
+// ============================================================
+// DAFTAR ORDER UNTUK DIPESAN ULANG (halaman tersendiri dari menu Akun)
+// ============================================================
+function OrderUlangListScreen({ orders, onReorder, onBack }) {
+  const reorderable = orders.filter((o) => o.status !== "Dibatalkan");
+  return (
+    <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 12 }}>
+        <ChevronLeft size={18} /> Kembali
+      </button>
+      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Order Ulang</h1>
+      <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 18px" }}>Salin order sebelumnya, tidak perlu pilih barang dari awal.</p>
+
+      {reorderable.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "40px 0" }}>Belum ada riwayat order.</p>
+      ) : (
+        reorderable.map((o) => (
+          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{o.id}</p>
+              <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px" }}>{o.tanggal.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {o.items.map((i) => i.nama).join(", ")}
+              </p>
+            </div>
+            <button
+              onClick={() => onReorder(o)}
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "8px 12px", borderRadius: 9, border: "none", background: "#F7F5F1", color: "#24272B", fontSize: 12, fontWeight: 700, flexShrink: 0 }}
+            >
+              <RotateCcw size={13} /> Order Ulang
+            </button>
+          </div>
+        ))
+      )}
     </div>
   );
 }
