@@ -1010,11 +1010,11 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
   const [villages, setVillages] = useState([]);
   const [wilayahError, setWilayahError] = useState("");
 
-  const WILAYAH_API = "https://emsifa.github.io/api-wilayah-indonesia/api";
+  const WILAYAH_PROXY = `${SUPABASE_URL}/functions/v1/wilayah-proxy`;
   const titleCase = (s) => s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
 
   useEffect(() => {
-    fetch(`${WILAYAH_API}/provinces.json`)
+    fetch(`${WILAYAH_PROXY}?path=provinces.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
       .then((r) => r.json())
       .then((data) => setProvinces(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
       .catch(() => {
@@ -1025,7 +1025,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
 
   useEffect(() => {
     if (!regForm.provinsiId) { setRegencies([]); return; }
-    fetch(`${WILAYAH_API}/regencies/${regForm.provinsiId}.json`)
+    fetch(`${WILAYAH_PROXY}?path=regencies/${regForm.provinsiId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
       .then((r) => r.json())
       .then((data) => setRegencies(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
       .catch(() => setRegencies(FALLBACK_WILAYAH.regencies[regForm.provinsiId] || []));
@@ -1033,7 +1033,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
 
   useEffect(() => {
     if (!regForm.kotaId) { setDistricts([]); return; }
-    fetch(`${WILAYAH_API}/districts/${regForm.kotaId}.json`)
+    fetch(`${WILAYAH_PROXY}?path=districts/${regForm.kotaId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
       .then((r) => r.json())
       .then((data) => setDistricts(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
       .catch(() => setDistricts(FALLBACK_WILAYAH.districts[regForm.kotaId] || []));
@@ -1041,7 +1041,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
 
   useEffect(() => {
     if (!regForm.kecamatanId) { setVillages([]); return; }
-    fetch(`${WILAYAH_API}/villages/${regForm.kecamatanId}.json`)
+    fetch(`${WILAYAH_PROXY}?path=villages/${regForm.kecamatanId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
       .then((r) => r.json())
       .then((data) => setVillages(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
       .catch(() => setVillages(FALLBACK_WILAYAH.villages[regForm.kecamatanId] || []));
