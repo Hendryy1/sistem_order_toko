@@ -265,6 +265,7 @@ export default function OrderApp() {
   const [pointsBalance, setPointsBalance] = useState(0);
   const [dailyClaims, setDailyClaims] = useState({}); // { 0: poin, 1: poin, ... } key = hari (0=Minggu...6=Sabtu), minggu berjalan (sesi ini saja)
   const [spinTickets, setSpinTickets] = useState(0);
+  const [orderListKey, setOrderListKey] = useState(null); // "pesanan" | "kirim" | "konfirmasi" | "bayar"
   const [toko, setToko] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
@@ -829,15 +830,22 @@ export default function OrderApp() {
         <AccountScreen
           toko={toko} orders={orders}
           onReorder={reorder}
-          onAdvance={advanceOrderStatus} onMarkPaid={markOrderPaid}
-          onUploadBukti={uploadBuktiTransfer}
-          onCancelOrder={cancelOrder}
+          onMarkPaid={markOrderPaid}
           pointsBalance={pointsBalance}
           onOpenRekening={() => setScreen("akun-rekening")}
           onOpenCS={() => setScreen("akun-cs")}
           onOpenBantuan={() => setScreen("akun-bantuan")}
           onOpenPoin={() => setScreen("akun-poin")}
+          onOpenOrderList={(key) => { setOrderListKey(key); setScreen("akun-orderlist"); }}
           onLogout={handleLogout}
+        />
+      )}
+
+      {screen === "akun-orderlist" && (
+        <OrderListScreen
+          filterKey={orderListKey} toko={toko} orders={orders}
+          onAdvance={advanceOrderStatus} onUploadBukti={uploadBuktiTransfer} onCancelOrder={cancelOrder}
+          onBack={() => setScreen("akun")}
         />
       )}
 
@@ -1720,17 +1728,14 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploadBukti, onCancelOrder, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onLogout }) {
-  const [filter, setFilter] = useState(null); // null | "pesanan" | "kirim" | "konfirmasi" | "bayar"
+function AccountScreen({ toko, orders, onReorder, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onLogout }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [confirmCancelId, setConfirmCancelId] = useState(null);
-  const [cancelling, setCancelling] = useState(false);
 
   const counts = {
     pesanan: orders.filter((o) => o.status === "Menunggu Persetujuan").length,
     kirim: orders.filter((o) => o.status === "Menunggu Pengiriman").length,
     konfirmasi: orders.filter((o) => o.status === "Dikirim").length,
-    bayar: orders.filter((o) => !o.sudahBayar).length,
+    bayar: orders.filter((o) => !o.sudahBayar && o.status !== "Dibatalkan").length,
   };
   const tiles = [
     { key: "pesanan", label: "Pesanan", icon: ClipboardList, count: counts.pesanan, matchStatus: "Menunggu Persetujuan" },
@@ -1738,12 +1743,6 @@ function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploa
     { key: "konfirmasi", label: "Konfirmasi Penerimaan", icon: PackageCheck, count: counts.konfirmasi, matchStatus: "Dikirim" },
     { key: "bayar", label: "Belum Bayar", icon: Wallet, count: counts.bayar, matchStatus: null },
   ];
-
-  const filteredOrders = !filter
-    ? []
-    : filter === "bayar"
-    ? orders.filter((o) => !o.sudahBayar)
-    : orders.filter((o) => o.status === tiles.find((t) => t.key === filter).matchStatus);
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 88 }}>
@@ -1762,90 +1761,19 @@ function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploa
       <div style={{ padding: "16px 20px 4px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {tiles.map((t) => {
           const Icon = t.icon;
-          const active = filter === t.key;
           return (
             <button
               key={t.key}
-              onClick={() => setFilter(active ? null : t.key)}
-              style={{ background: active ? "#24272B" : "#fff", border: active ? "none" : "1px solid #EDEAE3", borderRadius: 14, padding: 14, textAlign: "left" }}
+              onClick={() => onOpenOrderList(t.key)}
+              style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 14, textAlign: "left" }}
             >
-              <Icon size={20} color={active ? "#E8A426" : "#8A6A1A"} strokeWidth={1.8} />
-              <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: active ? "#fff" : "#24272B", margin: "8px 0 0" }}>{t.count}</p>
-              <p style={{ fontSize: 11.5, color: active ? "#9CA0A6" : "#6B6F75", margin: "2px 0 0", lineHeight: 1.3 }}>{t.label}</p>
+              <Icon size={20} color="#8A6A1A" strokeWidth={1.8} />
+              <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "8px 0 0" }}>{t.count}</p>
+              <p style={{ fontSize: 11.5, color: "#6B6F75", margin: "2px 0 0", lineHeight: 1.3 }}>{t.label}</p>
             </button>
           );
         })}
       </div>
-
-      {filter && (
-        <div style={{ padding: "12px 20px 4px" }}>
-          {filteredOrders.length === 0 ? (
-            <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Tidak ada order di kategori ini.</p>
-          ) : (
-            filteredOrders.map((o) => (
-              <div key={o.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <span className="disp" style={{ fontWeight: 700, fontSize: 14 }}>{o.id}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#24272B" }}>{rupiah(o.total)}</span>
-                </div>
-                {o.status === "Dikirim" && (
-                  <button onClick={() => onAdvance(o.id, "Selesai")} style={{ width: "100%", marginTop: 4, padding: "9px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
-                    Konfirmasi Penerimaan
-                  </button>
-                )}
-                {!o.sudahBayar && filter === "bayar" && (
-                  toko?.jenisBayar === "Transfer" ? (
-                    o.buktiTransferUrl ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#8A6A1A", fontWeight: 600 }}>
-                        <Check size={13} /> Bukti transfer terkirim, menunggu konfirmasi Owner
-                      </div>
-                    ) : (
-                      <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px", borderRadius: 9, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
-                        <Upload size={14} /> Upload Bukti Transfer
-                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) onUploadBukti(o, e.target.files[0]); }} />
-                      </label>
-                    )
-                  ) : (
-                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Menunggu konfirmasi pembayaran dari Owner.</p>
-                  )
-                )}
-                {!o.sudahBayar && filter === "bayar" && o.status !== "Dibatalkan" && (
-                  confirmCancelId === o.id ? (
-                    <div style={{ marginTop: 8, background: "#FBEAEA", borderRadius: 9, padding: 10 }}>
-                      <p style={{ fontSize: 11.5, color: "#C0392B", fontWeight: 600, margin: "0 0 8px" }}>Yakin batalkan pesanan ini?</p>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          disabled={cancelling}
-                          onClick={async () => { setCancelling(true); await onCancelOrder(o); setCancelling(false); setConfirmCancelId(null); }}
-                          style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: "#C0392B", color: "#fff", fontSize: 12, fontWeight: 700 }}
-                        >
-                          {cancelling ? "Membatalkan..." : "Ya, Batalkan"}
-                        </button>
-                        <button onClick={() => setConfirmCancelId(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontSize: 12, fontWeight: 600 }}>
-                          Tidak
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setConfirmCancelId(o.id)}
-                      style={{ width: "100%", marginTop: 8, padding: "9px", borderRadius: 9, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 12, fontWeight: 700 }}
-                    >
-                      Batalkan Pesanan
-                    </button>
-                  )
-                )}
-                {o.status === "Menunggu Persetujuan" && (
-                  <p style={{ fontSize: 11, color: "#B8860B", margin: "4px 0 0" }}>Menunggu Owner menyetujui pesanan ini.</p>
-                )}
-                {o.status === "Menunggu Pengiriman" && (
-                  <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Barang sedang disiapkan untuk dikirim.</p>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
 
       <div style={{ padding: "0 20px 4px" }}>
         <button onClick={onOpenPoin} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "#24272B", borderRadius: 16, padding: 16, border: "none" }}>
@@ -1923,6 +1851,100 @@ function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploa
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DAFTAR ORDER PER KATEGORI (halaman baru, dibuka dari tile Akun)
+// ============================================================
+function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, onCancelOrder, onBack }) {
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const TITLE_MAP = {
+    pesanan: "Pesanan", kirim: "Menunggu Pengiriman", konfirmasi: "Konfirmasi Penerimaan", bayar: "Belum Bayar",
+  };
+  const MATCH_STATUS = {
+    pesanan: "Menunggu Persetujuan", kirim: "Menunggu Pengiriman", konfirmasi: "Dikirim",
+  };
+
+  const filteredOrders = filterKey === "bayar"
+    ? orders.filter((o) => !o.sudahBayar && o.status !== "Dibatalkan")
+    : orders.filter((o) => o.status === MATCH_STATUS[filterKey]);
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 12 }}>
+        <ChevronLeft size={18} /> Kembali
+      </button>
+      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 16px" }}>{TITLE_MAP[filterKey]}</h1>
+
+      {filteredOrders.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "40px 0" }}>Tidak ada order di kategori ini.</p>
+      ) : (
+        filteredOrders.map((o) => (
+          <div key={o.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span className="disp" style={{ fontWeight: 700, fontSize: 14 }}>{o.id}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#24272B" }}>{rupiah(o.total)}</span>
+            </div>
+            {o.status === "Dikirim" && (
+              <button onClick={() => onAdvance(o.id, "Selesai")} style={{ width: "100%", marginTop: 4, padding: "9px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
+                Konfirmasi Penerimaan
+              </button>
+            )}
+            {!o.sudahBayar && filterKey === "bayar" && (
+              toko?.jenisBayar === "Transfer" ? (
+                o.buktiTransferUrl ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#8A6A1A", fontWeight: 600 }}>
+                    <Check size={13} /> Bukti transfer terkirim, menunggu konfirmasi Owner
+                  </div>
+                ) : (
+                  <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px", borderRadius: 9, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                    <Upload size={14} /> Upload Bukti Transfer
+                    <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) onUploadBukti(o, e.target.files[0]); }} />
+                  </label>
+                )
+              ) : (
+                <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Menunggu konfirmasi pembayaran dari Owner.</p>
+              )
+            )}
+            {!o.sudahBayar && filterKey === "bayar" && o.status !== "Dibatalkan" && (
+              confirmCancelId === o.id ? (
+                <div style={{ marginTop: 8, background: "#FBEAEA", borderRadius: 9, padding: 10 }}>
+                  <p style={{ fontSize: 11.5, color: "#C0392B", fontWeight: 600, margin: "0 0 8px" }}>Yakin batalkan pesanan ini?</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      disabled={cancelling}
+                      onClick={async () => { setCancelling(true); await onCancelOrder(o); setCancelling(false); setConfirmCancelId(null); }}
+                      style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: "#C0392B", color: "#fff", fontSize: 12, fontWeight: 700 }}
+                    >
+                      {cancelling ? "Membatalkan..." : "Ya, Batalkan"}
+                    </button>
+                    <button onClick={() => setConfirmCancelId(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontSize: 12, fontWeight: 600 }}>
+                      Tidak
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmCancelId(o.id)}
+                  style={{ width: "100%", marginTop: 8, padding: "9px", borderRadius: 9, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 12, fontWeight: 700 }}
+                >
+                  Batalkan Pesanan
+                </button>
+              )
+            )}
+            {o.status === "Menunggu Persetujuan" && (
+              <p style={{ fontSize: 11, color: "#B8860B", margin: "4px 0 0" }}>Menunggu Owner menyetujui pesanan ini.</p>
+            )}
+            {o.status === "Menunggu Pengiriman" && (
+              <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Barang sedang disiapkan untuk dikirim.</p>
+            )}
+          </div>
+        ))
+      )}
     </div>
   );
 }
