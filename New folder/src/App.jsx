@@ -1334,19 +1334,28 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
 function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty, onBack, onGoToCart, onRequireLogin }) {
   const meta = CATEGORY_META[product.kategori] || DEFAULT_CATEGORY_META;
   const Icon = meta.icon;
-  const [galeri, setGaleri] = useState([]);
+  const [fotoUtama, setFotoUtama] = useState([]);
+  const [galeriDeskripsi, setGaleriDeskripsi] = useState([]);
   const [editingQty, setEditingQty] = useState(false);
   const [qtyInput, setQtyInput] = useState(String(qty));
-  const [scrolled, setScrolled] = useState(false);
+  const [scrollOpacity, setScrollOpacity] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(0);
 
   useEffect(() => {
-    supabaseFetch(`product_images?select=id,url&product_id=eq.${product.id}&order=urutan.asc`)
-      .then(setGaleri)
-      .catch(() => setGaleri([]));
+    supabaseFetch(`product_images?select=id,url,tipe&product_id=eq.${product.id}&order=urutan.asc`)
+      .then((rows) => {
+        const utama = rows.filter((r) => r.tipe === "utama").map((r) => r.url);
+        setFotoUtama(product.gambarUrl ? [product.gambarUrl, ...utama] : utama);
+        setGaleriDeskripsi(rows.filter((r) => r.tipe !== "utama"));
+      })
+      .catch(() => {
+        setFotoUtama(product.gambarUrl ? [product.gambarUrl] : []);
+        setGaleriDeskripsi([]);
+      });
   }, [product.id]);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 220);
+    const onScroll = () => setScrollOpacity(Math.min(1, window.scrollY / 80));
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -1364,37 +1373,50 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
   }
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 90 }}>
-      {scrolled && (
-        <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderBottom: "1px solid #EDEAE3", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 50 }}>
-          <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
-            <ChevronLeft size={20} color="#24272B" />
+      <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderBottom: "1px solid #EDEAE3", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 50, opacity: scrollOpacity, pointerEvents: scrollOpacity > 0.15 ? "auto" : "none" }}>
+        <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <ChevronLeft size={19} color="#24272B" />
+        </button>
+        <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0, flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 10px" }}>
+          {product.nama}
+        </p>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Share2 size={17} color="#24272B" />
           </button>
-          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0, flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 10px" }}>
-            {product.nama}
-          </p>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={handleShare} style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Share2 size={15} color="#24272B" />
+          {!isGuest && (
+            <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              <ShoppingCart size={17} color="#24272B" />
+              {cartCount > 0 && (
+                <span style={{ position: "absolute", top: -4, right: -4, background: "#E8A426", color: "#24272B", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                  {cartCount}
+                </span>
+              )}
             </button>
-            {!isGuest && (
-              <button onClick={onGoToCart} style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                <ShoppingCart size={15} color="#24272B" />
-                {cartCount > 0 && (
-                  <span style={{ position: "absolute", top: -3, right: -3, background: "#E8A426", color: "#24272B", fontSize: 9, fontWeight: 700, borderRadius: 999, minWidth: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
-                    {cartCount}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
+          )}
         </div>
-      )}
+      </div>
+
       <div style={{ position: "relative" }}>
-        {product.gambarUrl ? (
-          <img src={product.gambarUrl} alt={product.nama} style={{ width: "100%", display: "block" }} />
+        {fotoUtama.length > 0 ? (
+          <div
+            onScroll={(e) => setActiveSlide(Math.round(e.target.scrollLeft / e.target.clientWidth))}
+            style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
+          >
+            {fotoUtama.map((url, i) => (
+              <img key={i} src={url} alt={product.nama} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", display: "block" }} />
+            ))}
+          </div>
         ) : (
           <div style={{ width: "100%", aspectRatio: "1.4", background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Icon size={70} color={meta.fg} strokeWidth={1.5} />
+          </div>
+        )}
+        {fotoUtama.length > 1 && (
+          <div style={{ position: "absolute", bottom: 12, left: 0, right: 0, display: "flex", justifyContent: "center", gap: 6 }}>
+            {fotoUtama.map((_, i) => (
+              <div key={i} style={{ width: i === activeSlide ? 16 : 6, height: 6, borderRadius: 3, background: i === activeSlide ? "#E8A426" : "rgba(255,255,255,0.7)", transition: "width 0.2s" }} />
+            ))}
           </div>
         )}
         <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -1418,6 +1440,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
           </div>
         </div>
       </div>
+
       <div style={{ padding: "20px 20px 0" }}>
         <p style={{ fontSize: 12, fontWeight: 600, color: meta.fg, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" }}>{product.kategori}</p>
         <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>{product.nama}</h1>
@@ -1463,10 +1486,10 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
           ) : (
             <p style={{ fontSize: 13, color: "#B5B2AA", margin: 0, fontStyle: "italic" }}>Belum ada deskripsi untuk produk ini.</p>
           )}
-          {galeri.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              {galeri.map((img) => (
-                <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block", borderRadius: 12, marginBottom: 12 }} />
+          {galeriDeskripsi.length > 0 && (
+            <div style={{ margin: "14px -18px 0" }}>
+              {galeriDeskripsi.map((img) => (
+                <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block", marginBottom: 12 }} />
               ))}
             </div>
           )}
