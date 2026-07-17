@@ -266,16 +266,26 @@ export default function OrderApp() {
   const [dailyClaims, setDailyClaims] = useState({}); // { 0: poin, 1: poin, ... } key = hari (0=Minggu...6=Sabtu), minggu berjalan (sesi ini saja)
   const [spinTickets, setSpinTickets] = useState(0);
   const [orderListKey, setOrderListKey] = useState(null); // "pesanan" | "kirim" | "konfirmasi" | "bayar"
+  const [reorderPreview, setReorderPreview] = useState(null);
   const [toko, setToko] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [restoringSession, setRestoringSession] = useState(true);
-  const [cart, setCart] = useState({}); // { kodeBarang: qty }
+  const [cart, setCart] = useState(() => {
+    try {
+      const saved = localStorage.getItem("cart_v1");
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) { return {}; }
+  }); // { kodeBarang: qty }
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  useEffect(() => {
+    try { localStorage.setItem("cart_v1", JSON.stringify(cart)); } catch (e) {}
+  }, [cart]);
   const [orders, setOrders] = useState([]);
   const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
   const [regSubmitted, setRegSubmitted] = useState(false);
@@ -312,7 +322,7 @@ export default function OrderApp() {
   async function loadOrderHistory(clientId, token) {
     try {
       const rows = await supabaseFetch(
-        `orders?select=*,order_items(*,products(nama,kategori,satuan))&client_id=eq.${clientId}&order=created_at.desc`,
+        `orders?select=*,order_items(*,products(kode,nama,kategori,satuan))&client_id=eq.${clientId}&order=created_at.desc`,
         {}, token
       );
       const mapped = rows.map((o) => ({
@@ -335,7 +345,7 @@ export default function OrderApp() {
         tujuan: { nama: o.tujuan_nama, telp: o.tujuan_telp, alamat: o.tujuan_alamat },
         total: (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0),
         items: (o.order_items || []).map((it) => ({
-          kode: it.product_id, nama: it.products?.nama || "Barang", kategori: it.products?.kategori,
+          kode: it.products?.kode || it.product_id, nama: it.products?.nama || "Barang", kategori: it.products?.kategori,
           satuan: it.products?.satuan, qty: it.qty, harga: Number(it.harga_satuan),
           hargaDropship: it.harga_dropship ? Number(it.harga_dropship) : null,
         })),
@@ -581,7 +591,12 @@ export default function OrderApp() {
   }
 
   // Salin order lama ke keranjang supaya bisa order ulang tanpa pilih barang dari awal
-  function reorder(order) {
+  function openReorderPreview(order) {
+    setReorderPreview(order);
+    setScreen("reorder-confirm");
+  }
+
+  function confirmReorder(order) {
     const next = {};
     order.items.forEach((it) => { next[it.kode] = it.qty; });
     setCart(next);
@@ -829,7 +844,7 @@ export default function OrderApp() {
       {screen === "akun" && (
         <AccountScreen
           toko={toko} orders={orders}
-          onReorder={reorder}
+          onReorder={openReorderPreview}
           onMarkPaid={markOrderPaid}
           pointsBalance={pointsBalance}
           onOpenRekening={() => setScreen("akun-rekening")}
@@ -845,6 +860,14 @@ export default function OrderApp() {
         <OrderListScreen
           filterKey={orderListKey} toko={toko} orders={orders}
           onAdvance={advanceOrderStatus} onUploadBukti={uploadBuktiTransfer} onCancelOrder={cancelOrder}
+          onBack={() => setScreen("akun")}
+        />
+      )}
+
+      {screen === "reorder-confirm" && reorderPreview && (
+        <ReorderConfirmScreen
+          order={reorderPreview}
+          onConfirm={() => confirmReorder(reorderPreview)}
           onBack={() => setScreen("akun")}
         />
       )}
@@ -1955,6 +1978,47 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
         ))
       )}
       {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+    </div>
+  );
+}
+
+// ============================================================
+// KONFIRMASI ORDER ULANG (halaman baru sebelum langsung isi keranjang)
+// ============================================================
+function ReorderConfirmScreen({ order, onConfirm, onBack }) {
+  return (
+    <div style={{ minHeight: "100vh", padding: "18px 20px 100px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 12 }}>
+        <ChevronLeft size={18} /> Kembali
+      </button>
+      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Order Ulang</h1>
+      <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>
+        Berdasarkan pesanan {order.id} · {order.tanggal.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+      </p>
+
+      <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang yang akan dipesan lagi</p>
+      {order.items.map((it, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+          <div>
+            <p style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{it.nama}</p>
+            <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: 0 }}>{it.qty} {it.satuan} &times; {rupiah(it.harga)}</p>
+          </div>
+          <span style={{ fontSize: 13.5, fontWeight: 700, color: "#24272B" }}>{rupiah(it.harga * it.qty)}</span>
+        </div>
+      ))}
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, paddingTop: 14, borderTop: "2px solid #24272B" }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "#24272B" }}>Estimasi Total</span>
+        <span className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B" }}>{rupiah(order.items.reduce((s, it) => s + it.harga * it.qty, 0))}</span>
+      </div>
+      <p style={{ fontSize: 11, color: "#9CA0A6", margin: "6px 0 0" }}>*Harga bisa berbeda dari sebelumnya, mengikuti harga & diskon yang berlaku saat ini.</p>
+
+      <button
+        onClick={onConfirm}
+        style={{ width: "100%", marginTop: 24, padding: "15px", borderRadius: 12, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 15 }}
+      >
+        Pesan Lagi Sekarang
+      </button>
     </div>
   );
 }
