@@ -349,7 +349,7 @@ export default function OrderApp() {
       setLoginError("Pendaftaran toko ini ditolak Owner. Hubungi Service Centre untuk info lebih lanjut.");
       return false;
     }
-    const tokoData = { id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota, jenisBayar: r.jenis_pembayaran, email };
+    const tokoData = { id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota, jenisBayar: r.jenis_pembayaran, email, salesId: r.sales_id || null };
     setToko(tokoData);
     setAuthToken(token);
     setIsGuest(false);
@@ -470,6 +470,7 @@ export default function OrderApp() {
           method: "POST",
           body: JSON.stringify({
             client_id: toko.id,
+            sales_id: toko.salesId,
             channel: "web",
             status: "menunggu_persetujuan",
             status_bayar: "belum_lunas",
