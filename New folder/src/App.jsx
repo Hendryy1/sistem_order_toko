@@ -4,7 +4,7 @@ import {
   Building2, Hammer, PaintBucket, Milestone, LayoutGrid, Wrench,
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
-  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload
+  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2
 } from "lucide-react";
 
 // ============================================================
@@ -810,8 +810,10 @@ export default function OrderApp() {
         <ProductScreen
           product={selectedProduct} qty={cart[selectedProduct.kode] || 0}
           isGuest={isGuest}
+          cartCount={Object.values(cart).reduce((a, b) => a + b, 0)}
           onChangeQty={(delta) => addToCart(selectedProduct.kode, delta)}
           onBack={() => setScreen("catalog")}
+          onGoToCart={() => setScreen("cart")}
           onRequireLogin={() => setScreen("login")}
         />
       )}
@@ -1318,7 +1320,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
 // ============================================================
 // DETAIL PRODUK
 // ============================================================
-function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLogin }) {
+function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onBack, onGoToCart, onRequireLogin }) {
   const meta = CATEGORY_META[product.kategori] || DEFAULT_CATEGORY_META;
   const Icon = meta.icon;
   const [galeri, setGaleri] = useState([]);
@@ -1328,12 +1330,39 @@ function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLo
       .then(setGaleri)
       .catch(() => setGaleri([]));
   }, [product.id]);
+
+  async function handleShare() {
+    const shareData = { title: product.nama, text: `Lihat ${product.nama} di katalog kami`, url: window.location.href };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        alert("Link disalin ke clipboard.");
+      }
+    } catch (e) { /* dibatalkan pengguna, biarkan saja */ }
+  }
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 90 }}>
-      <div style={{ padding: "18px 20px" }}>
+      <div style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14 }}>
           <ChevronLeft size={18} /> Kembali
         </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid #EDEAE3", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Share2 size={17} color="#24272B" />
+          </button>
+          {!isGuest && (
+            <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid #EDEAE3", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              <ShoppingCart size={17} color="#24272B" />
+              {cartCount > 0 && (
+                <span style={{ position: "absolute", top: -4, right: -4, background: "#E8A426", color: "#24272B", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                  {cartCount}
+                </span>
+              )}
+            </button>
+          )}
+        </div>
       </div>
       <div style={{ padding: "0 20px" }}>
         <div style={{ width: "100%", aspectRatio: "1.4", background: product.gambarUrl ? `url(${product.gambarUrl}) center/cover` : meta.bg, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
@@ -1370,26 +1399,27 @@ function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLo
       </div>
 
       <div style={{ background: "#F7F5F1", padding: "20px 20px 24px", marginTop: 8 }}>
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18 }}>
-          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 14px" }}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 18, marginBottom: 12 }}>
+          <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>
             <span style={{ fontWeight: 700, color: "#24272B" }}>Kode Produk:</span> {product.kode}
           </p>
+        </div>
 
+        <div style={{ background: "#fff", borderRadius: 16, padding: 18 }}>
           <h3 className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Deskripsi Produk</h3>
           {product.deskripsi ? (
             <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, margin: 0, whiteSpace: "pre-line" }}>{product.deskripsi}</p>
           ) : (
             <p style={{ fontSize: 13, color: "#B5B2AA", margin: 0, fontStyle: "italic" }}>Belum ada deskripsi untuk produk ini.</p>
           )}
+          {galeri.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              {galeri.map((img) => (
+                <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block", borderRadius: 12, marginBottom: 12 }} />
+              ))}
+            </div>
+          )}
         </div>
-
-        {galeri.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            {galeri.map((img) => (
-              <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block", borderRadius: 16, marginBottom: 12 }} />
-            ))}
-          </div>
-        )}
       </div>
 
       {isGuest ? (
