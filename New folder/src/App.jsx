@@ -1337,12 +1337,19 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
   const [galeri, setGaleri] = useState([]);
   const [editingQty, setEditingQty] = useState(false);
   const [qtyInput, setQtyInput] = useState(String(qty));
+  const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     supabaseFetch(`product_images?select=id,url&product_id=eq.${product.id}&order=urutan.asc`)
       .then(setGaleri)
       .catch(() => setGaleri([]));
   }, [product.id]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 220);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   async function handleShare() {
     const shareData = { title: product.nama, text: `Lihat ${product.nama} di katalog kami`, url: window.location.href };
@@ -1357,6 +1364,31 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
   }
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 90 }}>
+      {scrolled && (
+        <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderBottom: "1px solid #EDEAE3", padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 50 }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
+            <ChevronLeft size={20} color="#24272B" />
+          </button>
+          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0, flex: 1, textAlign: "center", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", padding: "0 10px" }}>
+            {product.nama}
+          </p>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={handleShare} style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Share2 size={15} color="#24272B" />
+            </button>
+            {!isGuest && (
+              <button onClick={onGoToCart} style={{ width: 32, height: 32, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                <ShoppingCart size={15} color="#24272B" />
+                {cartCount > 0 && (
+                  <span style={{ position: "absolute", top: -3, right: -3, background: "#E8A426", color: "#24272B", fontSize: 9, fontWeight: 700, borderRadius: 999, minWidth: 14, height: 14, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       <div style={{ position: "relative" }}>
         {product.gambarUrl ? (
           <img src={product.gambarUrl} alt={product.nama} style={{ width: "100%", display: "block" }} />
