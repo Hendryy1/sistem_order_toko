@@ -255,6 +255,39 @@ export default function OrderApp() {
   const cartTotal = cartRincian.totalBayar;
   const belowMinimum = cartTotal > 0 && cartTotal < MIN_CHECKOUT;
 
+  // Tarik ulang riwayat order milik toko ini dari database (supaya tidak hilang
+  // kalau refresh/login ulang di device lain - sebelumnya cuma tersimpan di HP saja).
+  async function loadOrderHistory(clientId) {
+    try {
+      const rows = await supabaseFetch(
+        `orders?select=*,order_items(*,products(nama,kategori,satuan))&client_id=eq.${clientId}&order=created_at.desc`
+      );
+      const mapped = rows.map((o) => ({
+        id: o.no_nota,
+        tanggal: new Date(o.created_at),
+        status:
+          o.status === "menunggu_persetujuan" ? "Menunggu Persetujuan"
+          : o.status === "ditolak" ? "Ditolak"
+          : o.status === "menunggu_pengiriman" ? "Menunggu Pengiriman"
+          : o.status === "dikirim" ? "Dikirim"
+          : "Selesai",
+        sudahBayar: o.status_bayar === "lunas",
+        isDropship: o.is_dropship,
+        pengirim: o.nama_pengirim_dropship,
+        tujuan: { nama: o.tujuan_nama, telp: o.tujuan_telp, alamat: o.tujuan_alamat },
+        total: (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0),
+        items: (o.order_items || []).map((it) => ({
+          kode: it.product_id, nama: it.products?.nama || "Barang", kategori: it.products?.kategori,
+          satuan: it.products?.satuan, qty: it.qty, harga: Number(it.harga_satuan),
+          hargaDropship: it.harga_dropship ? Number(it.harga_dropship) : null,
+        })),
+      }));
+      setOrders(mapped);
+    } catch (e) {
+      console.log("Gagal tarik riwayat order (mode preview?):", e.message);
+    }
+  }
+
   async function handleLogin() {
     const kode = loginInput.trim().toUpperCase();
     if (!kode) { setLoginError("Isi dulu Kode Toko-nya."); return; }
@@ -267,6 +300,7 @@ export default function OrderApp() {
         setIsGuest(false);
         setLoginError("");
         setScreen("catalog");
+        loadOrderHistory(r.id);
         return;
       }
       // Kalau fetch berhasil tapi tidak ketemu -> memang salah kode, bukan masalah koneksi
