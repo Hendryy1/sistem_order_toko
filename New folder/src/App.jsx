@@ -114,6 +114,8 @@ function mapSupabaseProduct(row) {
     isiPerKoli: row.isi_per_koli || 0,
     diskonKoliPct: row.diskon_koli_pct !== undefined && row.diskon_koli_pct !== null ? Number(row.diskon_koli_pct) : 0.05,
     stock: row.stock_akhir !== undefined ? Number(row.stock_akhir) : (row.stock_awal ?? 0),
+    gambarUrl: row.gambar_url || null,
+    deskripsi: row.deskripsi || null,
   };
 }
 
@@ -244,7 +246,7 @@ export default function OrderApp() {
   const [dbError, setDbError] = useState("");
 
   useEffect(() => {
-    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct")
+    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,gambar_url,deskripsi")
       .then(async (rows) => {
         let stockMap = {};
         try {
@@ -1114,8 +1116,8 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
           return (
             <div key={p.kode} style={{ background: "#fff", borderRadius: 16, padding: 14, border: "1px solid #EDEAE3" }}>
               <button onClick={() => onOpenProduct(p)} style={{ background: "none", border: "none", padding: 0, width: "100%", textAlign: "left" }}>
-                <div style={{ width: "100%", aspectRatio: "1", background: meta.bg, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                  <Icon size={30} color={meta.fg} strokeWidth={1.8} />
+                <div style={{ width: "100%", aspectRatio: "1", background: p.gambarUrl ? `url(${p.gambarUrl}) center/cover` : meta.bg, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
+                  {!p.gambarUrl && <Icon size={30} color={meta.fg} strokeWidth={1.8} />}
                 </div>
                 <p style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B", margin: "0 0 3px", lineHeight: 1.3 }}>{p.nama}</p>
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px" }}>{p.satuan} · stok {p.stock}</p>
@@ -1187,11 +1189,14 @@ function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLo
         </button>
       </div>
       <div style={{ padding: "0 20px" }}>
-        <div style={{ width: "100%", aspectRatio: "1.4", background: meta.bg, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-          <Icon size={70} color={meta.fg} strokeWidth={1.5} />
+        <div style={{ width: "100%", aspectRatio: "1.4", background: product.gambarUrl ? `url(${product.gambarUrl}) center/cover` : meta.bg, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
+          {!product.gambarUrl && <Icon size={70} color={meta.fg} strokeWidth={1.5} />}
         </div>
         <p style={{ fontSize: 12, fontWeight: 600, color: meta.fg, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" }}>{product.kategori}</p>
         <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>{product.nama}</h1>
+        {product.deskripsi && (
+          <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.5, margin: "0 0 16px" }}>{product.deskripsi}</p>
+        )}
 
         {isGuest ? (
           <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#9CA0A6", marginBottom: 16 }}>
