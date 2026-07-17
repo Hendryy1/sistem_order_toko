@@ -322,7 +322,7 @@ export default function OrderApp() {
   async function loadOrderHistory(clientId, token) {
     try {
       const rows = await supabaseFetch(
-        `orders?select=*,order_items(*,products(kode,nama,kategori,satuan))&client_id=eq.${clientId}&order=created_at.desc`,
+        `orders?select=*,order_items(*,products(kode,nama,kategori,satuan,gambar_url))&client_id=eq.${clientId}&order=created_at.desc`,
         {}, token
       );
       const mapped = rows.map((o) => ({
@@ -348,6 +348,7 @@ export default function OrderApp() {
           kode: it.products?.kode || it.product_id, nama: it.products?.nama || "Barang", kategori: it.products?.kategori,
           satuan: it.products?.satuan, qty: it.qty, harga: Number(it.harga_satuan),
           hargaDropship: it.harga_dropship ? Number(it.harga_dropship) : null,
+          gambarUrl: it.products?.gambar_url || null,
         })),
       }));
       setOrders(mapped);
@@ -1578,8 +1579,8 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
               >
                 {checked && <Check size={14} color="#24272B" strokeWidth={3} />}
               </button>
-              <div style={{ width: 54, height: 54, borderRadius: 12, background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon size={24} color={meta.fg} />
+              <div style={{ width: 54, height: 54, borderRadius: 12, background: p.gambarUrl ? `url(${p.gambarUrl}) center/cover` : meta.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {!p.gambarUrl && <Icon size={24} color={meta.fg} />}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 600, color: "#24272B", margin: "0 0 4px" }}>{p.nama}</p>
@@ -2020,8 +2021,11 @@ function ReorderConfirmScreen({ order, onConfirm, onBack }) {
 
       <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang yang akan dipesan lagi</p>
       {order.items.map((it, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
-          <div>
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+          <div style={{ width: 48, height: 48, borderRadius: 10, background: it.gambarUrl ? `url(${it.gambarUrl}) center/cover` : "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {!it.gambarUrl && <Package size={20} color="#D8D6D0" />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{it.nama}</p>
             <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: 0 }}>{it.qty} {it.satuan} &times; {rupiah(it.harga)}</p>
           </div>
@@ -2085,8 +2089,11 @@ function OrderDetailModal({ order, onClose }) {
 
         <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang Dipesan</p>
         {order.items.map((it, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid #F0EDE6" : "none" }}>
-            <div>
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid #F0EDE6" : "none" }}>
+            <div style={{ width: 44, height: 44, borderRadius: 9, background: it.gambarUrl ? `url(${it.gambarUrl}) center/cover` : "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {!it.gambarUrl && <Package size={18} color="#D8D6D0" />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{it.nama}</p>
               <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: 0 }}>{it.qty} {it.satuan} &times; {rupiah(it.hargaDropship || it.harga)}</p>
             </div>
