@@ -4,7 +4,7 @@ import {
   Building2, Hammer, PaintBucket, Milestone, LayoutGrid, Wrench,
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
-  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star
+  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload
 } from "lucide-react";
 
 // ============================================================
@@ -308,6 +308,7 @@ export default function OrderApp() {
         {}, token
       );
       const mapped = rows.map((o) => ({
+        dbId: o.id,
         id: o.no_nota,
         tanggal: new Date(o.created_at),
         status:
@@ -317,6 +318,7 @@ export default function OrderApp() {
           : o.status === "dikirim" ? "Dikirim"
           : "Selesai",
         sudahBayar: o.status_bayar === "lunas",
+        buktiTransferUrl: o.bukti_transfer_url || null,
         isDropship: o.is_dropship,
         pengirim: o.nama_pengirim_dropship,
         tujuan: { nama: o.tujuan_nama, telp: o.tujuan_telp, alamat: o.tujuan_alamat },
@@ -542,6 +544,35 @@ export default function OrderApp() {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, sudahBayar: true } : o)));
   }
 
+  // Upload file bukti transfer ke Supabase Storage, lalu simpan link-nya ke order tsb.
+  async function uploadBuktiTransfer(order, file) {
+    if (!order.dbId || !file) return;
+    const ext = file.name.split(".").pop();
+    const filePath = `${order.dbId}-${Date.now()}.${ext}`;
+    try {
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/bukti-transfer/${filePath}`, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${authToken || SUPABASE_ANON_KEY}`,
+          "Content-Type": file.type || "application/octet-stream",
+        },
+        body: file,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/bukti-transfer/${filePath}`;
+      await supabaseFetch(`orders?id=eq.${order.dbId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ bukti_transfer_url: publicUrl }),
+      }, authToken);
+      setOrders((prev) => prev.map((o) => (o.dbId === order.dbId ? { ...o, buktiTransferUrl: publicUrl } : o)));
+      return true;
+    } catch (e) {
+      alert("Gagal upload bukti transfer: " + e.message);
+      return false;
+    }
+  }
+
   const randBetween = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
   // Klaim poin harian. Hari: 0=Minggu, 1=Senin, ..., 6=Sabtu.
@@ -693,6 +724,7 @@ export default function OrderApp() {
           toko={toko} orders={orders}
           onReorder={reorder}
           onAdvance={advanceOrderStatus} onMarkPaid={markOrderPaid}
+          onUploadBukti={uploadBuktiTransfer}
           pointsBalance={pointsBalance}
           onOpenRekening={() => setScreen("akun-rekening")}
           onOpenCS={() => setScreen("akun-cs")}
@@ -1570,7 +1602,7 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onLogout }) {
+function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploadBukti, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onLogout }) {
   const [filter, setFilter] = useState(null); // null | "pesanan" | "kirim" | "konfirmasi" | "bayar"
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -1642,9 +1674,20 @@ function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, pointsB
                   </button>
                 )}
                 {!o.sudahBayar && filter === "bayar" && (
-                  <button onClick={() => onMarkPaid(o.id)} style={{ width: "100%", marginTop: 4, padding: "9px", borderRadius: 9, border: "1.5px solid #E4E1DA", background: "#fff", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
-                    (Demo) Tandai Sudah Bayar
-                  </button>
+                  toko?.jenisBayar === "Transfer" ? (
+                    o.buktiTransferUrl ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#8A6A1A", fontWeight: 600 }}>
+                        <Check size={13} /> Bukti transfer terkirim, menunggu konfirmasi Owner
+                      </div>
+                    ) : (
+                      <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px", borderRadius: 9, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                        <Upload size={14} /> Upload Bukti Transfer
+                        <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) onUploadBukti(o, e.target.files[0]); }} />
+                      </label>
+                    )
+                  ) : (
+                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Menunggu konfirmasi pembayaran dari Owner.</p>
+                  )
                 )}
                 {o.status === "Menunggu Persetujuan" && (
                   <p style={{ fontSize: 11, color: "#B8860B", margin: "4px 0 0" }}>Menunggu Owner menyetujui pesanan ini.</p>
