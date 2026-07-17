@@ -607,6 +607,20 @@ export default function OrderApp() {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, sudahBayar: true } : o)));
   }
 
+  // Toko membatalkan sendiri order yang belum dibayar
+  async function cancelOrder(order) {
+    if (!order.dbId) return;
+    try {
+      await supabaseFetch(`orders?id=eq.${order.dbId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "ditolak", alasan_dibatalkan: "Dibatalkan oleh toko" }),
+      }, authToken);
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: "Dibatalkan", alasanDibatalkan: "Dibatalkan oleh toko" } : o)));
+    } catch (e) {
+      alert("Gagal membatalkan pesanan: " + e.message);
+    }
+  }
+
   // Upload file bukti transfer ke Supabase Storage, lalu simpan link-nya ke order tsb.
   async function uploadBuktiTransfer(order, file) {
     if (!order.dbId || !file) return;
@@ -817,6 +831,7 @@ export default function OrderApp() {
           onReorder={reorder}
           onAdvance={advanceOrderStatus} onMarkPaid={markOrderPaid}
           onUploadBukti={uploadBuktiTransfer}
+          onCancelOrder={cancelOrder}
           pointsBalance={pointsBalance}
           onOpenRekening={() => setScreen("akun-rekening")}
           onOpenCS={() => setScreen("akun-cs")}
@@ -1705,9 +1720,11 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploadBukti, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onLogout }) {
+function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploadBukti, onCancelOrder, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onLogout }) {
   const [filter, setFilter] = useState(null); // null | "pesanan" | "kirim" | "konfirmasi" | "bayar"
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [confirmCancelId, setConfirmCancelId] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
 
   const counts = {
     pesanan: orders.filter((o) => o.status === "Menunggu Persetujuan").length,
@@ -1790,6 +1807,32 @@ function AccountScreen({ toko, orders, onReorder, onAdvance, onMarkPaid, onUploa
                     )
                   ) : (
                     <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Menunggu konfirmasi pembayaran dari Owner.</p>
+                  )
+                )}
+                {!o.sudahBayar && filter === "bayar" && o.status !== "Dibatalkan" && (
+                  confirmCancelId === o.id ? (
+                    <div style={{ marginTop: 8, background: "#FBEAEA", borderRadius: 9, padding: 10 }}>
+                      <p style={{ fontSize: 11.5, color: "#C0392B", fontWeight: 600, margin: "0 0 8px" }}>Yakin batalkan pesanan ini?</p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          disabled={cancelling}
+                          onClick={async () => { setCancelling(true); await onCancelOrder(o); setCancelling(false); setConfirmCancelId(null); }}
+                          style={{ flex: 1, padding: "8px", borderRadius: 8, border: "none", background: "#C0392B", color: "#fff", fontSize: 12, fontWeight: 700 }}
+                        >
+                          {cancelling ? "Membatalkan..." : "Ya, Batalkan"}
+                        </button>
+                        <button onClick={() => setConfirmCancelId(null)} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontSize: 12, fontWeight: 600 }}>
+                          Tidak
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmCancelId(o.id)}
+                      style={{ width: "100%", marginTop: 8, padding: "9px", borderRadius: 9, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 12, fontWeight: 700 }}
+                    >
+                      Batalkan Pesanan
+                    </button>
                   )
                 )}
                 {o.status === "Menunggu Persetujuan" && (
