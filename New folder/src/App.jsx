@@ -480,6 +480,16 @@ export default function OrderApp() {
     });
   }
 
+  function setCartQty(kode, qty) {
+    setCart((prev) => {
+      const next = { ...prev };
+      const clean = Math.max(0, Math.floor(Number(qty)) || 0);
+      if (clean === 0) delete next[kode];
+      else next[kode] = clean;
+      return next;
+    });
+  }
+
   // Simpan alamat yang baru diisi ke daftar alamat tersimpan (kalau belum ada persis sama)
   function saveCurrentAddress() {
     const exists = savedAddresses.some((a) => a.telp === altAddress.telp && a.alamat === altAddress.alamat);
@@ -812,6 +822,7 @@ export default function OrderApp() {
           isGuest={isGuest}
           cartCount={Object.values(cart).reduce((a, b) => a + b, 0)}
           onChangeQty={(delta) => addToCart(selectedProduct.kode, delta)}
+          onSetQty={(qty) => setCartQty(selectedProduct.kode, qty)}
           onBack={() => setScreen("catalog")}
           onGoToCart={() => setScreen("cart")}
           onRequireLogin={() => setScreen("login")}
@@ -830,7 +841,7 @@ export default function OrderApp() {
           dropshipSender={dropshipSender} setDropshipSender={setDropshipSender} savedSenderNames={savedSenderNames}
           cart={cart} products={products} rincian={cartRincian} belowMinimum={belowMinimum}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
-          addToCart={addToCart}
+          addToCart={addToCart} setCartQty={setCartQty}
           onBack={() => setScreen("catalog")}
           onCheckout={submitOrder}
         />
@@ -1320,10 +1331,12 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
 // ============================================================
 // DETAIL PRODUK
 // ============================================================
-function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onBack, onGoToCart, onRequireLogin }) {
+function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty, onBack, onGoToCart, onRequireLogin }) {
   const meta = CATEGORY_META[product.kategori] || DEFAULT_CATEGORY_META;
   const Icon = meta.icon;
   const [galeri, setGaleri] = useState([]);
+  const [editingQty, setEditingQty] = useState(false);
+  const [qtyInput, setQtyInput] = useState(String(qty));
 
   useEffect(() => {
     supabaseFetch(`product_images?select=id,url&product_id=eq.${product.id}&order=urutan.asc`)
@@ -1353,15 +1366,15 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onBack, 
           </div>
         )}
         <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+          <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
             <ChevronLeft size={19} color="#24272B" />
           </button>
           <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+            <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
               <Share2 size={17} color="#24272B" />
             </button>
             {!isGuest && (
-              <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+              <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.5)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
                 <ShoppingCart size={17} color="#24272B" />
                 {cartCount > 0 && (
                   <span style={{ position: "absolute", top: -4, right: -4, background: "#E8A426", color: "#24272B", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
@@ -1438,7 +1451,17 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onBack, 
         <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "16px 20px", display: "flex", gap: 12, alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, background: "#F7F5F1", borderRadius: 12, padding: "10px 16px" }}>
             <button onClick={() => onChangeQty(-1)} style={{ background: "none", border: "none", color: "#24272B" }}><Minus size={18} /></button>
-            <span style={{ fontWeight: 700, fontSize: 16, minWidth: 20, textAlign: "center" }}>{qty}</span>
+            {editingQty ? (
+              <input
+                type="number" autoFocus value={qtyInput}
+                onChange={(e) => setQtyInput(e.target.value)}
+                onBlur={() => { onSetQty(qtyInput); setEditingQty(false); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { onSetQty(qtyInput); setEditingQty(false); } }}
+                style={{ width: 40, fontWeight: 700, fontSize: 16, textAlign: "center", border: "none", background: "transparent", outline: "none", padding: 0 }}
+              />
+            ) : (
+              <span onClick={() => { setQtyInput(String(qty)); setEditingQty(true); }} style={{ fontWeight: 700, fontSize: 16, minWidth: 20, textAlign: "center", cursor: "pointer" }}>{qty}</span>
+            )}
             <button onClick={() => onChangeQty(1)} style={{ background: "none", border: "none", color: "#24272B" }}><Plus size={18} /></button>
           </div>
           <button onClick={onBack} style={{ flex: 1, padding: "14px", borderRadius: 12, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 15 }}>
@@ -1453,7 +1476,9 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onBack, 
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, checkedItems, setCheckedItems, addToCart, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
+  const [editingQtyKode, setEditingQtyKode] = useState(null);
+  const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
   const items = Object.entries(cart).map(([kode, qty]) => ({ ...products.find((p) => p.kode === kode), qty }));
 
@@ -1688,7 +1713,17 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                 <button aria-label={`Hapus ${p.nama}`} onClick={() => addToCart(p.kode, -p.qty)} style={{ background: "none", border: "none", color: "#C0392B" }}><X size={16} /></button>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7F5F1", borderRadius: 8, padding: "4px 8px" }}>
                   <button aria-label={`Kurangi ${p.nama}`} onClick={() => addToCart(p.kode, -1)} style={{ background: "none", border: "none", color: "#24272B" }}><Minus size={13} /></button>
-                  <span style={{ fontWeight: 700, fontSize: 13 }}>{p.qty}</span>
+                  {editingQtyKode === p.kode ? (
+                    <input
+                      type="number" autoFocus value={qtyInput}
+                      onChange={(e) => setQtyInput(e.target.value)}
+                      onBlur={() => { setCartQty(p.kode, qtyInput); setEditingQtyKode(null); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { setCartQty(p.kode, qtyInput); setEditingQtyKode(null); } }}
+                      style={{ width: 32, fontWeight: 700, fontSize: 13, textAlign: "center", border: "none", background: "transparent", outline: "none", padding: 0 }}
+                    />
+                  ) : (
+                    <span onClick={() => { setQtyInput(String(p.qty)); setEditingQtyKode(p.kode); }} style={{ fontWeight: 700, fontSize: 13, cursor: "pointer" }}>{p.qty}</span>
+                  )}
                   <button aria-label={`Tambah ${p.nama}`} onClick={() => addToCart(p.kode, 1)} style={{ background: "none", border: "none", color: "#24272B" }}><Plus size={13} /></button>
                 </div>
               </div>
