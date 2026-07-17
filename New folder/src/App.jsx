@@ -579,6 +579,7 @@ export default function OrderApp() {
         method: "POST",
         body: JSON.stringify({
           id: auth.user.id, // samakan dengan akun Supabase Auth-nya
+          email: regForm.email.trim(),
           nama: regForm.nama,
           alamat: `${regForm.alamat}, ${regForm.kelurahan}, ${regForm.kecamatan}, ${regForm.kota}, ${regForm.provinsi} ${regForm.kodePos}`,
           telp: regForm.telp,
