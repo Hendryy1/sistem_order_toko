@@ -44,12 +44,12 @@ const MIN_CHECKOUT = 500000;
 const SUPABASE_URL = "https://bzlktpveupyxtcuhrmgg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bGt0cHZldXB5eHRjdWhybWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMTIwNjQsImV4cCI6MjA5OTc4ODA2NH0.DKvaQ-_Gdi5nj5DFkhu-8IttPCztYuKCoMoXxcIUdEI";
 
-async function supabaseFetch(path, options = {}) {
+async function supabaseFetch(path, options = {}, userToken = null) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Authorization: `Bearer ${userToken || SUPABASE_ANON_KEY}`,
       "Content-Type": "application/json",
       Prefer: options.prefer || "return=representation",
       ...(options.headers || {}),
@@ -57,6 +57,45 @@ async function supabaseFetch(path, options = {}) {
   });
   if (!res.ok) throw new Error(`Supabase error ${res.status}: ${await res.text()}`);
   return res.json();
+}
+
+async function supabaseSignUp(email, password) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal daftar akun.");
+  return data; // { access_token, user, ... }
+}
+
+async function supabaseSignIn(email, password) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.msg || data.error_description || "Email atau password salah.");
+  return data; // { access_token, user, ... }
+}
+
+// Simpan/ambil sesi login supaya tetap login walau halaman di-refresh.
+// (Ini website sungguhan yang sudah di-deploy, jadi localStorage aman dipakai -
+// beda dengan preview di dalam chat Claude yang tidak mendukung ini.)
+const SESSION_KEY = "toko_session_v1";
+function saveSession(session) {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch (e) {}
+}
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+function clearSession() {
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
 }
 
 // Ubah baris tabel Supabase (snake_case) jadi bentuk yang dipakai komponen (camelCase)
@@ -220,15 +259,20 @@ export default function OrderApp() {
   const [dailyClaims, setDailyClaims] = useState({}); // { 0: poin, 1: poin, ... } key = hari (0=Minggu...6=Sabtu), minggu berjalan (sesi ini saja)
   const [spinTickets, setSpinTickets] = useState(0);
   const [toko, setToko] = useState(null);
-  const [loginInput, setLoginInput] = useState("");
+  const [authToken, setAuthToken] = useState(null);
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
+  const [restoringSession, setRestoringSession] = useState(true);
   const [cart, setCart] = useState({}); // { kodeBarang: qty }
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [orders, setOrders] = useState([]);
-  const [regForm, setRegForm] = useState({ nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
+  const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
   const [regSubmitted, setRegSubmitted] = useState(false);
+  const [regError, setRegError] = useState("");
+  const [regLoading, setRegLoading] = useState(false);
   const [useAltAddress, setUseAltAddress] = useState(false);
   const [editingAlt, setEditingAlt] = useState(false);
   const [altAddress, setAltAddress] = useState({ nama: "", telp: "", alamat: "" });
@@ -257,10 +301,11 @@ export default function OrderApp() {
 
   // Tarik ulang riwayat order milik toko ini dari database (supaya tidak hilang
   // kalau refresh/login ulang di device lain - sebelumnya cuma tersimpan di HP saja).
-  async function loadOrderHistory(clientId) {
+  async function loadOrderHistory(clientId, token) {
     try {
       const rows = await supabaseFetch(
-        `orders?select=*,order_items(*,products(nama,kategori,satuan))&client_id=eq.${clientId}&order=created_at.desc`
+        `orders?select=*,order_items(*,products(nama,kategori,satuan))&client_id=eq.${clientId}&order=created_at.desc`,
+        {}, token
       );
       const mapped = rows.map((o) => ({
         id: o.no_nota,
@@ -288,35 +333,47 @@ export default function OrderApp() {
     }
   }
 
-  async function handleLogin() {
-    const kode = loginInput.trim().toUpperCase();
-    if (!kode) { setLoginError("Isi dulu Kode Toko-nya."); return; }
-
-    try {
-      const rows = await supabaseFetch(`v_client_login?select=*&kode=eq.${kode}&status=eq.aktif`);
-      if (rows.length > 0) {
-        const r = rows[0];
-        setToko({ id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota, jenisBayar: r.jenis_pembayaran });
-        setIsGuest(false);
-        setLoginError("");
-        setScreen("catalog");
-        loadOrderHistory(r.id);
-        return;
-      }
-      // Kalau fetch berhasil tapi tidak ketemu -> memang salah kode, bukan masalah koneksi
-      setLoginError("Kode Toko tidak ditemukan atau belum disetujui. Cek lagi, atau daftar toko baru.");
-    } catch (e) {
-      // Database tidak terjangkau (misal mode preview) -> fallback ke data contoh
-      const found = SAMPLE_TOKO.find((t) => t.kode.toUpperCase() === kode);
-      if (!found) {
-        setLoginError("Kode Toko tidak ditemukan. Cek lagi, atau daftar toko baru.");
-        return;
-      }
-      setToko(found);
-      setIsGuest(false);
-      setLoginError("");
-      setScreen("catalog");
+  // Ambil data toko (dari tabel clients langsung, pakai token sendiri, bukan view publik -
+  // toko yang login boleh baca profil lengkap miliknya sendiri) lalu simpan sesi login.
+  async function loadTokoAndEnterApp(userId, token, email) {
+    const rows = await supabaseFetch(`clients?select=*&id=eq.${userId}`, {}, token);
+    if (!rows || rows.length === 0) {
+      throw new Error("Akun ditemukan tapi profil toko belum ada. Coba daftar ulang.");
     }
+    const r = rows[0];
+    if (r.status === "pending") {
+      setLoginError("Toko Anda masih menunggu persetujuan Owner. Coba login lagi nanti.");
+      return false;
+    }
+    if (r.status === "ditolak") {
+      setLoginError("Pendaftaran toko ini ditolak Owner. Hubungi Service Centre untuk info lebih lanjut.");
+      return false;
+    }
+    const tokoData = { id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota, jenisBayar: r.jenis_pembayaran, email };
+    setToko(tokoData);
+    setAuthToken(token);
+    setIsGuest(false);
+    setScreen("catalog");
+    saveSession({ token, userId, email });
+    loadOrderHistory(r.id, token);
+    return true;
+  }
+
+  async function handleLogin() {
+    setLoginError("");
+    if (!loginForm.email.trim() || !loginForm.password) {
+      setLoginError("Isi dulu email dan password-nya.");
+      return;
+    }
+    setLoggingIn(true);
+    try {
+      const auth = await supabaseSignIn(loginForm.email.trim(), loginForm.password);
+      const ok = await loadTokoAndEnterApp(auth.user.id, auth.access_token, auth.user.email);
+      if (!ok) clearSession();
+    } catch (e) {
+      setLoginError(e.message);
+    }
+    setLoggingIn(false);
   }
 
   function handleGuestBrowse() {
@@ -327,9 +384,11 @@ export default function OrderApp() {
   }
 
   function handleLogout() {
+    clearSession();
     setToko(null);
+    setAuthToken(null);
     setIsGuest(false);
-    setLoginInput("");
+    setLoginForm({ email: "", password: "" });
     setLoginError("");
     setCart({});
     setCheckedItems({});
@@ -341,6 +400,17 @@ export default function OrderApp() {
     setDropshipSender("");
     setScreen("login");
   }
+
+  // Begitu app dibuka, cek dulu apakah ada sesi login tersimpan (supaya tidak
+  // disuruh login ulang tiap refresh halaman).
+  useEffect(() => {
+    const session = loadSession();
+    if (!session) { setRestoringSession(false); return; }
+    loadTokoAndEnterApp(session.userId, session.token, session.email)
+      .catch(() => clearSession())
+      .finally(() => setRestoringSession(false));
+  }, []);
+
 
   function addToCart(kode, delta) {
     setCart((prev) => {
@@ -418,7 +488,7 @@ export default function OrderApp() {
               tujuan_telp: tujuan.telp,
               tujuan_alamat: tujuan.alamat,
             }),
-          });
+          }, authToken);
           await supabaseFetch("order_items", {
             method: "POST",
             body: JSON.stringify(
@@ -432,7 +502,7 @@ export default function OrderApp() {
                 harga_dropship: it.hargaDropship,
               }))
             ),
-          });
+          }, authToken);
         } catch (e) {
           console.log("Gagal simpan order ke database asli (mode preview?):", e.message);
         }
@@ -501,23 +571,28 @@ export default function OrderApp() {
   }
 
   async function submitRegistration() {
+    setRegError("");
+    setRegLoading(true);
     try {
+      const auth = await supabaseSignUp(regForm.email.trim(), regForm.password);
       await supabaseFetch("clients", {
         method: "POST",
         body: JSON.stringify({
-          kode: "PENDING-" + Date.now().toString().slice(-6), // sementara, Owner ganti jadi kode resmi saat approve
+          id: auth.user.id, // samakan dengan akun Supabase Auth-nya
           nama: regForm.nama,
           alamat: `${regForm.alamat}, ${regForm.kelurahan}, ${regForm.kecamatan}, ${regForm.kota}, ${regForm.provinsi} ${regForm.kodePos}`,
           telp: regForm.telp,
           jenis_pembayaran: "Transfer",
           kota: regForm.kota,
           status: "pending",
+          // kode TIDAK diisi -> otomatis dibuatkan nomor berikutnya oleh database
         }),
-      });
+      }, auth.access_token);
+      setRegSubmitted(true);
     } catch (e) {
-      console.log("Gagal kirim pendaftaran ke database asli (mode preview?):", e.message);
+      setRegError(e.message || "Gagal daftar. Coba lagi.");
     }
-    setRegSubmitted(true);
+    setRegLoading(false);
   }
 
   const filteredProducts = products.filter((p) => {
@@ -525,6 +600,14 @@ export default function OrderApp() {
     const matchSearch = p.nama.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCategory && matchSearch;
   });
+
+  if (restoringSession) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#24272B" }}>
+        <p style={{ color: "#9CA0A6", fontSize: 13 }}>Memuat...</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif", background: "#F7F5F1", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative", paddingBottom: screen === "catalog" || screen === "cart" || screen === "history" ? 72 : 0 }}>
@@ -539,8 +622,8 @@ export default function OrderApp() {
 
       {screen === "login" && (
         <LoginScreen
-          loginInput={loginInput} setLoginInput={setLoginInput}
-          loginError={loginError} onLogin={handleLogin}
+          form={loginForm} setForm={setLoginForm}
+          loginError={loginError} onLogin={handleLogin} loading={loggingIn}
           onGoRegister={() => setScreen("register")}
           onGuestBrowse={handleGuestBrowse}
         />
@@ -550,7 +633,8 @@ export default function OrderApp() {
         <RegisterScreen
           regForm={regForm} setRegForm={setRegForm}
           submitted={regSubmitted} onSubmit={submitRegistration}
-          onBack={() => { setScreen("login"); setRegSubmitted(false); setRegForm({ nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
+          error={regError} loading={regLoading}
+          onBack={() => { setScreen("login"); setRegSubmitted(false); setRegError(""); setRegForm({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
         />
       )}
 
@@ -651,7 +735,7 @@ export default function OrderApp() {
 // ============================================================
 // LOGIN
 // ============================================================
-function LoginScreen({ loginInput, setLoginInput, loginError, onLogin, onGoRegister, onGuestBrowse }) {
+function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister, onGuestBrowse }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 28px", background: "#24272B" }}>
       <div style={{ marginBottom: 40 }}>
@@ -662,19 +746,30 @@ function LoginScreen({ loginInput, setLoginInput, loginError, onLogin, onGoRegis
           Pesan stok,<br />bukan basa-basi.
         </h1>
         <p style={{ color: "#9CA0A6", fontSize: 14, marginTop: 10, lineHeight: 1.5 }}>
-          Masuk pakai Kode Toko untuk lihat katalog dan kirim orderan.
+          Masuk pakai email untuk lihat katalog dan kirim orderan.
         </p>
       </div>
 
       <label style={{ color: "#9CA0A6", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "block" }}>
-        Kode Toko
+        Email
       </label>
       <input
-        value={loginInput}
-        onChange={(e) => setLoginInput(e.target.value)}
+        type="email"
+        value={form.email}
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+        placeholder="toko@contoh.com"
+        style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: "none", fontSize: 15, fontWeight: 500, marginBottom: 12, outline: "none", background: "#F7F5F1", color: "#24272B" }}
+      />
+      <label style={{ color: "#9CA0A6", fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "block" }}>
+        Password
+      </label>
+      <input
+        type="password"
+        value={form.password}
+        onChange={(e) => setForm({ ...form, password: e.target.value })}
         onKeyDown={(e) => e.key === "Enter" && onLogin()}
-        placeholder="Contoh: C001"
-        style={{ width: "100%", padding: "16px 18px", borderRadius: 12, border: "none", fontSize: 18, fontWeight: 600, marginBottom: loginError ? 10 : 20, outline: "none", background: "#F7F5F1", color: "#24272B" }}
+        placeholder="••••••••"
+        style={{ width: "100%", padding: "14px 16px", borderRadius: 12, border: "none", fontSize: 15, fontWeight: 500, marginBottom: loginError ? 10 : 20, outline: "none", background: "#F7F5F1", color: "#24272B" }}
       />
       {loginError && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#E8A426", fontSize: 13, marginBottom: 20 }}>
@@ -683,10 +778,10 @@ function LoginScreen({ loginInput, setLoginInput, loginError, onLogin, onGoRegis
       )}
 
       <button
-        onClick={onLogin}
+        onClick={onLogin} disabled={loading}
         style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none", background: "#E8A426", color: "#24272B", fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
       >
-        Masuk <ArrowRight size={18} />
+        {loading ? "Memeriksa..." : <>Masuk <ArrowRight size={18} /></>}
       </button>
 
       <div style={{ textAlign: "center", marginTop: 24 }}>
@@ -707,12 +802,6 @@ function LoginScreen({ loginInput, setLoginInput, loginError, onLogin, onGoRegis
       >
         Lihat Katalog Dulu (Tanpa Login)
       </button>
-
-      <div style={{ marginTop: 24, padding: "14px 16px", background: "#2E3237", borderRadius: 10 }}>
-        <p style={{ color: "#6B6F75", fontSize: 11, margin: 0, lineHeight: 1.5 }}>
-          DEMO — Coba kode: C001, C002, C003, C004, atau C005
-        </p>
-      </div>
     </div>
   );
 }
@@ -720,7 +809,7 @@ function LoginScreen({ loginInput, setLoginInput, loginError, onLogin, onGoRegis
 // ============================================================
 // REGISTRASI TOKO BARU
 // ============================================================
-function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack }) {
+function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, error, loading }) {
   const [provinces, setProvinces] = useState([]);
   const [regencies, setRegencies] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -772,7 +861,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack }) {
         </div>
         <h2 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 10px" }}>Menunggu persetujuan</h2>
         <p style={{ color: "#6B6F75", fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>
-          Pendaftaran toko <strong>{regForm.nama}</strong> sudah dikirim ke Owner. Anda akan dihubungi begitu disetujui dan bisa login pakai Kode Toko yang diberikan.
+          Pendaftaran toko <strong>{regForm.nama}</strong> sudah dikirim ke Owner. Anda akan dihubungi begitu disetujui dan bisa login pakai email yang tadi didaftarkan.
         </p>
         <button onClick={onBack} style={{ marginTop: 28, padding: "14px 28px", borderRadius: 12, border: "none", background: "#24272B", color: "#fff", fontWeight: 600, fontSize: 14 }}>
           Kembali ke Login
@@ -782,7 +871,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack }) {
   }
 
   const set = (k) => (e) => setRegForm({ ...regForm, [k]: e.target.value });
-  const canSubmit = regForm.nama && regForm.alamat && regForm.telp && regForm.provinsi && regForm.kota && regForm.kecamatan && regForm.kelurahan;
+  const canSubmit = regForm.email && regForm.password && regForm.password.length >= 6 && regForm.nama && regForm.alamat && regForm.telp && regForm.provinsi && regForm.kota && regForm.kecamatan && regForm.kelurahan;
 
   function selectProvinsi(name) {
     const found = provinces.find((p) => p.name === name);
@@ -813,7 +902,14 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack }) {
           <AlertCircle size={15} style={{ flexShrink: 0 }} /> {wilayahError}
         </div>
       )}
+      {error && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#FBEAEA", color: "#C0392B", padding: "10px 12px", borderRadius: 10, fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
+          <AlertCircle size={15} style={{ flexShrink: 0 }} /> {error}
+        </div>
+      )}
 
+      <Field label="Email"><input type="email" value={regForm.email} onChange={set("email")} placeholder="toko@contoh.com" style={inputStyle} /></Field>
+      <Field label="Password"><input type="password" value={regForm.password} onChange={set("password")} placeholder="Minimal 6 karakter" style={inputStyle} /></Field>
       <Field label="Nama Toko"><input value={regForm.nama} onChange={set("nama")} placeholder="Toko Jaya Sentosa" style={inputStyle} /></Field>
       <Field label="Alamat (Jalan, No. Rumah)"><textarea value={regForm.alamat} onChange={set("alamat")} placeholder="Jl. Contoh No. 1" rows={2} style={{ ...inputStyle, resize: "none" }} /></Field>
       <Field label="No. Telepon"><input value={regForm.telp} onChange={set("telp")} placeholder="0812xxxxxxx" style={inputStyle} /></Field>
@@ -845,11 +941,11 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack }) {
       </p>
 
       <button
-        disabled={!canSubmit}
+        disabled={!canSubmit || loading}
         onClick={onSubmit}
         style={{ width: "100%", marginTop: 12, padding: "16px", borderRadius: 12, border: "none", background: canSubmit ? "#24272B" : "#D8D6D0", color: canSubmit ? "#fff" : "#9CA0A6", fontSize: 15, fontWeight: 700 }}
       >
-        Kirim Pendaftaran
+        {loading ? "Mengirim..." : "Kirim Pendaftaran"}
       </button>
     </div>
   );
