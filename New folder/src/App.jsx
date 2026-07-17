@@ -320,10 +320,13 @@ export default function OrderApp() {
         tanggal: new Date(o.created_at),
         status:
           o.status === "menunggu_persetujuan" ? "Menunggu Persetujuan"
-          : o.status === "ditolak" ? "Ditolak"
+          : o.status === "ditolak" ? "Dibatalkan"
+          : o.status === "menunggu_pembayaran" ? "Menunggu Pembayaran"
           : o.status === "menunggu_pengiriman" ? "Menunggu Pengiriman"
-          : o.status === "dikirim" ? "Dikirim"
-          : "Selesai",
+          : o.status === "proses_dikirim" || o.status === "dikirim" ? "Dikirim"
+          : o.status === "selesai" ? "Selesai"
+          : o.status,
+        alasanDibatalkan: o.alasan_dibatalkan || null,
         sudahBayar: o.status_bayar === "lunas",
         buktiTransferUrl: o.bukti_transfer_url || null,
         isDropship: o.is_dropship,
@@ -1589,12 +1592,17 @@ function HistoryScreen({ orders, onBack }) {
           <p style={{ marginTop: 12, fontSize: 14 }}>Belum ada order yang dikirim.</p>
         </div>
       ) : (
-        orders.map((o) => (
+        orders.map((o) => {
+          const isCancelled = o.status === "Dibatalkan";
+          return (
           <div key={o.id} style={{ background: "#fff", borderRadius: 14, padding: 16, marginBottom: 12, border: "1px solid #EDEAE3" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
               <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>{o.id}</span>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "#B8860B", background: "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>{o.status}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: isCancelled ? "#C0392B" : "#B8860B", background: isCancelled ? "#FBEAEA" : "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>{o.status}</span>
             </div>
+            {isCancelled && o.alasanDibatalkan && (
+              <p style={{ fontSize: 11.5, color: "#C0392B", margin: "0 0 8px", fontStyle: "italic" }}>{o.alasanDibatalkan}</p>
+            )}
             <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 10px" }}>
               {o.tanggal.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} · {o.items.length} jenis barang
             </p>
@@ -1605,7 +1613,8 @@ function HistoryScreen({ orders, onBack }) {
               <span className="disp" style={{ fontWeight: 700, fontSize: 17, color: "#24272B" }}>{rupiah(o.total)}</span>
             </div>
           </div>
-        ))
+          );
+        })
       )}
     </div>
   );
