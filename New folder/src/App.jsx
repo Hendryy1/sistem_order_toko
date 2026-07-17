@@ -1369,22 +1369,24 @@ function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLo
         )}
       </div>
 
-      <div style={{ padding: "20px 20px 0", borderTop: "8px solid #F7F5F1", marginTop: 8 }}>
-        <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 14px" }}>
-          <span style={{ fontWeight: 700, color: "#24272B" }}>Kode Produk:</span> {product.kode}
-        </p>
+      <div style={{ background: "#F7F5F1", padding: "20px 20px 24px", marginTop: 8 }}>
+        <div style={{ background: "#fff", borderRadius: 16, padding: 18 }}>
+          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 14px" }}>
+            <span style={{ fontWeight: 700, color: "#24272B" }}>Kode Produk:</span> {product.kode}
+          </p>
 
-        <h3 className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Deskripsi Produk</h3>
-        {product.deskripsi ? (
-          <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, margin: "0 0 16px", whiteSpace: "pre-line" }}>{product.deskripsi}</p>
-        ) : (
-          <p style={{ fontSize: 13, color: "#B5B2AA", margin: "0 0 16px", fontStyle: "italic" }}>Belum ada deskripsi untuk produk ini.</p>
-        )}
+          <h3 className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Deskripsi Produk</h3>
+          {product.deskripsi ? (
+            <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, margin: 0, whiteSpace: "pre-line" }}>{product.deskripsi}</p>
+          ) : (
+            <p style={{ fontSize: 13, color: "#B5B2AA", margin: 0, fontStyle: "italic" }}>Belum ada deskripsi untuk produk ini.</p>
+          )}
+        </div>
 
         {galeri.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+          <div style={{ marginTop: 12 }}>
             {galeri.map((img) => (
-              <div key={img.id} style={{ width: "100%", aspectRatio: "1", borderRadius: 12, background: `url(${img.url}) center/cover` }} />
+              <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block", borderRadius: 16, marginBottom: 12 }} />
             ))}
           </div>
         )}
