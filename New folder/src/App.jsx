@@ -1344,30 +1344,36 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onBack, 
   }
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 90 }}>
-      <div style={{ padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14 }}>
-          <ChevronLeft size={18} /> Kembali
-        </button>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid #EDEAE3", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Share2 size={17} color="#24272B" />
+      <div style={{ position: "relative" }}>
+        {product.gambarUrl ? (
+          <img src={product.gambarUrl} alt={product.nama} style={{ width: "100%", display: "block" }} />
+        ) : (
+          <div style={{ width: "100%", aspectRatio: "1.4", background: meta.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Icon size={70} color={meta.fg} strokeWidth={1.5} />
+          </div>
+        )}
+        <div style={{ position: "absolute", top: 16, left: 16, right: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <button onClick={onBack} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+            <ChevronLeft size={19} color="#24272B" />
           </button>
-          {!isGuest && (
-            <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "1px solid #EDEAE3", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-              <ShoppingCart size={17} color="#24272B" />
-              {cartCount > 0 && (
-                <span style={{ position: "absolute", top: -4, right: -4, background: "#E8A426", color: "#24272B", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
-                  {cartCount}
-                </span>
-              )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleShare} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+              <Share2 size={17} color="#24272B" />
             </button>
-          )}
+            {!isGuest && (
+              <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+                <ShoppingCart size={17} color="#24272B" />
+                {cartCount > 0 && (
+                  <span style={{ position: "absolute", top: -4, right: -4, background: "#E8A426", color: "#24272B", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-      <div style={{ padding: "0 20px" }}>
-        <div style={{ width: "100%", aspectRatio: "1.4", background: product.gambarUrl ? `url(${product.gambarUrl}) center/cover` : meta.bg, borderRadius: 20, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-          {!product.gambarUrl && <Icon size={70} color={meta.fg} strokeWidth={1.5} />}
-        </div>
+      <div style={{ padding: "20px 20px 0" }}>
         <p style={{ fontSize: 12, fontWeight: 600, color: meta.fg, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 6px" }}>{product.kategori}</p>
         <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>{product.nama}</h1>
 
