@@ -109,6 +109,7 @@ function mapSupabaseProduct(row) {
     harga: Number(row.harga_jual),
     hargaAsli: row.harga_asli ? Number(row.harga_asli) : null,
     isiPerKoli: row.isi_per_koli || 0,
+    diskonKoliPct: row.diskon_koli_pct !== undefined && row.diskon_koli_pct !== null ? Number(row.diskon_koli_pct) : 0.05,
     stock: row.stock_akhir !== undefined ? Number(row.stock_akhir) : (row.stock_awal ?? 0),
   };
 }
@@ -209,12 +210,13 @@ function hitungRincianItem(product, qty) {
   let hargaSetelahKoli = product.harga;
 
   if (kenaKoli) {
+    const diskonTambahanPct = product.diskonKoliPct !== undefined && product.diskonKoliPct !== null ? product.diskonKoliPct : 0.05;
     if (product.hargaAsli) {
       const diskonStandarPct = (product.hargaAsli - product.harga) / product.hargaAsli;
-      const totalDiskonPct = diskonStandarPct + 0.05; // aditif, misal 20% + 5% = 25%
+      const totalDiskonPct = diskonStandarPct + diskonTambahanPct; // aditif, misal 20% + 5% = 25%
       hargaSetelahKoli = product.hargaAsli * (1 - totalDiskonPct);
     } else {
-      hargaSetelahKoli = product.harga * 0.95;
+      hargaSetelahKoli = product.harga * (1 - diskonTambahanPct);
     }
     totalSetelahDiskon = hargaSetelahKoli * qty;
   }
@@ -239,7 +241,7 @@ export default function OrderApp() {
   const [dbError, setDbError] = useState("");
 
   useEffect(() => {
-    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli")
+    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct")
       .then(async (rows) => {
         let stockMap = {};
         try {
@@ -1126,11 +1128,11 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
                     {p.isiPerKoli > 0 && (
                       qty >= p.isiPerKoli ? (
                         <p style={{ fontSize: 10, color: "#28685D", fontWeight: 700, margin: "4px 0 0", lineHeight: 1.3, display: "flex", alignItems: "center", gap: 3 }}>
-                          <Check size={11} /> Diskon tambahan 5% aktif (1 koli)
+                          <Check size={11} /> Diskon tambahan {Math.round((p.diskonKoliPct ?? 0.05) * 100)}% aktif (1 koli)
                         </p>
                       ) : (
                         <p style={{ fontSize: 10, color: "#B8860B", fontWeight: 600, margin: "4px 0 0", lineHeight: 1.3 }}>
-                          Tambah {p.isiPerKoli - qty} {p.satuan} lagi untuk diskon 5% (1 koli = {p.isiPerKoli} {p.satuan})
+                          Tambah {p.isiPerKoli - qty} {p.satuan} lagi untuk diskon {Math.round((p.diskonKoliPct ?? 0.05) * 100)}% (1 koli = {p.isiPerKoli} {p.satuan})
                         </p>
                       )
                     )}
@@ -1201,11 +1203,11 @@ function ProductScreen({ product, qty, isGuest, onChangeQty, onBack, onRequireLo
             {product.isiPerKoli > 0 && (
               qty >= product.isiPerKoli ? (
                 <div style={{ background: "#D8E9E6", color: "#28685D", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Check size={15} /> Diskon tambahan 5% aktif — sudah 1 koli ({product.isiPerKoli} {product.satuan})
+                  <Check size={15} /> Diskon tambahan {Math.round((product.diskonKoliPct ?? 0.05) * 100)}% aktif — sudah 1 koli ({product.isiPerKoli} {product.satuan})
                 </div>
               ) : (
                 <div style={{ background: "#FBF0D9", color: "#8A6A1A", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
-                  🎉 Tambah {product.isiPerKoli - qty} {product.satuan} lagi untuk diskon tambahan 5% (1 koli = {product.isiPerKoli} {product.satuan})
+                  🎉 Tambah {product.isiPerKoli - qty} {product.satuan} lagi untuk diskon tambahan {Math.round((product.diskonKoliPct ?? 0.05) * 100)}% (1 koli = {product.isiPerKoli} {product.satuan})
                 </div>
               )
             )}
@@ -1448,7 +1450,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                 )}
                 {!r.kenaKoli && p.isiPerKoli > 0 && (
                   <p style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600, margin: "4px 0 0" }}>
-                    Tambah {p.isiPerKoli - p.qty} {p.satuan} lagi (jadi {p.isiPerKoli} = 1 koli) untuk diskon tambahan 5%
+                    Tambah {p.isiPerKoli - p.qty} {p.satuan} lagi (jadi {p.isiPerKoli} = 1 koli) untuk diskon tambahan {Math.round((p.diskonKoliPct ?? 0.05) * 100)}%
                   </p>
                 )}
                 {isDropship && (
