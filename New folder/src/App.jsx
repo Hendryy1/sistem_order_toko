@@ -444,9 +444,8 @@ export default function OrderApp() {
     }
   }
 
-  function submitOrder() {
+  async function submitOrder() {
     if (cartTotal < MIN_CHECKOUT) return; // jaga-jaga, tombol sudah dinonaktifkan di UI
-    const noNota = "NOTA-" + String(1000 + orders.length + 1).slice(1);
     const items = Object.entries(cart)
       .filter(([kode]) => checkedItems[kode] !== false)
       .map(([kode, qty]) => {
@@ -460,6 +459,47 @@ export default function OrderApp() {
       ...it,
       hargaDropship: isDropship && dropshipPrices[it.kode] ? Number(dropshipPrices[it.kode]) : null,
     }));
+
+    // Nomor Nota SELALU diambil dari database (supaya tidak bentrok antar toko) -
+    // kode di bawah cuma dipakai fallback kalau memang toko sedang mode tanpa database.
+    let noNota = "NOTA-" + String(1000 + orders.length + 1).slice(1);
+
+    if (toko.id) {
+      try {
+        const [insertedOrder] = await supabaseFetch("orders", {
+          method: "POST",
+          body: JSON.stringify({
+            client_id: toko.id,
+            channel: "web",
+            status: "menunggu_persetujuan",
+            status_bayar: "belum_lunas",
+            is_dropship: isDropship,
+            nama_pengirim_dropship: isDropship ? dropshipSender : null,
+            tujuan_nama: tujuan.nama,
+            tujuan_telp: tujuan.telp,
+            tujuan_alamat: tujuan.alamat,
+          }),
+        }, authToken);
+        noNota = insertedOrder.no_nota; // pakai nomor resmi dari database
+        await supabaseFetch("order_items", {
+          method: "POST",
+          body: JSON.stringify(
+            itemsWithDropship.map((it) => ({
+              order_id: insertedOrder.id,
+              product_id: it.id,
+              qty: it.qty,
+              harga_satuan: it.harga,
+              kena_diskon_koli: it.qty >= (it.isiPerKoli || Infinity),
+              subtotal_setelah_diskon: hitungRincianItem(it, it.qty).totalSetelahDiskon,
+              harga_dropship: it.hargaDropship,
+            }))
+          ),
+        }, authToken);
+      } catch (e) {
+        console.log("Gagal simpan order ke database asli (mode preview?):", e.message);
+      }
+    }
+
     const order = {
       id: noNota, tanggal: new Date(), items: itemsWithDropship, total: cartTotal,
       status: "Menunggu Persetujuan", tujuan, isDropship,
@@ -468,46 +508,6 @@ export default function OrderApp() {
     };
     setOrders((prev) => [order, ...prev]);
     setSpinTickets((prev) => prev + 1); // dapat 1 tiket Lucky Wheel tiap order
-
-    // Kirim juga ke database asli kalau toko ini benar-benar login dari Supabase
-    // (toko.id ada) - kalau gagal/tidak terjangkau, order tetap tercatat lokal di atas.
-    if (toko.id) {
-      (async () => {
-        try {
-          const [insertedOrder] = await supabaseFetch("orders", {
-            method: "POST",
-            body: JSON.stringify({
-              no_nota: noNota,
-              client_id: toko.id,
-              channel: "web",
-              status: "menunggu_persetujuan",
-              status_bayar: "belum_lunas",
-              is_dropship: isDropship,
-              nama_pengirim_dropship: isDropship ? dropshipSender : null,
-              tujuan_nama: tujuan.nama,
-              tujuan_telp: tujuan.telp,
-              tujuan_alamat: tujuan.alamat,
-            }),
-          }, authToken);
-          await supabaseFetch("order_items", {
-            method: "POST",
-            body: JSON.stringify(
-              itemsWithDropship.map((it) => ({
-                order_id: insertedOrder.id,
-                product_id: it.id,
-                qty: it.qty,
-                harga_satuan: it.harga,
-                kena_diskon_koli: it.qty >= (it.isiPerKoli || Infinity),
-                subtotal_setelah_diskon: hitungRincianItem(it, it.qty).totalSetelahDiskon,
-                harga_dropship: it.hargaDropship,
-              }))
-            ),
-          }, authToken);
-        } catch (e) {
-          console.log("Gagal simpan order ke database asli (mode preview?):", e.message);
-        }
-      })();
-    }
 
     // simpan nama pengirim ke riwayat supaya bisa dipilih lagi lain kali
     if (isDropship && dropshipSender.trim() && !savedSenderNames.includes(dropshipSender.trim())) {
