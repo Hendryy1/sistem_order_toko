@@ -1472,28 +1472,28 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
         )}
       </div>
 
-      <div style={{ background: "#F7F5F1", padding: "20px 20px 24px", marginTop: 8 }}>
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18, marginBottom: 12 }}>
+      <div style={{ background: "#F7F5F1", padding: "20px 0 24px", marginTop: 8 }}>
+        <div style={{ background: "#fff", padding: "18px 20px", marginBottom: 12 }}>
           <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>
             <span style={{ fontWeight: 700, color: "#24272B" }}>Kode Produk:</span> {product.kode}
           </p>
         </div>
 
-        <div style={{ background: "#fff", borderRadius: 16, padding: 18 }}>
+        <div style={{ background: "#fff", padding: "18px 20px" }}>
           <h3 className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Deskripsi Produk</h3>
           {product.deskripsi ? (
             <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, margin: 0, whiteSpace: "pre-line" }}>{product.deskripsi}</p>
           ) : (
             <p style={{ fontSize: 13, color: "#B5B2AA", margin: 0, fontStyle: "italic" }}>Belum ada deskripsi untuk produk ini.</p>
           )}
-          {galeriDeskripsi.length > 0 && (
-            <div style={{ margin: "14px -18px 0" }}>
-              {galeriDeskripsi.map((img) => (
-                <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block", marginBottom: 12 }} />
-              ))}
-            </div>
-          )}
         </div>
+        {galeriDeskripsi.length > 0 && (
+          <div>
+            {galeriDeskripsi.map((img) => (
+              <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block" }} />
+            ))}
+          </div>
+        )}
       </div>
 
       {isGuest ? (
