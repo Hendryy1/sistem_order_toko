@@ -368,7 +368,40 @@ export default function OrderApp() {
     setScreen("catalog");
     saveSession({ token, userId, email });
     loadOrderHistory(r.id, token);
+    loadPointsData(r.id, token);
     return true;
+  }
+
+  // Tarik data poin/checkin/tiket asli dari database (supaya tidak reset ke 0 tiap refresh)
+  async function loadPointsData(clientId, token) {
+    try {
+      const now = new Date();
+      const day = now.getDay();
+      const sunday = new Date(now); sunday.setDate(now.getDate() - day); sunday.setHours(0, 0, 0, 0);
+      const saturday = new Date(sunday); saturday.setDate(sunday.getDate() + 6); saturday.setHours(23, 59, 59, 999);
+      const sundayStr = sunday.toISOString().slice(0, 10);
+      const saturdayStr = saturday.toISOString().slice(0, 10);
+
+      const [checkinRows, ledgerRows, ticketRows] = await Promise.all([
+        supabaseFetch(`daily_checkins?select=tanggal,poin&client_id=eq.${clientId}&tanggal=gte.${sundayStr}&tanggal=lte.${saturdayStr}`, {}, token),
+        supabaseFetch(`points_ledger?select=poin&client_id=eq.${clientId}`, {}, token),
+        supabaseFetch(`spin_tickets?select=id&client_id=eq.${clientId}&dipakai=eq.false`, {}, token),
+      ]);
+
+      const claimsMap = {};
+      checkinRows.forEach((row) => {
+        const d = new Date(row.tanggal + "T00:00:00");
+        claimsMap[d.getDay()] = row.poin;
+      });
+      setDailyClaims(claimsMap);
+
+      const totalPoin = ledgerRows.reduce((sum, r) => sum + Number(r.poin || 0), 0);
+      setPointsBalance(totalPoin);
+
+      setSpinTickets(ticketRows.length);
+    } catch (e) {
+      console.log("Gagal tarik data poin (mode preview?):", e.message);
+    }
   }
 
   async function handleLogin() {
@@ -508,6 +541,16 @@ export default function OrderApp() {
             }))
           ),
         }, authToken);
+        // Dapat 1 tiket Lucky Wheel tiap order - simpan permanen ke database
+        try {
+          await supabaseFetch("spin_tickets", {
+            method: "POST",
+            body: JSON.stringify({ client_id: toko.id, order_id: insertedOrder.id, dipakai: false }),
+          }, authToken);
+          setSpinTickets((prev) => prev + 1);
+        } catch (e) {
+          console.log("Gagal simpan tiket spin:", e.message);
+        }
       } catch (e) {
         console.log("Gagal simpan order ke database asli (mode preview?):", e.message);
       }
@@ -520,7 +563,6 @@ export default function OrderApp() {
       sudahBayar: toko.jenisBayar === "Tunai",
     };
     setOrders((prev) => [order, ...prev]);
-    setSpinTickets((prev) => prev + 1); // dapat 1 tiket Lucky Wheel tiap order
 
     // simpan nama pengirim ke riwayat supaya bisa dipilih lagi lain kali
     if (isDropship && dropshipSender.trim() && !savedSenderNames.includes(dropshipSender.trim())) {
@@ -547,8 +589,19 @@ export default function OrderApp() {
   }
 
   // Simulasi progres status pesanan (dipakai di prototipe ini karena belum tersambung backend)
-  function advanceOrderStatus(orderId, nextStatus) {
+  async function advanceOrderStatus(orderId, nextStatus) {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o)));
+    const order = orders.find((o) => o.id === orderId);
+    if (order?.dbId) {
+      try {
+        await supabaseFetch(`orders?id=eq.${order.dbId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ status: "selesai" }),
+        }, authToken);
+      } catch (e) {
+        console.log("Gagal simpan konfirmasi penerimaan ke database:", e.message);
+      }
+    }
   }
   function markOrderPaid(orderId) {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, sudahBayar: true } : o)));
@@ -589,9 +642,10 @@ export default function OrderApp() {
   // Sabtu = hari spesial: 500-1000 poin kalau Minggu-Jumat (0-5) full diklaim,
   // kalau tidak full (ada yang miss), Sabtu cuma dapat 100-500.
   // Hari biasa (Minggu-Jumat): random 10-50 poin.
-  function claimDailyPoint() {
+  async function claimDailyPoint() {
     const today = new Date().getDay(); // 0-6
     if (dailyClaims[today] !== undefined) return; // sudah diklaim hari ini
+    if (!toko?.id) return;
 
     let earned;
     if (today === 6) {
@@ -600,16 +654,44 @@ export default function OrderApp() {
     } else {
       earned = randBetween(10, 50);
     }
-    setDailyClaims((prev) => ({ ...prev, [today]: earned }));
-    setPointsBalance((prev) => prev + earned);
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    try {
+      await supabaseFetch("daily_checkins", {
+        method: "POST",
+        body: JSON.stringify({ client_id: toko.id, tanggal: todayStr, poin: earned }),
+      }, authToken);
+      await supabaseFetch("points_ledger", {
+        method: "POST",
+        body: JSON.stringify({ client_id: toko.id, poin: earned, sumber: "checkin", keterangan: `Check-in harian` }),
+      }, authToken);
+      setDailyClaims((prev) => ({ ...prev, [today]: earned }));
+      setPointsBalance((prev) => prev + earned);
+    } catch (e) {
+      alert("Gagal simpan poin, coba lagi: " + e.message);
+    }
   }
 
   // Pakai 1 tiket, hasil poin dari roda (150/250/350/500) sudah ditentukan sebelumnya
   // oleh PoinScreen (dipilih acak di sana untuk animasi berhenti di segmen yang tepat).
-  function spinWheel(wonPoints) {
-    if (spinTickets <= 0) return;
-    setSpinTickets((prev) => prev - 1);
-    setPointsBalance((prev) => prev + wonPoints);
+  async function spinWheel(wonPoints) {
+    if (spinTickets <= 0 || !toko?.id) return;
+    try {
+      const tickets = await supabaseFetch(`spin_tickets?select=id&client_id=eq.${toko.id}&dipakai=eq.false&limit=1`, {}, authToken);
+      if (!tickets || tickets.length === 0) return;
+      await supabaseFetch(`spin_tickets?id=eq.${tickets[0].id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ dipakai: true, hasil_poin: wonPoints }),
+      }, authToken);
+      await supabaseFetch("points_ledger", {
+        method: "POST",
+        body: JSON.stringify({ client_id: toko.id, poin: wonPoints, sumber: "lucky_wheel", keterangan: "Lucky Wheel" }),
+      }, authToken);
+      setSpinTickets((prev) => prev - 1);
+      setPointsBalance((prev) => prev + wonPoints);
+    } catch (e) {
+      alert("Gagal simpan hasil spin: " + e.message);
+    }
   }
 
   async function submitRegistration() {
