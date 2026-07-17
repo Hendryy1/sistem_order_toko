@@ -1688,6 +1688,7 @@ function SuccessScreen({ order, onDone, onHistory }) {
 // RIWAYAT
 // ============================================================
 function HistoryScreen({ orders, onBack }) {
+  const [detailOrder, setDetailOrder] = useState(null);
   return (
     <div style={{ minHeight: "100vh", padding: "20px 20px 20px" }}>
       <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 16px" }}>Riwayat Order</h1>
@@ -1714,13 +1715,17 @@ function HistoryScreen({ orders, onBack }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: 13, color: "#6B6F75" }}>{o.items.map((i) => i.nama).join(", ")}</span>
             </div>
-            <div style={{ textAlign: "right", marginTop: 8 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8 }}>
+              <button onClick={() => setDetailOrder(o)} style={{ background: "none", border: "1px solid #E4E1DA", borderRadius: 8, padding: "6px 12px", color: "#24272B", fontSize: 11.5, fontWeight: 600 }}>
+                Detail Pesanan
+              </button>
               <span className="disp" style={{ fontWeight: 700, fontSize: 17, color: "#24272B" }}>{rupiah(o.total)}</span>
             </div>
           </div>
           );
         })
       )}
+      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
     </div>
   );
 }
@@ -1861,6 +1866,7 @@ function AccountScreen({ toko, orders, onReorder, onMarkPaid, pointsBalance, onO
 function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, onCancelOrder, onBack }) {
   const [confirmCancelId, setConfirmCancelId] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [detailOrder, setDetailOrder] = useState(null);
 
   const TITLE_MAP = {
     pesanan: "Pesanan", kirim: "Menunggu Pengiriman", konfirmasi: "Konfirmasi Penerimaan", bayar: "Belum Bayar",
@@ -1889,6 +1895,9 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
               <span className="disp" style={{ fontWeight: 700, fontSize: 14 }}>{o.id}</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#24272B" }}>{rupiah(o.total)}</span>
             </div>
+            <button onClick={() => setDetailOrder(o)} style={{ background: "none", border: "1px solid #E4E1DA", borderRadius: 8, padding: "6px 12px", color: "#24272B", fontSize: 11.5, fontWeight: 600, marginBottom: 8 }}>
+              Detail Pesanan
+            </button>
             {o.status === "Dikirim" && (
               <button onClick={() => onAdvance(o.id, "Selesai")} style={{ width: "100%", marginTop: 4, padding: "9px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
                 Konfirmasi Penerimaan
@@ -1945,6 +1954,83 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
           </div>
         ))
       )}
+      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+    </div>
+  );
+}
+
+// ============================================================
+// MODAL DETAIL PESANAN
+// ============================================================
+function OrderDetailModal({ order, onClose }) {
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}>
+      <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto", padding: "20px 20px 28px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+          <div>
+            <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700, textTransform: "uppercase" }}>Detail Pesanan</p>
+            <h2 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{order.id}</h2>
+          </div>
+          <button onClick={onClose} style={{ background: "#F7F5F1", border: "none", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={16} color="#6B6F75" />
+          </button>
+        </div>
+        <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 14px" }}>
+          {order.tanggal.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+        </p>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: order.status === "Dibatalkan" ? "#C0392B" : "#B8860B", background: order.status === "Dibatalkan" ? "#FBEAEA" : "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>
+            {order.status}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: order.sudahBayar ? "#28685D" : "#C0392B", background: order.sudahBayar ? "#D8E9E6" : "#FBEAEA", padding: "4px 10px", borderRadius: 999 }}>
+            {order.sudahBayar ? "Lunas" : "Belum Lunas"}
+          </span>
+          {order.isDropship && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#8A6A1A", background: "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>Dropship</span>
+          )}
+        </div>
+
+        {order.status === "Dibatalkan" && order.alasanDibatalkan && (
+          <div style={{ background: "#FBEAEA", borderRadius: 10, padding: 10, marginBottom: 16 }}>
+            <p style={{ fontSize: 12, color: "#C0392B", margin: 0 }}>{order.alasanDibatalkan}</p>
+          </div>
+        )}
+
+        <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang Dipesan</p>
+        {order.items.map((it, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < order.items.length - 1 ? "1px solid #F0EDE6" : "none" }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{it.nama}</p>
+              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: 0 }}>{it.qty} {it.satuan} &times; {rupiah(it.hargaDropship || it.harga)}</p>
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#24272B" }}>{rupiah((it.hargaDropship || it.harga) * it.qty)}</span>
+          </div>
+        ))}
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 14, borderTop: "2px solid #24272B" }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#24272B" }}>Total</span>
+          <span className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B" }}>{rupiah(order.total)}</span>
+        </div>
+
+        {(order.tujuan?.nama || order.tujuan?.alamat) && (
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid #EDEAE3" }}>
+            <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 6px" }}>Dikirim Ke</p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{order.tujuan.nama}</p>
+            {order.tujuan.telp && <p style={{ fontSize: 12, color: "#6B6F75", margin: "0 0 2px" }}>{order.tujuan.telp}</p>}
+            {order.tujuan.alamat && <p style={{ fontSize: 12, color: "#6B6F75", margin: 0 }}>{order.tujuan.alamat}</p>}
+            {order.isDropship && order.pengirim && (
+              <p style={{ fontSize: 11.5, color: "#B8860B", margin: "6px 0 0", fontWeight: 600 }}>Dropship a/n: {order.pengirim}</p>
+            )}
+          </div>
+        )}
+
+        {order.buktiTransferUrl && (
+          <a href={order.buktiTransferUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 16, textAlign: "center", padding: 12, borderRadius: 10, border: "1.5px solid #E4E1DA", color: "#24272B", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+            Lihat Bukti Transfer
+          </a>
+        )}
+      </div>
     </div>
   );
 }
