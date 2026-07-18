@@ -876,7 +876,12 @@ export default function OrderApp() {
           onOpenProduct={(p) => { setSelectedProduct(p); setScreen("product"); }}
           onRequireLogin={() => setScreen("login")}
           onOpenChat={() => setScreen("cs-chat-choice")}
+          onOpenNotifikasi={() => setScreen("notifikasi")}
         />
+      )}
+
+      {screen === "notifikasi" && (
+        <NotifikasiScreen toko={toko} onBack={() => setScreen("catalog")} />
       )}
 
       {screen === "cs-chat-choice" && (
@@ -1310,10 +1315,24 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat }) {
+function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
   // Gabungkan kategori bawaan dengan kategori baru (kalau ada) dari produk asli di database
   const kategoriDariProduk = Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)));
   const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!toko?.id) return;
+    function loadUnread() {
+      supabaseFetch(`notifications?select=id&client_id=eq.${toko.id}&is_read=eq.false`)
+        .then((rows) => setUnreadCount(rows.length))
+        .catch(() => {});
+    }
+    loadUnread();
+    const interval = setInterval(loadUnread, 15000);
+    return () => clearInterval(interval);
+  }, [toko?.id]);
+
   return (
     <div>
       <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22, position: "sticky", top: 0, zIndex: 10 }}>
@@ -1326,9 +1345,14 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
             <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <MessageCircle size={18} color="#fff" />
             </button>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Store size={19} color="#24272B" />
-            </div>
+            <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              <Bell size={18} color="#fff" />
+              {unreadCount > 0 && (
+                <span style={{ position: "absolute", top: -3, right: -3, background: "#E4453A", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid #24272B" }}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
         {isGuest && (
@@ -2502,6 +2526,81 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
 // ============================================================
 // CHAT CUSTOMER SERVICE AI - "INDAH"
 // ============================================================
+// ============================================================
+// NOTIFIKASI (status pesanan & balasan chat)
+// ============================================================
+function NotifikasiScreen({ toko, onBack }) {
+  const [notifs, setNotifs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const rows = await supabaseFetch(`notifications?select=*&client_id=eq.${toko.id}&order=created_at.desc&limit=100`);
+      setNotifs(rows);
+      // Tandai semua sudah dibaca begitu halaman ini dibuka
+      const unreadIds = rows.filter((n) => !n.is_read).map((n) => n.id);
+      if (unreadIds.length > 0) {
+        await supabaseFetch(`notifications?is_read=eq.false&client_id=eq.${toko.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ is_read: true }),
+        });
+      }
+    } catch (e) {
+      console.log("Gagal muat notifikasi:", e.message);
+    }
+    setLoading(false);
+  }
+
+  function waktuRelatif(dateStr) {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const menit = Math.floor(diffMs / 60000);
+    if (menit < 1) return "Baru saja";
+    if (menit < 60) return `${menit} menit lalu`;
+    const jam = Math.floor(menit / 60);
+    if (jam < 24) return `${jam} jam lalu`;
+    const hari = Math.floor(jam / 24);
+    return `${hari} hari lalu`;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "0 0 20px" }}>
+      <div style={{ padding: "20px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
+          <ChevronLeft size={18} /> Kembali
+        </button>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Notifikasi</h1>
+      </div>
+
+      <div style={{ padding: "0 20px" }}>
+        {loading ? (
+          <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "40px 0" }}>Memuat...</p>
+        ) : notifs.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "60px 0", color: "#9CA0A6" }}>
+            <Bell size={40} color="#D8D6D0" />
+            <p style={{ marginTop: 12, fontSize: 14 }}>Belum ada notifikasi.</p>
+          </div>
+        ) : (
+          notifs.map((n) => (
+            <div key={n.id} style={{ background: n.is_read ? "#fff" : "#FFFBF0", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <p style={{ fontSize: 13.5, fontWeight: 700, color: "#24272B", margin: 0 }}>{n.title}</p>
+                {!n.is_read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E4453A", flexShrink: 0, marginTop: 4 }} />}
+              </div>
+              {n.body && <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "4px 0 6px", lineHeight: 1.4 }}>{n.body}</p>}
+              <p style={{ fontSize: 11, color: "#B5B2AA", margin: 0 }}>{waktuRelatif(n.created_at)}</p>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ============================================================
 // PILIHAN CHAT: INDAH (AI) ATAU SALES
 // ============================================================
