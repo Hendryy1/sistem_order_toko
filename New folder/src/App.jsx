@@ -823,7 +823,12 @@ export default function OrderApp() {
           cart={cart} addToCart={addToCart}
           onOpenProduct={(p) => { setSelectedProduct(p); setScreen("product"); }}
           onRequireLogin={() => setScreen("login")}
+          onOpenChat={() => setScreen("cs-chat")}
         />
+      )}
+
+      {screen === "cs-chat" && (
+        <CsChatScreen toko={toko} onBack={() => setScreen("catalog")} />
       )}
 
       {screen === "product" && selectedProduct && (
@@ -1237,7 +1242,7 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin }) {
+function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat }) {
   // Gabungkan kategori bawaan dengan kategori baru (kalau ada) dari produk asli di database
   const kategoriDariProduk = Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)));
   const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
@@ -1249,8 +1254,13 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
             <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>{isGuest ? "Mode tamu" : "Masuk sebagai"}</p>
             <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>{isGuest ? "Lihat-lihat dulu" : toko?.nama}</p>
           </div>
-          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Store size={19} color="#24272B" />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <MessageCircle size={18} color="#fff" />
+            </button>
+            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Store size={19} color="#24272B" />
+            </div>
           </div>
         </div>
         {isGuest && (
@@ -2419,6 +2429,112 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
 
 // ============================================================
 // HALAMAN DETAIL KAMPANYE
+// ============================================================
+// ============================================================
+// CHAT CUSTOMER SERVICE AI - "INDAH"
+// ============================================================
+function CsChatScreen({ toko, onBack }) {
+  const [messages, setMessages] = useState([
+    { role: "assistant", text: `Halo${toko?.nama ? " " + toko.nama : ""}! Saya INDAH, asisten customer service di sini. Ada yang bisa saya bantu seputar produk, cara order, atau status pesanan Anda?` },
+  ]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, sending]);
+
+  async function handleSend() {
+    const text = input.trim();
+    if (!text || sending) return;
+    const nextMessages = [...messages, { role: "user", text }];
+    setMessages(nextMessages);
+    setInput("");
+    setSending(true);
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 500,
+          system: `Kamu adalah INDAH, asisten AI customer service untuk toko B2B (distributor bahan bangunan & sparepart) yang melayani pelanggan lewat aplikasi order online ini. Tugasmu membantu pelanggan (pemilik toko yang jadi pelanggan B2B) dengan pertanyaan seputar produk, cara order, status pesanan, cara pembayaran, dan hal umum lain terkait layanan ini. Bersikap ramah, sopan, singkat, dan selalu pakai Bahasa Indonesia. Kalau ditanya hal di luar topik toko/produk/order, arahkan dengan sopan kembali ke seputar layanan ini. Kamu adalah AI, jangan berpura-pura jadi manusia kalau ditanya langsung. Nama toko yang sedang chat: ${toko?.nama || "Tamu"}.`,
+          messages: nextMessages.map((m) => ({ role: m.role, content: m.text })),
+        }),
+      });
+      const data = await response.json();
+      const replyText = data.content?.map((c) => c.text || "").join("") || "Maaf, saya belum bisa jawab itu sekarang.";
+      setMessages((prev) => [...prev, { role: "assistant", text: replyText }]);
+    } catch (e) {
+      setMessages((prev) => [...prev, { role: "assistant", text: "Maaf, sedang ada gangguan koneksi. Coba lagi sebentar ya." }]);
+    }
+    setSending(false);
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
+      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
+          <ChevronLeft size={20} color="#24272B" />
+        </button>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <MessageCircle size={17} color="#24272B" />
+        </div>
+        <div>
+          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0 }}>INDAH</p>
+          <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Asisten AI Customer Service</p>
+        </div>
+      </div>
+
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+        {messages.map((m, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
+            <div style={{
+              maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
+              background: m.role === "user" ? "#E8A426" : "#fff",
+              color: m.role === "user" ? "#24272B" : "#24272B",
+              border: m.role === "user" ? "none" : "1px solid #EDEAE3",
+              fontSize: 13.5, lineHeight: 1.5,
+              borderBottomRightRadius: m.role === "user" ? 4 : 14,
+              borderBottomLeftRadius: m.role === "user" ? 14 : 4,
+            }}>
+              {m.text}
+            </div>
+          </div>
+        ))}
+        {sending && (
+          <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 14, background: "#fff", border: "1px solid #EDEAE3", fontSize: 13, color: "#9CA0A6" }}>
+              INDAH sedang mengetik...
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Tulis pesan..."
+          style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
+        />
+        <button
+          onClick={handleSend}
+          disabled={sending || !input.trim()}
+          style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+        >
+          <ArrowRight size={18} color="#24272B" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DETAIL KAMPANYE
 // ============================================================
 function CampaignDetailScreen({ onBack, cartCount, onGoToCart }) {
   return (
