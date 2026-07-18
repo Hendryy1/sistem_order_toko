@@ -63,10 +63,16 @@ function urlBase64ToUint8Array(base64String) {
 // ke database, supaya toko tetap dapat notif walau Web App sudah ditutup.
 async function subscribeToPush(clientId) {
   try {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      alert("Browser ini tidak mendukung notifikasi push.");
+      return;
+    }
     const registration = await navigator.serviceWorker.register("/sw.js");
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return;
+    if (permission !== "granted") {
+      alert("Izin notifikasi ditolak/dibatalkan. Coba lagi dan pilih 'Izinkan'.");
+      return;
+    }
 
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
@@ -87,8 +93,9 @@ async function subscribeToPush(clientId) {
         auth: json.keys.auth,
       }),
     });
+    alert("Notifikasi berhasil diaktifkan!");
   } catch (e) {
-    console.log("Gagal aktifkan notifikasi:", e.message);
+    alert("Gagal aktifkan notifikasi: " + e.message);
   }
 }
 
@@ -428,7 +435,6 @@ export default function OrderApp() {
     saveSession({ token, userId, email });
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
-    subscribeToPush(r.id);
     return true;
   }
 
