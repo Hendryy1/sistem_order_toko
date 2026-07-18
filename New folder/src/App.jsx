@@ -4,7 +4,8 @@ import {
   Building2, Hammer, PaintBucket, Milestone, LayoutGrid, Wrench,
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
-  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2
+  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2,
+  Smile, Camera, Image as ImageIcon
 } from "lucide-react";
 
 // ============================================================
@@ -841,7 +842,10 @@ export default function OrderApp() {
       )}
 
       {screen === "sales-chat" && (
-        <SalesChatScreen toko={toko} onBack={() => setScreen("cs-chat-choice")} />
+        <SalesChatScreen
+          toko={toko} onBack={() => setScreen("cs-chat-choice")}
+          products={products} orders={orders} cart={cart} rincian={cartRincian}
+        />
       )}
 
       {screen === "product" && selectedProduct && (
@@ -2501,15 +2505,22 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
 // ============================================================
 // CHAT DENGAN SALES (tersimpan permanen, ada No Case)
 // ============================================================
-function SalesChatScreen({ toko, onBack }) {
+function SalesChatScreen({ toko, onBack, products, orders, cart, rincian }) {
   const [caseInfo, setCaseInfo] = useState(null);
   const [salesInfo, setSalesInfo] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showPickProduk, setShowPickProduk] = useState(false);
+  const [showPickPesanan, setShowPickPesanan] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const scrollRef = useRef(null);
   const pollRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
 
   useEffect(() => {
     loadExistingCaseOnly();
@@ -2551,15 +2562,14 @@ function SalesChatScreen({ toko, onBack }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  async function handleSend() {
-    const text = input.trim();
-    if (!text || sending) return;
+  // Fungsi kirim generik - dipakai buat teks, gambar, referensi produk/pesanan/troli.
+  // Semuanya lewat sini supaya logika "bikin No Case kalau belum ada" konsisten.
+  async function sendMessage({ message, image_url, tipe_pesan }) {
+    if (sending) return;
     setSending(true);
-    setInput("");
     try {
       let activeCase = caseInfo;
       if (!activeCase) {
-        // Baru sekarang bikin No Case - karena toko beneran kirim pesan pertama
         const [created] = await supabaseFetch("chat_cases", {
           method: "POST",
           body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
@@ -2570,13 +2580,76 @@ function SalesChatScreen({ toko, onBack }) {
       }
       const [inserted] = await supabaseFetch("chat_messages", {
         method: "POST",
-        body: JSON.stringify({ case_id: activeCase.id, sender_type: "toko", message: text }),
+        body: JSON.stringify({ case_id: activeCase.id, sender_type: "toko", message: message || "", image_url: image_url || null, tipe_pesan: tipe_pesan || "teks" }),
       });
       setMessages((prev) => [...prev, inserted]);
     } catch (e) {
       alert("Gagal kirim pesan: " + e.message);
     }
     setSending(false);
+  }
+
+  async function handleSend() {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    await sendMessage({ message: text, tipe_pesan: "teks" });
+  }
+
+  function insertEmoji(emoji) {
+    setInput((prev) => prev + emoji);
+    setShowEmoji(false);
+  }
+
+  async function handlePickImage(e) {
+    const file = e.target.files[0];
+    e.target.value = ""; // supaya bisa pilih file yang sama lagi nanti
+    if (!file) return;
+    setShowAttachMenu(false);
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const filePath = `chat-${toko.id}-${Date.now()}.${ext}`;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
+      await sendMessage({ image_url: url, tipe_pesan: "gambar" });
+    } catch (e) {
+      alert("Gagal upload foto: " + e.message);
+    }
+    setUploadingImage(false);
+  }
+
+  async function kirimTroli() {
+    setShowAttachMenu(false);
+    const entries = Object.entries(cart || {});
+    if (entries.length === 0) {
+      alert("Keranjang Anda masih kosong.");
+      return;
+    }
+    const lines = entries.map(([kode, qty]) => {
+      const p = (products || []).find((x) => x.kode === kode);
+      return `- ${p?.nama || kode} x${qty}`;
+    });
+    const total = rincian?.totalSetelahDiskon ?? rincian?.total ?? 0;
+    const text = `🛒 Nanya soal keranjang saya:\n${lines.join("\n")}\nEstimasi total: ${rupiah(total)}`;
+    await sendMessage({ message: text, tipe_pesan: "troli" });
+  }
+
+  async function kirimProduk(p) {
+    setShowPickProduk(false);
+    setShowAttachMenu(false);
+    await sendMessage({ message: `📦 Nanya soal barang: ${p.nama} (${p.kode})`, tipe_pesan: "produk" });
+  }
+
+  async function kirimPesanan(o) {
+    setShowPickPesanan(false);
+    setShowAttachMenu(false);
+    await sendMessage({ message: `🧾 Nanya soal pesanan: ${o.id}`, tipe_pesan: "pesanan" });
   }
 
   if (loading) {
@@ -2631,18 +2704,27 @@ function SalesChatScreen({ toko, onBack }) {
         )}
         {messages.map((m) => (
           <div key={m.id} style={{ display: "flex", justifyContent: m.sender_type === "toko" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-            <div style={{
-              maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
-              background: m.sender_type === "toko" ? "#E8A426" : "#fff",
-              border: m.sender_type === "toko" ? "none" : "1px solid #EDEAE3",
-              fontSize: 13.5, lineHeight: 1.5, color: "#24272B",
-              borderBottomRightRadius: m.sender_type === "toko" ? 4 : 14,
-              borderBottomLeftRadius: m.sender_type === "toko" ? 14 : 4,
-            }}>
-              {m.message}
-            </div>
+            {m.tipe_pesan === "gambar" && m.image_url ? (
+              <img src={m.image_url} alt="Lampiran" style={{ maxWidth: "60%", borderRadius: 14, display: "block" }} />
+            ) : (
+              <div style={{
+                maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
+                background: m.sender_type === "toko" ? "#E8A426" : "#fff",
+                border: m.sender_type === "toko" ? "none" : "1px solid #EDEAE3",
+                fontSize: 13.5, lineHeight: 1.5, color: "#24272B", whiteSpace: "pre-line",
+                borderBottomRightRadius: m.sender_type === "toko" ? 4 : 14,
+                borderBottomLeftRadius: m.sender_type === "toko" ? 14 : 4,
+              }}>
+                {m.message}
+              </div>
+            )}
           </div>
         ))}
+        {uploadingImage && (
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 14, background: "#FBF0D9", fontSize: 12.5, color: "#8A6A1A" }}>Mengirim foto...</div>
+          </div>
+        )}
       </div>
 
       {caseInfo?.status === "closed" ? (
@@ -2650,21 +2732,110 @@ function SalesChatScreen({ toko, onBack }) {
           <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>Obrolan ini sudah ditutup.</p>
         </div>
       ) : (
-        <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10, flexShrink: 0 }}>
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            placeholder="Tulis pesan..."
-            style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={sending || !input.trim()}
-            style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-          >
-            <ArrowRight size={18} color="#24272B" />
-          </button>
+        <div style={{ background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, position: "relative" }}>
+          {/* Menu lampiran (+) */}
+          {showAttachMenu && (
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EDEAE3", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+              {[
+                { icon: Smile, label: "Emoji", onClick: () => { setShowEmoji(true); setShowAttachMenu(false); } },
+                { icon: Camera, label: "Ambil Foto", onClick: () => cameraInputRef.current?.click() },
+                { icon: ImageIcon, label: "Album Foto", onClick: () => galleryInputRef.current?.click() },
+                { icon: ShoppingCart, label: "Troli", onClick: kirimTroli },
+                { icon: Package, label: "Riwayat Produk", onClick: () => { setShowPickProduk(true); setShowAttachMenu(false); } },
+                { icon: ClipboardList, label: "Riwayat Pesanan", onClick: () => { setShowPickPesanan(true); setShowAttachMenu(false); } },
+              ].map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button key={item.label} onClick={item.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", padding: 4 }}>
+                    <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Icon size={20} color="#24272B" />
+                    </div>
+                    <span style={{ fontSize: 10.5, color: "#6B6F75", textAlign: "center" }}>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Emoji picker sederhana */}
+          {showEmoji && (
+            <div style={{ padding: "12px 20px", borderBottom: "1px solid #EDEAE3", display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {["😀","😂","😍","👍","🙏","😢","😡","🎉","❤️","🔥","👌","😅","🤔","😴","🙌","✅"].map((e) => (
+                <button key={e} onClick={() => insertEmoji(e)} style={{ fontSize: 22, background: "none", border: "none", padding: 2 }}>{e}</button>
+              ))}
+            </div>
+          )}
+
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handlePickImage} />
+          <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePickImage} />
+
+          <div style={{ padding: "12px 20px", display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={() => { setShowAttachMenu((v) => !v); setShowEmoji(false); }}
+              style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: showAttachMenu ? "#E8A426" : "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <Plus size={18} color={showAttachMenu ? "#24272B" : "#6B6F75"} />
+            </button>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              onFocus={() => { setShowAttachMenu(false); setShowEmoji(false); }}
+              placeholder="Tulis pesan..."
+              enterKeyHint="send"
+              style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={sending || !input.trim()}
+              style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <ArrowRight size={18} color="#24272B" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal pilih produk dari riwayat */}
+      {showPickProduk && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 400 }}>
+          <div style={{ background: "#fff", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 480, maxHeight: "70vh", overflowY: "auto", padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <p className="disp" style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Pilih Produk</p>
+              <button onClick={() => setShowPickProduk(false)} style={{ background: "none", border: "none" }}><X size={20} /></button>
+            </div>
+            {(products || []).map((p) => (
+              <button key={p.kode} onClick={() => kirimProduk(p)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 4px", background: "none", border: "none", borderBottom: "1px solid #F0EDE6", textAlign: "left" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: p.gambarUrl ? `url(${p.gambarUrl}) center/cover` : "#F7F5F1", flexShrink: 0 }} />
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>{p.nama}</p>
+                  <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>{p.kode}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal pilih pesanan dari riwayat */}
+      {showPickPesanan && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 400 }}>
+          <div style={{ background: "#fff", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 480, maxHeight: "70vh", overflowY: "auto", padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <p className="disp" style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Pilih Pesanan</p>
+              <button onClick={() => setShowPickPesanan(false)} style={{ background: "none", border: "none" }}><X size={20} /></button>
+            </div>
+            {(orders || []).length === 0 && <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Belum ada riwayat pesanan.</p>}
+            {(orders || []).map((o) => (
+              <button key={o.id} onClick={() => kirimPesanan(o)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 4px", background: "none", border: "none", borderBottom: "1px solid #F0EDE6", textAlign: "left" }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, margin: 0 }}>{o.id}</p>
+                  <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>{o.tanggal.toLocaleDateString("id-ID")}</p>
+                </div>
+                <span style={{ fontSize: 12.5, fontWeight: 700 }}>{rupiah(o.total)}</span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -2757,6 +2928,7 @@ function CsChatScreen({ toko, onBack }) {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder="Tulis pesan..."
+          enterKeyHint="send"
           style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
         />
         <button
