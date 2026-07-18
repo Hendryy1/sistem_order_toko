@@ -1320,6 +1320,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
   const kategoriDariProduk = Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)));
   const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     if (!toko?.id) return;
@@ -1336,38 +1337,53 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
   return (
     <div>
       <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22, position: "sticky", top: 0, zIndex: 10 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-          <div>
-            <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>{isGuest ? "Mode tamu" : "Masuk sebagai"}</p>
-            <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>{isGuest ? "Lihat-lihat dulu" : toko?.nama}</p>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MessageCircle size={18} color="#fff" />
+        {showSearch ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ flex: 1, position: "relative" }}>
+              <Search size={17} color="#6B6F75" style={{ position: "absolute", left: 14, top: 13 }} />
+              <input
+                autoFocus
+                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari barang..."
+                style={{ width: "100%", padding: "12px 14px 12px 40px", borderRadius: 10, border: "none", fontSize: 14, outline: "none" }}
+              />
+            </div>
+            <button
+              onClick={() => { setShowSearch(false); setSearchQuery(""); }}
+              style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <X size={18} color="#fff" />
             </button>
-            <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-              <Bell size={18} color="#fff" />
-              {unreadCount > 0 && (
-                <span style={{ position: "absolute", top: -3, right: -3, background: "#E4453A", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid #24272B" }}>
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </button>
           </div>
-        </div>
-        {isGuest && (
+        ) : (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div>
+              <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>I.G.A Distributor</p>
+              <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>{isGuest ? "Lihat-lihat dulu" : toko?.nama}</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setShowSearch(true)} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Search size={18} color="#fff" />
+              </button>
+              <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <MessageCircle size={18} color="#fff" />
+              </button>
+              <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                <Bell size={18} color="#fff" />
+                {unreadCount > 0 && (
+                  <span style={{ position: "absolute", top: -3, right: -3, background: "#E4453A", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid #24272B" }}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+        {!showSearch && isGuest && (
           <button onClick={onRequireLogin} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
             Login / Daftar untuk lihat harga & order
           </button>
         )}
-        <div style={{ marginTop: 16, position: "relative" }}>
-          <Search size={17} color="#6B6F75" style={{ position: "absolute", left: 14, top: 13 }} />
-          <input
-            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari barang..."
-            style={{ width: "100%", padding: "12px 14px 12px 40px", borderRadius: 10, border: "none", fontSize: 14, outline: "none" }}
-          />
-        </div>
       </div>
 
       <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 20px 4px", scrollbarWidth: "none" }}>
