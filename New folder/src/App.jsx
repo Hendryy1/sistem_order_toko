@@ -1102,9 +1102,11 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
 
   return (
     <div style={{ minHeight: "100vh", padding: "20px 24px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, padding: "8px 0", marginBottom: 8 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 28, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>Daftar toko baru</h1>
       <p style={{ color: "#6B6F75", fontSize: 13, marginBottom: 24 }}>Perlu persetujuan Owner sebelum bisa order.</p>
 
@@ -1241,7 +1243,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
   const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
   return (
     <div>
-      <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22 }}>
+      <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22, position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div>
             <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>{isGuest ? "Mode tamu" : "Masuk sebagai"}</p>
@@ -1571,7 +1573,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 300 }}>
-      <div style={{ padding: "20px 20px 8px" }}>
+      <div style={{ padding: "20px 20px 8px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
         <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: 0 }}>Keranjang</h1>
         <p style={{ color: "#9CA0A6", fontSize: 13, marginTop: 2 }}>{items.length} jenis barang</p>
       </div>
@@ -1892,8 +1894,11 @@ function SuccessScreen({ order, onDone, onHistory }) {
 function HistoryScreen({ orders, onBack }) {
   const [detailOrder, setDetailOrder] = useState(null);
   return (
-    <div style={{ minHeight: "100vh", padding: "20px 20px 20px" }}>
-      <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 16px" }}>Riwayat Order</h1>
+    <div style={{ minHeight: "100vh", padding: "0 0 20px" }}>
+      <div style={{ padding: "20px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <h1 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: 0 }}>Riwayat Order</h1>
+      </div>
+      <div style={{ padding: "0 20px" }}>
       {orders.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0", color: "#9CA0A6" }}>
           <ClipboardList size={40} color="#D8D6D0" />
@@ -1927,6 +1932,7 @@ function HistoryScreen({ orders, onBack }) {
           );
         })
       )}
+      </div>
       {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
     </div>
   );
@@ -1953,7 +1959,7 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 88 }}>
-      <div style={{ background: "#24272B", padding: "20px 20px 22px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22 }}>
+      <div style={{ background: "#24272B", padding: "20px 20px 22px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22, position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <User size={22} color="#24272B" />
@@ -2059,9 +2065,11 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
 
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 12 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 16px" }}>{TITLE_MAP[filterKey]}</h1>
 
       {filteredOrders.length === 0 ? (
@@ -2144,9 +2152,11 @@ function OrderUlangListScreen({ orders, onReorder, onBack }) {
   const reorderable = orders.filter((o) => o.status !== "Dibatalkan");
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 12 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Order Ulang</h1>
       <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 18px" }}>Salin order sebelumnya, tidak perlu pilih barang dari awal.</p>
 
@@ -2181,9 +2191,11 @@ function OrderUlangListScreen({ orders, onReorder, onBack }) {
 function ReorderConfirmScreen({ order, onConfirm, onBack }) {
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 100px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 12 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Order Ulang</h1>
       <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>
         Berdasarkan pesanan {order.id} · {order.tanggal.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
@@ -2411,7 +2423,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
 function CampaignDetailScreen({ onBack, cartCount, onGoToCart }) {
   return (
     <div style={{ minHeight: "100vh" }}>
-      <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #EDEAE3" }}>
+      <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #EDEAE3", position: "sticky", top: 0, zIndex: 10, background: "#fff" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#24272B", fontSize: 14, fontWeight: 600, padding: 0 }}>
           <ChevronLeft size={20} /> Kembali
         </button>
@@ -2459,9 +2471,11 @@ function RekeningScreen({ onBack }) {
   }
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 8 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "4px 0 16px" }}>Pembayaran & Rekening Bank</h1>
 
       <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Rekening Perusahaan</p>
@@ -2497,9 +2511,11 @@ function RekeningScreen({ onBack }) {
 function ServiceCentreScreen({ onBack }) {
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 8 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "4px 0 16px" }}>Service Centre</h1>
 
       <div style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
@@ -2535,9 +2551,11 @@ function BantuanScreen({ onBack }) {
   const visuals = [HelpVisualOrder, HelpVisualApproval, HelpVisualDropship, HelpVisualReorder, HelpVisualPayment];
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 8 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>Bantuan</h1>
       <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 18px" }}>Cara menggunakan aplikasi ini, langkah demi langkah.</p>
 
@@ -2722,9 +2740,11 @@ function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, 
 
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
       <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 8 }}>
         <ChevronLeft size={18} /> Kembali
       </button>
+      </div>
 
       <div style={{ background: "#24272B", borderRadius: 18, padding: 20, marginBottom: 20, textAlign: "center" }}>
         <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 10px" }}>
