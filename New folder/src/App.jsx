@@ -2587,9 +2587,24 @@ function SalesChatScreen({ toko, onBack }) {
     );
   }
 
+  async function tutupKasus() {
+    if (!caseInfo || caseInfo.status === "closed") return;
+    if (!confirm("Tutup obrolan ini? Kalau nanti chat lagi, akan mulai No. Case baru.")) return;
+    try {
+      await supabaseFetch(`chat_cases?id=eq.${caseInfo.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "closed" }),
+      });
+      setCaseInfo((prev) => ({ ...prev, status: "closed" }));
+      if (pollRef.current) clearInterval(pollRef.current);
+    } catch (e) {
+      alert("Gagal menutup obrolan: " + e.message);
+    }
+  }
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
-      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
+      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
           <ChevronLeft size={20} color="#24272B" />
         </button>
@@ -2601,6 +2616,11 @@ function SalesChatScreen({ toko, onBack }) {
           <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Sales Toko {toko?.nama}</p>
           <p style={{ fontSize: 10.5, color: "#B5B2AA", margin: 0 }}>{caseInfo?.no_case ? `No. Case: ${caseInfo.no_case}` : "Belum ada No. Case - kirim pesan dulu"}</p>
         </div>
+        {caseInfo && caseInfo.status === "open" && (
+          <button onClick={tutupKasus} style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 11.5, fontWeight: 700, flexShrink: 0 }}>
+            Tutup
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
@@ -2625,22 +2645,28 @@ function SalesChatScreen({ toko, onBack }) {
         ))}
       </div>
 
-      <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10 }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Tulis pesan..."
-          style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={sending || !input.trim()}
-          style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-        >
-          <ArrowRight size={18} color="#24272B" />
-        </button>
-      </div>
+      {caseInfo?.status === "closed" ? (
+        <div style={{ padding: "14px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>Obrolan ini sudah ditutup.</p>
+        </div>
+      ) : (
+        <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10, flexShrink: 0 }}>
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Tulis pesan..."
+            style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
+          />
+          <button
+            onClick={handleSend}
+            disabled={sending || !input.trim()}
+            style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          >
+            <ArrowRight size={18} color="#24272B" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -2686,8 +2712,8 @@ function CsChatScreen({ toko, onBack }) {
   }
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
-      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
+      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
           <ChevronLeft size={20} color="#24272B" />
         </button>
