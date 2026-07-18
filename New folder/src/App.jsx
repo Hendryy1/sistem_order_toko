@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   ShoppingCart, Search, Plus, Minus, X, ChevronLeft, Package,
   Building2, Hammer, PaintBucket, Milestone, LayoutGrid, Wrench,
@@ -241,7 +241,9 @@ const rupiah = (n) => "Rp" + n.toLocaleString("id-ID");
 // KOMPONEN UTAMA
 // ============================================================
 export default function OrderApp() {
-  const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan
+  const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail
+  const [campaignVisible, setCampaignVisible] = useState(true);
+  const [campaignReturnScreen, setCampaignReturnScreen] = useState("catalog");
   const [products, setProducts] = useState(SAMPLE_PRODUCTS); // fallback dulu, diganti data asli kalau fetch berhasil
   const [dbError, setDbError] = useState("");
 
@@ -786,6 +788,14 @@ export default function OrderApp() {
         ::selection { background: #E8A426; color: #24272B; }
       `}</style>
 
+      {campaignVisible && screen !== "login" && screen !== "register" && screen !== "campaign-detail" && (
+        <FloatingCampaignWidget
+          imageUrl="https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"
+          onClose={() => setCampaignVisible(false)}
+          onOpenDetail={() => { setCampaignReturnScreen(screen); setScreen("campaign-detail"); }}
+        />
+      )}
+
       {screen === "login" && (
         <LoginScreen
           form={loginForm} setForm={setLoginForm}
@@ -902,6 +912,9 @@ export default function OrderApp() {
       )}
       {screen === "akun-bantuan" && (
         <BantuanScreen onBack={() => setScreen("akun")} />
+      )}
+      {screen === "campaign-detail" && (
+        <CampaignDetailScreen onBack={() => setScreen(campaignReturnScreen)} />
       )}
       {screen === "akun-poin" && (
         <PoinScreen
@@ -2277,6 +2290,112 @@ function OrderDetailModal({ order, onClose }) {
           </a>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================
+// WIDGET KAMPANYE MENGAMBANG
+// ============================================================
+function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
+  const WIDGET_SIZE = 64;
+  const CLOSE_AREA = 26;
+  const SAFE_MARGIN = 16;
+
+  const clampTop = (value) => {
+    const maxTop = window.innerHeight - WIDGET_SIZE - CLOSE_AREA - SAFE_MARGIN;
+    const minTop = SAFE_MARGIN;
+    return Math.min(maxTop, Math.max(minTop, value));
+  };
+
+  const [top, setTop] = useState(() => clampTop(window.innerHeight * 0.4));
+  const dragState = useRef({ dragging: false, startY: 0, startTop: 0, moved: false });
+
+  useEffect(() => {
+    function onMove(e) {
+      if (!dragState.current.dragging) return;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const delta = clientY - dragState.current.startY;
+      if (Math.abs(delta) > 3) dragState.current.moved = true;
+      setTop(clampTop(dragState.current.startTop + delta));
+    }
+    function onUp() {
+      dragState.current.dragging = false;
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onMove);
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, []);
+
+  function handleDown(e) {
+    dragState.current.dragging = true;
+    dragState.current.moved = false;
+    dragState.current.startY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragState.current.startTop = top;
+  }
+
+  function handleClick() {
+    if (dragState.current.moved) return; // itu drag, bukan tap
+    onOpenDetail();
+  }
+
+  return (
+    // Bingkai tak terlihat selebar app (480px, sama seperti elemen fixed
+    // lain di app ini) - supaya widget nempel ke kanan APP, bukan ke kanan
+    // browser kalau layarnya lebih lebar dari 480px.
+    <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, height: 0, zIndex: 200, pointerEvents: "none" }}>
+      <div style={{ position: "absolute", top, right: 0, width: WIDGET_SIZE, height: WIDGET_SIZE + CLOSE_AREA, pointerEvents: "auto" }}>
+        {/* Badan widget (gambar/GIF) */}
+        <div
+          onMouseDown={handleDown}
+          onTouchStart={handleDown}
+          onClick={handleClick}
+          style={{
+            position: "absolute", top: CLOSE_AREA, left: 0, right: 0, height: WIDGET_SIZE,
+            borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
+            cursor: "pointer", touchAction: "none", background: "#fff",
+          }}
+        >
+          <img src={imageUrl} alt="Kampanye" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} draggable={false} />
+        </div>
+
+        {/* Tombol close - DI LUAR badan widget (area khusus di atasnya) */}
+        <button
+          onClick={onClose}
+          style={{
+            position: "absolute", top: 0, right: 4, width: 20, height: 20, borderRadius: "50%",
+            border: "none", background: "rgba(0,0,0,0.2)", color: "#fff", display: "flex",
+            alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.15)", padding: 0,
+          }}
+        >
+          <X size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// HALAMAN DETAIL KAMPANYE
+// ============================================================
+function CampaignDetailScreen({ onBack }) {
+  return (
+    <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 16 }}>
+        <ChevronLeft size={18} /> Kembali
+      </button>
+      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 12px" }}>Promo Spesial!</h1>
+      <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6 }}>
+        Ini halaman detail kampanye. Isi dengan konten promo, syarat & ketentuan,
+        atau apapun yang Anda perlukan di sini.
+      </p>
     </div>
   );
 }
