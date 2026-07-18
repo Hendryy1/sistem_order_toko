@@ -2301,6 +2301,8 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
   const WIDGET_SIZE = 64;
   const CLOSE_AREA = 26;
   const SAFE_MARGIN = 16;
+  const BOTTOM_NAV_HEIGHT = 72; // tinggi bottom nav di app ini
+  const GAP_ABOVE_NAV = 10; // jarak widget dengan bottom nav
 
   const clampTop = (value) => {
     const maxTop = window.innerHeight - WIDGET_SIZE - CLOSE_AREA - SAFE_MARGIN;
@@ -2308,7 +2310,11 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
     return Math.min(maxTop, Math.max(minTop, value));
   };
 
-  const [top, setTop] = useState(() => clampTop(window.innerHeight * 0.4));
+  // Posisi default: tepat di atas bottom nav (dekat menu Akun)
+  const [top, setTop] = useState(() =>
+    clampTop(window.innerHeight - BOTTOM_NAV_HEIGHT - WIDGET_SIZE - CLOSE_AREA - GAP_ABOVE_NAV)
+  );
+  const [shakeKey, setShakeKey] = useState(0);
   const dragState = useRef({ dragging: false, startY: 0, startTop: 0, moved: false });
 
   useEffect(() => {
@@ -2339,6 +2345,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
     dragState.current.moved = false;
     dragState.current.startY = e.touches ? e.touches[0].clientY : e.clientY;
     dragState.current.startTop = top;
+    setShakeKey((k) => k + 1); // ganti key -> paksa animasi getar dimulai ulang
   }
 
   function handleClick() {
@@ -2351,9 +2358,20 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
     // lain di app ini) - supaya widget nempel ke kanan APP, bukan ke kanan
     // browser kalau layarnya lebih lebar dari 480px.
     <div style={{ position: "fixed", top: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, height: 0, zIndex: 200, pointerEvents: "none" }}>
+      <style>{`
+        @keyframes campaignShake {
+          0% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+          100% { transform: translateX(0); }
+        }
+      `}</style>
       <div style={{ position: "absolute", top, right: 0, width: WIDGET_SIZE, height: WIDGET_SIZE + CLOSE_AREA, pointerEvents: "auto" }}>
         {/* Badan widget (gambar/GIF) */}
         <div
+          key={shakeKey}
           onMouseDown={handleDown}
           onTouchStart={handleDown}
           onClick={handleClick}
@@ -2361,6 +2379,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
             position: "absolute", top: CLOSE_AREA, left: 0, right: 0, height: WIDGET_SIZE,
             borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
             cursor: "pointer", touchAction: "none", background: "#fff",
+            animation: shakeKey > 0 ? "campaignShake 0.4s ease" : "none",
           }}
         >
           <img src={imageUrl} alt="Kampanye" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} draggable={false} />
