@@ -2866,17 +2866,37 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
       <div style={{ display: "flex", gap: 8, padding: "12px 20px", background: "#fff", borderBottom: "1px solid #EDEAE3", flexShrink: 0 }}>
         <button
           onClick={() => setActiveTab("indah")}
-          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 10, border: activeTab === "indah" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "indah" ? "#FBF0D9" : "#fff" }}
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, border: activeTab === "indah" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "indah" ? "#FBF0D9" : "#fff" }}
         >
-          <MessageCircle size={16} color="#24272B" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#24272B" }}>INDAH</span>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#E8A426", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img
+              src="https://api.dicebear.com/7.x/bottts/svg?seed=INDAH"
+              alt="INDAH"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>INDAH</p>
+            <p style={{ fontSize: 10.5, color: "#9CA0A6", margin: 0 }}>AI Customer Service</p>
+          </div>
         </button>
         <button
           onClick={() => setActiveTab("sales")}
-          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 10, border: activeTab === "sales" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "sales" ? "#FBF0D9" : "#fff" }}
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, border: activeTab === "sales" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "sales" ? "#FBF0D9" : "#fff" }}
         >
-          <Headphones size={16} color="#24272B" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#24272B" }}>{salesInfo ? salesInfo.nama : "Sales"}</span>
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#D8E9E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <img
+              src={`https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(salesInfo?.nama || "Sales")}`}
+              alt={salesInfo?.nama || "Sales"}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              onError={(e) => { e.target.style.display = "none"; }}
+            />
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>{salesInfo ? salesInfo.nama : "Sales"}</p>
+            <p style={{ fontSize: 10.5, color: "#9CA0A6", margin: 0 }}>Sales</p>
+          </div>
         </button>
       </div>
 
