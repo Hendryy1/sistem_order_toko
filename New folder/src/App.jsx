@@ -1358,8 +1358,8 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
         ) : (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <div>
-              <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>I.G.A Distributor</p>
-              <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>{isGuest ? "Lihat-lihat dulu" : toko?.nama}</p>
+              <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>Distributor</p>
+              <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>INDO GARUDA ABADI</p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setShowSearch(true)} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
