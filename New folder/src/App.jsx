@@ -5,7 +5,7 @@ import {
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
   HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2,
-  Smile, Camera, Image as ImageIcon, Bell
+  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical
 } from "lucide-react";
 
 // ============================================================
@@ -296,6 +296,7 @@ export default function OrderApp() {
   const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail
   const [campaignVisible, setCampaignVisible] = useState(true);
   const [campaignReturnScreen, setCampaignReturnScreen] = useState("catalog");
+  const [csReturnScreen, setCsReturnScreen] = useState("akun");
   const [products, setProducts] = useState(SAMPLE_PRODUCTS); // fallback dulu, diganti data asli kalau fetch berhasil
   const [dbError, setDbError] = useState("");
 
@@ -890,6 +891,7 @@ export default function OrderApp() {
           onBack={() => setScreen("catalog")}
           onChooseAi={() => setScreen("cs-chat")}
           onChooseSales={() => setScreen("sales-chat")}
+          onContactCS={() => { setCsReturnScreen("cs-chat-choice"); setScreen("akun-cs"); }}
         />
       )}
 
@@ -950,7 +952,7 @@ export default function OrderApp() {
           onMarkPaid={markOrderPaid}
           pointsBalance={pointsBalance}
           onOpenRekening={() => setScreen("akun-rekening")}
-          onOpenCS={() => setScreen("akun-cs")}
+          onOpenCS={() => { setCsReturnScreen("akun"); setScreen("akun-cs"); }}
           onOpenBantuan={() => setScreen("akun-bantuan")}
           onOpenPoin={() => setScreen("akun-poin")}
           onOpenOrderList={(key) => { setOrderListKey(key); setScreen("akun-orderlist"); }}
@@ -986,7 +988,7 @@ export default function OrderApp() {
         <RekeningScreen onBack={() => setScreen("akun")} />
       )}
       {screen === "akun-cs" && (
-        <ServiceCentreScreen onBack={() => setScreen("akun")} />
+        <ServiceCentreScreen onBack={() => setScreen(csReturnScreen)} />
       )}
       {screen === "akun-bantuan" && (
         <BantuanScreen onBack={() => setScreen("akun")} />
@@ -2620,8 +2622,14 @@ function NotifikasiScreen({ toko, onBack }) {
 // ============================================================
 // PILIHAN CHAT: INDAH (AI) ATAU SALES
 // ============================================================
-function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
+function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContactCS }) {
   const [salesInfo, setSalesInfo] = useState(null);
+  const [showCaseHistory, setShowCaseHistory] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [caseHistoryList, setCaseHistoryList] = useState([]);
+  const [caseHistorySearch, setCaseHistorySearch] = useState("");
+  const [loadingCaseHistory, setLoadingCaseHistory] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState("sales"); // "sales" | "indah"
 
   useEffect(() => {
     if (!toko?.salesId) return;
@@ -2630,12 +2638,45 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
       .catch(() => setSalesInfo(null));
   }, [toko?.salesId]);
 
+  async function openCaseHistory() {
+    setShowMoreMenu(false);
+    setShowCaseHistory(true);
+    setLoadingCaseHistory(true);
+    try {
+      const rows = await supabaseFetch(`chat_cases?select=id,no_case,status,created_at&client_id=eq.${toko.id}&order=created_at.desc`);
+      setCaseHistoryList(rows);
+    } catch (e) {
+      console.log("Gagal muat riwayat case:", e.message);
+    }
+    setLoadingCaseHistory(false);
+  }
+
   return (
-    <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 20 }}>
-        <ChevronLeft size={18} /> Kembali
-      </button>
-      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Mau Chat dengan Siapa?</h1>
+    <div style={{ minHeight: "100vh", padding: "0 20px 40px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10, background: "#fff", borderBottom: "1px solid #EDEAE3", margin: "0 -20px 24px", padding: "16px 20px" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0, flexShrink: 0 }}>
+          <ChevronLeft size={20} color="#24272B" />
+        </button>
+        <p className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: 0, flex: 1, textAlign: "center", padding: "0 8px" }}>Customer Service Centre</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, position: "relative", flexShrink: 0 }}>
+          <button onClick={openCaseHistory} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <History size={16} color="#24272B" />
+          </button>
+          <button onClick={() => setShowMoreMenu((v) => !v)} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <MoreVertical size={16} color="#24272B" />
+          </button>
+          {showMoreMenu && (
+            <div style={{ position: "absolute", top: 40, right: 0, background: "#fff", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.15)", padding: 6, minWidth: 160, zIndex: 20 }}>
+              <button
+                onClick={() => { setShowMoreMenu(false); onContactCS?.(); }}
+                style={{ width: "100%", textAlign: "left", padding: "10px 12px", background: "none", border: "none", fontSize: 13, color: "#24272B", borderRadius: 7, display: "flex", alignItems: "center", gap: 8 }}
+              >
+                <Headphones size={15} /> Kontak CS
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
       <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 24px" }}>Pilih salah satu di bawah ini.</p>
 
       <button
@@ -2665,6 +2706,62 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
         </div>
         <ChevronRight size={18} color="#9CA0A6" />
       </button>
+
+      {showCaseHistory && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 400 }}>
+          <div style={{ background: "#fff", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 480, maxHeight: "75vh", overflowY: "auto", padding: 18 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <p className="disp" style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Riwayat Kasus</p>
+              <button onClick={() => setShowCaseHistory(false)} style={{ background: "none", border: "none" }}><X size={20} /></button>
+            </div>
+            <div style={{ position: "relative", marginBottom: 12 }}>
+              <Search size={15} color="#9CA0A6" style={{ position: "absolute", left: 12, top: 11 }} />
+              <input
+                value={caseHistorySearch}
+                onChange={(e) => setCaseHistorySearch(e.target.value)}
+                placeholder="Cari No. Case..."
+                style={{ width: "100%", padding: "9px 12px 9px 34px", borderRadius: 9, border: "1.5px solid #E4E1DA", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <button
+                onClick={() => setHistoryFilter("indah")}
+                style={{ flex: 1, padding: "9px", borderRadius: 9, border: historyFilter === "indah" ? "1.5px solid #E8A426" : "1.5px solid #E4E1DA", background: historyFilter === "indah" ? "#FBF0D9" : "#fff", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}
+              >
+                INDAH
+              </button>
+              <button
+                onClick={() => setHistoryFilter("sales")}
+                style={{ flex: 1, padding: "9px", borderRadius: 9, border: historyFilter === "sales" ? "1.5px solid #E8A426" : "1.5px solid #E4E1DA", background: historyFilter === "sales" ? "#FBF0D9" : "#fff", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}
+              >
+                Salesman
+              </button>
+            </div>
+            {historyFilter === "indah" ? (
+              <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Riwayat chat dengan INDAH belum tersimpan.</p>
+            ) : loadingCaseHistory ? (
+              <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Memuat...</p>
+            ) : (
+              caseHistoryList
+                .filter((c) => c.no_case?.toLowerCase().includes(caseHistorySearch.toLowerCase()))
+                .map((c) => (
+                  <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 4px", borderBottom: "1px solid #F0EDE6" }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "#24272B" }}>{c.no_case}</p>
+                      <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>{new Date(c.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: c.status === "open" ? "#D8E9E6" : "#F7F5F1", color: c.status === "open" ? "#28685D" : "#9CA0A6" }}>
+                      {c.status === "open" ? "Terbuka" : "Ditutup"}
+                    </span>
+                  </div>
+                ))
+            )}
+            {historyFilter === "sales" && !loadingCaseHistory && caseHistoryList.length === 0 && (
+              <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Belum ada riwayat kasus.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2818,6 +2915,7 @@ function SalesChatScreen({ toko, onBack, products, orders, cart, rincian }) {
     setShowAttachMenu(false);
     await sendMessage({ message: `🧾 Nanya soal pesanan: ${o.id}`, tipe_pesan: "pesanan" });
   }
+
 
   if (loading) {
     return (
