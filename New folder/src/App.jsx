@@ -83,7 +83,7 @@ async function subscribeToPush(clientId) {
     }
 
     const json = subscription.toJSON();
-    await supabaseFetch("push_subscriptions", {
+    await supabaseFetch("push_subscriptions?on_conflict=endpoint", {
       method: "POST",
       prefer: "resolution=merge-duplicates,return=representation",
       body: JSON.stringify({
