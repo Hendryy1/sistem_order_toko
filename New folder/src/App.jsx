@@ -914,7 +914,11 @@ export default function OrderApp() {
         <BantuanScreen onBack={() => setScreen("akun")} />
       )}
       {screen === "campaign-detail" && (
-        <CampaignDetailScreen onBack={() => setScreen(campaignReturnScreen)} />
+        <CampaignDetailScreen
+          onBack={() => setScreen(campaignReturnScreen)}
+          cartCount={Object.values(cart).reduce((a, b) => a + b, 0)}
+          onGoToCart={() => setScreen("cart")}
+        />
       )}
       {screen === "akun-poin" && (
         <PoinScreen
@@ -2314,7 +2318,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
   const [top, setTop] = useState(() =>
     clampTop(window.innerHeight - BOTTOM_NAV_HEIGHT - WIDGET_SIZE - CLOSE_AREA - GAP_ABOVE_NAV)
   );
-  const [shakeKey, setShakeKey] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
   const dragState = useRef({ dragging: false, startY: 0, startTop: 0, moved: false });
 
   useEffect(() => {
@@ -2345,7 +2349,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
     dragState.current.moved = false;
     dragState.current.startY = e.touches ? e.touches[0].clientY : e.clientY;
     dragState.current.startTop = top;
-    setShakeKey((k) => k + 1); // ganti key -> paksa animasi getar dimulai ulang
+    setIsShaking(true); // mulai animasi getar (dihentikan otomatis lewat onAnimationEnd)
   }
 
   function handleClick() {
@@ -2371,15 +2375,15 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
       <div style={{ position: "absolute", top, right: 0, width: WIDGET_SIZE, height: WIDGET_SIZE + CLOSE_AREA, pointerEvents: "auto" }}>
         {/* Badan widget (gambar/GIF) */}
         <div
-          key={shakeKey}
           onMouseDown={handleDown}
           onTouchStart={handleDown}
           onClick={handleClick}
+          onAnimationEnd={() => setIsShaking(false)}
           style={{
             position: "absolute", top: CLOSE_AREA, left: 0, right: 0, height: WIDGET_SIZE,
             borderRadius: 14, overflow: "hidden", boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
             cursor: "pointer", touchAction: "none", background: "#fff",
-            animation: shakeKey > 0 ? "campaignShake 0.4s ease" : "none",
+            animation: isShaking ? "campaignShake 0.4s ease" : "none",
           }}
         >
           <img src={imageUrl} alt="Kampanye" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} draggable={false} />
@@ -2404,17 +2408,29 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
 // ============================================================
 // HALAMAN DETAIL KAMPANYE
 // ============================================================
-function CampaignDetailScreen({ onBack }) {
+function CampaignDetailScreen({ onBack, cartCount, onGoToCart }) {
   return (
-    <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 16 }}>
-        <ChevronLeft size={18} /> Kembali
-      </button>
-      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 12px" }}>Promo Spesial!</h1>
-      <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6 }}>
-        Ini halaman detail kampanye. Isi dengan konten promo, syarat & ketentuan,
-        atau apapun yang Anda perlukan di sini.
-      </p>
+    <div style={{ minHeight: "100vh" }}>
+      <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #EDEAE3" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#24272B", fontSize: 14, fontWeight: 600, padding: 0 }}>
+          <ChevronLeft size={20} /> Kembali
+        </button>
+        <button onClick={onGoToCart} style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+          <ShoppingCart size={17} color="#24272B" />
+          {cartCount > 0 && (
+            <span style={{ position: "absolute", top: -4, right: -4, background: "#E8A426", color: "#24272B", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+              {cartCount}
+            </span>
+          )}
+        </button>
+      </div>
+      <div style={{ padding: "20px 20px 40px" }}>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 12px" }}>Promo Spesial!</h1>
+        <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6 }}>
+          Ini halaman detail kampanye. Isi dengan konten promo, syarat & ketentuan,
+          atau apapun yang Anda perlukan di sini.
+        </p>
+      </div>
     </div>
   );
 }
