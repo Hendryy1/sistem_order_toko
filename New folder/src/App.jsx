@@ -20,11 +20,11 @@ const SAMPLE_TOKO = [
 ];
 
 const CATEGORY_META = {
-  "Bahan Bangunan": { icon: Building2, bg: "#EFE1BE", fg: "#8A6A1A" },
-  "Cat": { icon: PaintBucket, bg: "#E3D9F0", fg: "#5B3F91" },
-  "Pipa": { icon: Milestone, bg: "#D8E9E6", fg: "#28685D" },
-  "Keramik": { icon: LayoutGrid, bg: "#F0DCD6", fg: "#9A4630" },
-  "Sparepart": { icon: Wrench, bg: "#DCE6F0", fg: "#2C5985" },
+  "Bahan Bangunan": { icon: Building2, bg: "#EFE1BE", fg: "#B8860B" },
+  "Cat": { icon: PaintBucket, bg: "#D8E9E6", fg: "#24272B" },
+  "Pipa": { icon: Milestone, bg: "#D8E9E6", fg: "#24272B" },
+  "Keramik": { icon: LayoutGrid, bg: "#EFE1BE", fg: "#B8860B" },
+  "Sparepart": { icon: Wrench, bg: "#EFE1BE", fg: "#B8860B" },
 };
 // Dipakai kalau kategori barang belum ada di daftar di atas (misal kategori baru
 // yang ditambahkan lewat menu Product di Dashboard) - supaya tidak bikin app crash.
@@ -889,19 +889,7 @@ export default function OrderApp() {
         <CsChatChoiceScreen
           toko={toko}
           onBack={() => setScreen("catalog")}
-          onChooseAi={() => setScreen("cs-chat")}
-          onChooseSales={() => setScreen("sales-chat")}
           onContactCS={() => { setCsReturnScreen("cs-chat-choice"); setScreen("akun-cs"); }}
-        />
-      )}
-
-      {screen === "cs-chat" && (
-        <CsChatScreen toko={toko} onBack={() => setScreen("cs-chat-choice")} />
-      )}
-
-      {screen === "sales-chat" && (
-        <SalesChatScreen
-          toko={toko} onBack={() => setScreen("cs-chat-choice")}
           products={products} orders={orders} cart={cart} rincian={cartRincian}
         />
       )}
@@ -1082,14 +1070,14 @@ function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "24px 0" }}>
-        <div style={{ flex: 1, height: 1, background: "#3A3E44" }} />
+        <div style={{ flex: 1, height: 1, background: "#24272B" }} />
         <span style={{ color: "#6B6F75", fontSize: 11, fontWeight: 600 }}>ATAU</span>
-        <div style={{ flex: 1, height: 1, background: "#3A3E44" }} />
+        <div style={{ flex: 1, height: 1, background: "#24272B" }} />
       </div>
 
       <button
         onClick={onGuestBrowse}
-        style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1.5px solid #3A3E44", background: "none", color: "#fff", fontSize: 14, fontWeight: 600 }}
+        style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1.5px solid #24272B", background: "none", color: "#fff", fontSize: 14, fontWeight: 600 }}
       >
         Lihat Katalog Dulu (Tanpa Login)
       </button>
@@ -1148,7 +1136,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
         <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#D8E9E6", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
-          <Clock size={34} color="#28685D" />
+          <Clock size={34} color="#24272B" />
         </div>
         <h2 className="disp" style={{ fontSize: 26, fontWeight: 700, color: "#24272B", margin: "0 0 10px" }}>Menunggu persetujuan</h2>
         <p style={{ color: "#6B6F75", fontSize: 14, lineHeight: 1.6, maxWidth: 300 }}>
@@ -1298,7 +1286,7 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
               key={opt}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(opt)}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", fontSize: 13.5, color: "#24272B", borderBottom: "1px solid #F2F0EA" }}
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", fontSize: 13.5, color: "#24272B", borderBottom: "1px solid #F7F5F1" }}
             >
               {opt}
             </button>
@@ -1352,7 +1340,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
             </div>
             <button
               onClick={() => { setShowSearch(false); setSearchQuery(""); }}
-              style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
             >
               <X size={18} color="#fff" />
             </button>
@@ -1364,13 +1352,13 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
               <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>INDO GARUDA ABADI</p>
             </div>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setShowSearch(true)} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button onClick={() => setShowSearch(true)} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Search size={18} color="#fff" />
               </button>
-              <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <MessageCircle size={18} color="#fff" />
               </button>
-              <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#33373C", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                 <Bell size={18} color="#fff" />
                 {unreadCount > 0 && (
                   <span style={{ position: "absolute", top: -3, right: -3, background: "#E4453A", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid #24272B" }}>
@@ -1426,7 +1414,7 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
                     <p className="disp" style={{ fontSize: 17, fontWeight: 700, color: p.hargaAsli ? "#C0392B" : "#24272B", margin: 0 }}>{rupiah(p.harga)}</p>
                     {p.isiPerKoli > 0 && (
                       qty >= p.isiPerKoli ? (
-                        <p style={{ fontSize: 10, color: "#28685D", fontWeight: 700, margin: "4px 0 0", lineHeight: 1.3, display: "flex", alignItems: "center", gap: 3 }}>
+                        <p style={{ fontSize: 10, color: "#24272B", fontWeight: 700, margin: "4px 0 0", lineHeight: 1.3, display: "flex", alignItems: "center", gap: 3 }}>
                           <Check size={11} /> Diskon tambahan {Math.round((p.diskonKoliPct ?? 0.05) * 100)}% aktif (1 koli)
                         </p>
                       ) : (
@@ -1598,11 +1586,11 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
             <p style={{ fontSize: 13, color: "#9CA0A6", marginBottom: 16 }}>Stok tersedia: {product.stock} {product.satuan}</p>
             {product.isiPerKoli > 0 && (
               qty >= product.isiPerKoli ? (
-                <div style={{ background: "#D8E9E6", color: "#28685D", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
+                <div style={{ background: "#D8E9E6", color: "#24272B", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
                   <Check size={15} /> Diskon tambahan {Math.round((product.diskonKoliPct ?? 0.05) * 100)}% aktif — sudah 1 koli ({product.isiPerKoli} {product.satuan})
                 </div>
               ) : (
-                <div style={{ background: "#FBF0D9", color: "#8A6A1A", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
+                <div style={{ background: "#FBF0D9", color: "#B8860B", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
                   🎉 Tambah {product.isiPerKoli - qty} {product.satuan} lagi untuk diskon tambahan {Math.round((product.diskonKoliPct ?? 0.05) * 100)}% (1 koli = {product.isiPerKoli} {product.satuan})
                 </div>
               )
@@ -1702,7 +1690,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
         <div style={{ margin: "8px 20px 4px", background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#EFE1BE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Store size={17} color="#8A6A1A" />
+              <Store size={17} color="#B8860B" />
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dikirim untuk</p>
@@ -1876,7 +1864,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                   <p style={{ fontSize: 13, color: "#9CA0A6", margin: 0 }}>{rupiah(p.harga)} / {p.satuan}</p>
                 )}
                 {r.totalDiskon > 0 && (
-                  <p style={{ fontSize: 11.5, color: "#28685D", fontWeight: 600, margin: "4px 0 0" }}>
+                  <p style={{ fontSize: 11.5, color: "#24272B", fontWeight: 600, margin: "4px 0 0" }}>
                     Hemat {rupiah(Math.round(r.totalDiskon))} {r.kenaKoli && "(termasuk bonus koli)"}
                   </p>
                 )}
@@ -1932,7 +1920,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
           <span>{rupiah(Math.round(rincian.subtotalSebelum))}</span>
         </div>
         {rincian.totalDiskon > 0 && (
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#28685D", fontWeight: 600, marginBottom: 3 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#24272B", fontWeight: 600, marginBottom: 3 }}>
             <span>Diskon</span>
             <span>-{rupiah(Math.round(rincian.totalDiskon))}</span>
           </div>
@@ -1985,7 +1973,7 @@ function SuccessScreen({ order, onDone, onHistory }) {
             <p style={{ margin: 0, fontWeight: 700, color: "#24272B" }}>
               Dikirim ke: {order.tujuan.nama}
               {order.isDropship && (
-                <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#8A6A1A", background: "#EFE1BE", padding: "2px 8px", borderRadius: 999 }}>
+                <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "#B8860B", background: "#EFE1BE", padding: "2px 8px", borderRadius: 999 }}>
                   DROPSHIP
                 </span>
               )}
@@ -2100,7 +2088,7 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
               onClick={() => onOpenOrderList(t.key)}
               style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 14, textAlign: "left" }}
             >
-              <Icon size={20} color="#8A6A1A" strokeWidth={1.8} />
+              <Icon size={20} color="#B8860B" strokeWidth={1.8} />
               <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "8px 0 0" }}>{t.count}</p>
               <p style={{ fontSize: 11.5, color: "#6B6F75", margin: "2px 0 0", lineHeight: 1.3 }}>{t.label}</p>
             </button>
@@ -2213,11 +2201,11 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
             {!o.sudahBayar && filterKey === "bayar" && (
               toko?.jenisBayar === "Transfer" ? (
                 o.buktiTransferUrl ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#8A6A1A", fontWeight: 600 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>
                     <Check size={13} /> Bukti transfer terkirim, menunggu konfirmasi Owner
                   </div>
                 ) : (
-                  <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px", borderRadius: 9, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
+                  <label style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, width: "100%", padding: "9px", borderRadius: 9, border: "1.5px dashed #E8A426", background: "#F7F5F1", color: "#B8860B", fontSize: 12.5, fontWeight: 700, cursor: "pointer" }}>
                     <Upload size={14} /> Upload Bukti Transfer
                     <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files[0]) onUploadBukti(o, e.target.files[0]); }} />
                   </label>
@@ -2376,11 +2364,11 @@ function OrderDetailModal({ order, onClose }) {
           <span style={{ fontSize: 11, fontWeight: 700, color: order.status === "Dibatalkan" ? "#C0392B" : "#B8860B", background: order.status === "Dibatalkan" ? "#FBEAEA" : "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>
             {order.status}
           </span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: order.sudahBayar ? "#28685D" : "#C0392B", background: order.sudahBayar ? "#D8E9E6" : "#FBEAEA", padding: "4px 10px", borderRadius: 999 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: order.sudahBayar ? "#24272B" : "#C0392B", background: order.sudahBayar ? "#D8E9E6" : "#FBEAEA", padding: "4px 10px", borderRadius: 999 }}>
             {order.sudahBayar ? "Lunas" : "Belum Lunas"}
           </span>
           {order.isDropship && (
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#8A6A1A", background: "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>Dropship</span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#B8860B", background: "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>Dropship</span>
           )}
         </div>
 
@@ -2604,7 +2592,7 @@ function NotifikasiScreen({ toko, onBack }) {
           </div>
         ) : (
           notifs.map((n) => (
-            <div key={n.id} style={{ background: n.is_read ? "#fff" : "#FFFBF0", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+            <div key={n.id} style={{ background: n.is_read ? "#fff" : "#F7F5F1", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                 <p style={{ fontSize: 13.5, fontWeight: 700, color: "#24272B", margin: 0 }}>{n.title}</p>
                 {!n.is_read && <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E4453A", flexShrink: 0, marginTop: 4 }} />}
@@ -2622,7 +2610,8 @@ function NotifikasiScreen({ toko, onBack }) {
 // ============================================================
 // PILIHAN CHAT: INDAH (AI) ATAU SALES
 // ============================================================
-function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContactCS }) {
+function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart, rincian }) {
+  const [activeTab, setActiveTab] = useState("indah"); // "indah" | "sales"
   const [salesInfo, setSalesInfo] = useState(null);
   const [showCaseHistory, setShowCaseHistory] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -2631,12 +2620,73 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContact
   const [loadingCaseHistory, setLoadingCaseHistory] = useState(false);
   const [historyFilter, setHistoryFilter] = useState("sales"); // "sales" | "indah"
 
+  // ---- state chat INDAH (AI) ----
+  const [indahMessages, setIndahMessages] = useState([
+    { role: "assistant", text: `Halo${toko?.nama ? " " + toko.nama : ""}! Saya INDAH, asisten customer service di sini. Ada yang bisa saya bantu seputar produk, cara order, atau status pesanan Anda?` },
+  ]);
+  const [indahInput, setIndahInput] = useState("");
+  const [indahSending, setIndahSending] = useState(false);
+  const indahScrollRef = useRef(null);
+
+  // ---- state chat SALES ----
+  const [caseInfo, setCaseInfo] = useState(null);
+  const [salesMessages, setSalesMessages] = useState([]);
+  const [salesInput, setSalesInput] = useState("");
+  const [salesSending, setSalesSending] = useState(false);
+  const [salesLoading, setSalesLoading] = useState(true);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [showPickProduk, setShowPickProduk] = useState(false);
+  const [showPickPesanan, setShowPickPesanan] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const salesScrollRef = useRef(null);
+  const pollRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const galleryInputRef = useRef(null);
+
   useEffect(() => {
     if (!toko?.salesId) return;
     supabaseFetch(`sales?select=nama,kode&id=eq.${toko.salesId}`)
       .then((rows) => setSalesInfo(rows[0] || null))
       .catch(() => setSalesInfo(null));
   }, [toko?.salesId]);
+
+  useEffect(() => {
+    loadExistingCaseOnly();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  // Cuma AMBIL kasus yang sudah ada (kalau ada) - TIDAK bikin No Case baru di
+  // sini. No Case baru dibuat pas toko benar-benar kirim pesan pertama.
+  async function loadExistingCaseOnly() {
+    setSalesLoading(true);
+    try {
+      const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&status=eq.open&order=created_at.desc&limit=1`);
+      if (existing[0]) {
+        setCaseInfo(existing[0]);
+        await loadMessages(existing[0].id);
+        pollRef.current = setInterval(() => loadMessages(existing[0].id), 4000);
+      }
+    } catch (e) {
+      console.log("Gagal buka chat sales:", e.message);
+    }
+    setSalesLoading(false);
+  }
+
+  async function loadMessages(caseId) {
+    try {
+      const rows = await supabaseFetch(`chat_messages?select=*&case_id=eq.${caseId}&order=created_at.asc`);
+      setSalesMessages(rows);
+    } catch (e) { /* diamkan, coba lagi di polling berikutnya */ }
+  }
+
+  useEffect(() => {
+    indahScrollRef.current?.scrollTo({ top: indahScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [indahMessages, indahSending]);
+
+  useEffect(() => {
+    salesScrollRef.current?.scrollTo({ top: salesScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [salesMessages]);
 
   async function openCaseHistory() {
     setShowMoreMenu(false);
@@ -2651,9 +2701,143 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContact
     setLoadingCaseHistory(false);
   }
 
+  // ================= FUNGSI CHAT INDAH (AI) =================
+  async function handleSendIndah() {
+    const text = indahInput.trim();
+    if (!text || indahSending) return;
+    const nextMessages = [...indahMessages, { role: "user", text }];
+    setIndahMessages(nextMessages);
+    setIndahInput("");
+    setIndahSending(true);
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 500,
+          system: `Kamu adalah INDAH, asisten AI customer service untuk toko B2B (distributor bahan bangunan & sparepart) yang melayani pelanggan lewat aplikasi order online ini. Tugasmu membantu pelanggan (pemilik toko yang jadi pelanggan B2B) dengan pertanyaan seputar produk, cara order, status pesanan, cara pembayaran, dan hal umum lain terkait layanan ini. Bersikap ramah, sopan, singkat, dan selalu pakai Bahasa Indonesia. Kalau ditanya hal di luar topik toko/produk/order, arahkan dengan sopan kembali ke seputar layanan ini. Kamu adalah AI, jangan berpura-pura jadi manusia kalau ditanya langsung. Nama toko yang sedang chat: ${toko?.nama || "Tamu"}.`,
+          messages: nextMessages.map((m) => ({ role: m.role, content: m.text })),
+        }),
+      });
+      const data = await response.json();
+      const replyText = data.content?.map((c) => c.text || "").join("") || "Maaf, saya belum bisa jawab itu sekarang.";
+      setIndahMessages((prev) => [...prev, { role: "assistant", text: replyText }]);
+    } catch (e) {
+      setIndahMessages((prev) => [...prev, { role: "assistant", text: "Maaf, sedang ada gangguan koneksi. Coba lagi sebentar ya." }]);
+    }
+    setIndahSending(false);
+  }
+
+  // ================= FUNGSI CHAT SALES =================
+  // Fungsi kirim generik - dipakai buat teks, gambar, referensi produk/pesanan/troli.
+  async function sendMessage({ message, image_url, tipe_pesan }) {
+    if (salesSending) return;
+    setSalesSending(true);
+    try {
+      let activeCase = caseInfo;
+      if (!activeCase) {
+        const [created] = await supabaseFetch("chat_cases", {
+          method: "POST",
+          body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
+        });
+        activeCase = created;
+        setCaseInfo(created);
+        pollRef.current = setInterval(() => loadMessages(created.id), 4000);
+      }
+      const [inserted] = await supabaseFetch("chat_messages", {
+        method: "POST",
+        body: JSON.stringify({ case_id: activeCase.id, sender_type: "toko", message: message || "", image_url: image_url || null, tipe_pesan: tipe_pesan || "teks" }),
+      });
+      setSalesMessages((prev) => [...prev, inserted]);
+    } catch (e) {
+      alert("Gagal kirim pesan: " + e.message);
+    }
+    setSalesSending(false);
+  }
+
+  async function handleSendSales() {
+    const text = salesInput.trim();
+    if (!text) return;
+    setSalesInput("");
+    await sendMessage({ message: text, tipe_pesan: "teks" });
+  }
+
+  function insertEmoji(emoji) {
+    setSalesInput((prev) => prev + emoji);
+    setShowEmoji(false);
+  }
+
+  async function handlePickImage(e) {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    setShowAttachMenu(false);
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const filePath = `chat-${toko.id}-${Date.now()}.${ext}`;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
+      await sendMessage({ image_url: url, tipe_pesan: "gambar" });
+    } catch (e) {
+      alert("Gagal upload foto: " + e.message);
+    }
+    setUploadingImage(false);
+  }
+
+  async function kirimTroli() {
+    setShowAttachMenu(false);
+    const entries = Object.entries(cart || {});
+    if (entries.length === 0) {
+      alert("Keranjang Anda masih kosong.");
+      return;
+    }
+    const lines = entries.map(([kode, qty]) => {
+      const p = (products || []).find((x) => x.kode === kode);
+      return `- ${p?.nama || kode} x${qty}`;
+    });
+    const total = rincian?.totalSetelahDiskon ?? rincian?.total ?? 0;
+    const text = `\ud83d\uded2 Nanya soal keranjang saya:\n${lines.join("\n")}\nEstimasi total: ${rupiah(total)}`;
+    await sendMessage({ message: text, tipe_pesan: "troli" });
+  }
+
+  async function kirimProduk(p) {
+    setShowPickProduk(false);
+    setShowAttachMenu(false);
+    await sendMessage({ message: `\ud83d\udce6 Nanya soal barang: ${p.nama} (${p.kode})`, tipe_pesan: "produk" });
+  }
+
+  async function kirimPesanan(o) {
+    setShowPickPesanan(false);
+    setShowAttachMenu(false);
+    await sendMessage({ message: `\ud83e\uddfe Nanya soal pesanan: ${o.id}`, tipe_pesan: "pesanan" });
+  }
+
+  async function tutupKasus() {
+    if (!caseInfo || caseInfo.status === "closed") return;
+    if (!confirm("Tutup obrolan ini? Kalau nanti chat lagi, akan mulai No. Case baru.")) return;
+    try {
+      await supabaseFetch(`chat_cases?id=eq.${caseInfo.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: "closed" }),
+      });
+      setCaseInfo((prev) => ({ ...prev, status: "closed" }));
+      if (pollRef.current) clearInterval(pollRef.current);
+    } catch (e) {
+      alert("Gagal menutup obrolan: " + e.message);
+    }
+  }
+
   return (
-    <div style={{ minHeight: "100vh", padding: "0 20px 40px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, zIndex: 10, background: "#fff", borderBottom: "1px solid #EDEAE3", margin: "0 -20px 24px", padding: "16px 20px" }}>
+    <div style={{ position: "fixed", inset: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", background: "#F7F5F1", zIndex: 300 }}>
+      {/* HEADER */}
+      <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#fff", borderBottom: "1px solid #EDEAE3", flexShrink: 0, position: "relative" }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0, flexShrink: 0 }}>
           <ChevronLeft size={20} color="#24272B" />
         </button>
@@ -2677,36 +2861,190 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContact
           )}
         </div>
       </div>
-      <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 24px" }}>Pilih salah satu di bawah ini.</p>
 
-      <button
-        onClick={onChooseAi}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 16, padding: 18, marginBottom: 14, textAlign: "left" }}
-      >
-        <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <MessageCircle size={22} color="#24272B" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: 0 }}>INDAH</p>
-          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "2px 0 0" }}>Asisten AI - balas instan, siap 24 jam</p>
-        </div>
-        <ChevronRight size={18} color="#9CA0A6" />
-      </button>
+      {/* TAB INDAH | SALES - langsung tampilkan chat, tanpa perlu pindah halaman */}
+      <div style={{ display: "flex", gap: 8, padding: "12px 20px", background: "#fff", borderBottom: "1px solid #EDEAE3", flexShrink: 0 }}>
+        <button
+          onClick={() => setActiveTab("indah")}
+          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 10, border: activeTab === "indah" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "indah" ? "#FBF0D9" : "#fff" }}
+        >
+          <MessageCircle size={16} color="#24272B" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#24272B" }}>INDAH</span>
+        </button>
+        <button
+          onClick={() => setActiveTab("sales")}
+          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "10px", borderRadius: 10, border: activeTab === "sales" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "sales" ? "#FBF0D9" : "#fff" }}
+        >
+          <Headphones size={16} color="#24272B" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#24272B" }}>{salesInfo ? salesInfo.nama : "Sales"}</span>
+        </button>
+      </div>
 
-      <button
-        onClick={onChooseSales}
-        style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 16, padding: 18, textAlign: "left" }}
-      >
-        <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#D8E9E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Headphones size={22} color="#28685D" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: 0 }}>{salesInfo ? salesInfo.nama : "Sales Anda"}</p>
-          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "2px 0 0" }}>Sales Toko {toko?.nama}</p>
-        </div>
-        <ChevronRight size={18} color="#9CA0A6" />
-      </button>
+      {/* ===================== ISI CHAT INDAH ===================== */}
+      {activeTab === "indah" && (
+        <>
+          <div ref={indahScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+            {indahMessages.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
+                <div style={{
+                  maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
+                  background: m.role === "user" ? "#E8A426" : "#fff",
+                  color: "#24272B",
+                  border: m.role === "user" ? "none" : "1px solid #EDEAE3",
+                  fontSize: 13.5, lineHeight: 1.5,
+                  borderBottomRightRadius: m.role === "user" ? 4 : 14,
+                  borderBottomLeftRadius: m.role === "user" ? 14 : 4,
+                }}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {indahSending && (
+              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
+                <div style={{ padding: "10px 14px", borderRadius: 14, background: "#fff", border: "1px solid #EDEAE3", fontSize: 13, color: "#9CA0A6" }}>
+                  INDAH sedang mengetik...
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10, flexShrink: 0 }}>
+            <input
+              value={indahInput}
+              onChange={(e) => setIndahInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSendIndah()}
+              placeholder="Tulis pesan..."
+              enterKeyHint="send"
+              style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
+            />
+            <button
+              onClick={handleSendIndah}
+              disabled={indahSending || !indahInput.trim()}
+              style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (indahSending || !indahInput.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              Kirim
+            </button>
+          </div>
+        </>
+      )}
 
+      {/* ===================== ISI CHAT SALES ===================== */}
+      {activeTab === "sales" && (
+        salesLoading ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <p style={{ color: "#9CA0A6", fontSize: 13 }}>Memuat chat...</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding: "10px 20px", background: "#fff", borderBottom: "1px solid #EDEAE3", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <p style={{ fontSize: 10.5, color: "#B5B2AA", margin: 0 }}>{caseInfo?.no_case ? `No. Case: ${caseInfo.no_case}` : "Belum ada No. Case - kirim pesan dulu"}</p>
+              {caseInfo && caseInfo.status === "open" && (
+                <button onClick={tutupKasus} style={{ padding: "5px 10px", borderRadius: 7, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 11, fontWeight: 700 }}>
+                  Tutup
+                </button>
+              )}
+            </div>
+            <div ref={salesScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+              {salesMessages.length === 0 && (
+                <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "20px 0" }}>
+                  Belum ada pesan. Tulis pertanyaan Anda, sales akan membalas sesegera mungkin.
+                </p>
+              )}
+              {salesMessages.map((m) => (
+                <div key={m.id} style={{ display: "flex", justifyContent: m.sender_type === "toko" ? "flex-end" : "flex-start", marginBottom: 12 }}>
+                  {m.tipe_pesan === "gambar" && m.image_url ? (
+                    <img src={m.image_url} alt="Lampiran" style={{ maxWidth: "60%", borderRadius: 14, display: "block" }} />
+                  ) : (
+                    <div style={{
+                      maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
+                      background: m.sender_type === "toko" ? "#E8A426" : "#fff",
+                      border: m.sender_type === "toko" ? "none" : "1px solid #EDEAE3",
+                      fontSize: 13.5, lineHeight: 1.5, color: "#24272B", whiteSpace: "pre-line",
+                      borderBottomRightRadius: m.sender_type === "toko" ? 4 : 14,
+                      borderBottomLeftRadius: m.sender_type === "toko" ? 14 : 4,
+                    }}>
+                      {m.message}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {uploadingImage && (
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+                  <div style={{ padding: "10px 14px", borderRadius: 14, background: "#FBF0D9", fontSize: 12.5, color: "#B8860B" }}>Mengirim foto...</div>
+                </div>
+              )}
+            </div>
+
+            {caseInfo?.status === "closed" ? (
+              <div style={{ padding: "14px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, textAlign: "center" }}>
+                <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>Obrolan ini sudah ditutup.</p>
+              </div>
+            ) : (
+              <div style={{ background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, position: "relative" }}>
+                {showAttachMenu && (
+                  <div style={{ padding: "16px 20px", borderBottom: "1px solid #EDEAE3", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                    {[
+                      { icon: Smile, label: "Emoji", onClick: () => { setShowEmoji(true); setShowAttachMenu(false); } },
+                      { icon: Camera, label: "Ambil Foto", onClick: () => cameraInputRef.current?.click() },
+                      { icon: ImageIcon, label: "Album Foto", onClick: () => galleryInputRef.current?.click() },
+                      { icon: ShoppingCart, label: "Troli", onClick: kirimTroli },
+                      { icon: Package, label: "Riwayat Produk", onClick: () => { setShowPickProduk(true); setShowAttachMenu(false); } },
+                      { icon: ClipboardList, label: "Riwayat Pesanan", onClick: () => { setShowPickPesanan(true); setShowAttachMenu(false); } },
+                    ].map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <button key={item.label} onClick={item.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", padding: 4 }}>
+                          <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <Icon size={20} color="#24272B" />
+                          </div>
+                          <span style={{ fontSize: 10.5, color: "#6B6F75", textAlign: "center" }}>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {showEmoji && (
+                  <div style={{ padding: "12px 20px", borderBottom: "1px solid #EDEAE3", display: "flex", flexWrap: "wrap", gap: 10 }}>
+                    {["\ud83d\ude00","\ud83d\ude02","\ud83d\ude0d","\ud83d\udc4d","\ud83d\ude4f","\ud83d\ude22","\ud83d\ude21","\ud83c\udf89","\u2764\ufe0f","\ud83d\udd25","\ud83d\udc4c","\ud83d\ude05","\ud83e\udd14","\ud83d\ude34","\ud83d\ude4c","\u2705"].map((e) => (
+                      <button key={e} onClick={() => insertEmoji(e)} style={{ fontSize: 22, background: "none", border: "none", padding: 2 }}>{e}</button>
+                    ))}
+                  </div>
+                )}
+
+                <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handlePickImage} />
+                <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePickImage} />
+
+                <div style={{ padding: "12px 20px", display: "flex", gap: 8, alignItems: "center" }}>
+                  <button
+                    onClick={() => { setShowAttachMenu((v) => !v); setShowEmoji(false); }}
+                    style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: showAttachMenu ? "#E8A426" : "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >
+                    <Plus size={18} color={showAttachMenu ? "#24272B" : "#6B6F75"} />
+                  </button>
+                  <input
+                    value={salesInput}
+                    onChange={(e) => setSalesInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSendSales()}
+                    onFocus={() => { setShowAttachMenu(false); setShowEmoji(false); }}
+                    placeholder="Tulis pesan..."
+                    enterKeyHint="send"
+                    style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
+                  />
+                  <button
+                    onClick={handleSendSales}
+                    disabled={salesSending || !salesInput.trim()}
+                    style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (salesSending || !salesInput.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >
+                    Kirim
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )
+      )}
+
+      {/* Modal riwayat kasus - cuma daftar, tidak bisa lihat isi percakapan lama */}
       {showCaseHistory && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 400 }}>
           <div style={{ background: "#fff", borderRadius: "18px 18px 0 0", width: "100%", maxWidth: 480, maxHeight: "75vh", overflowY: "auto", padding: 18 }}>
@@ -2750,7 +3088,7 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContact
                       <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: "#24272B" }}>{c.no_case}</p>
                       <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>{new Date(c.created_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: c.status === "open" ? "#D8E9E6" : "#F7F5F1", color: c.status === "open" ? "#28685D" : "#9CA0A6" }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: c.status === "open" ? "#D8E9E6" : "#F7F5F1", color: c.status === "open" ? "#24272B" : "#9CA0A6" }}>
                       {c.status === "open" ? "Terbuka" : "Ditutup"}
                     </span>
                   </div>
@@ -2759,304 +3097,6 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales, onContact
             {historyFilter === "sales" && !loadingCaseHistory && caseHistoryList.length === 0 && (
               <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Belum ada riwayat kasus.</p>
             )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================
-// CHAT DENGAN SALES (tersimpan permanen, ada No Case)
-// ============================================================
-function SalesChatScreen({ toko, onBack, products, orders, cart, rincian }) {
-  const [caseInfo, setCaseInfo] = useState(null);
-  const [salesInfo, setSalesInfo] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [showAttachMenu, setShowAttachMenu] = useState(false);
-  const [showEmoji, setShowEmoji] = useState(false);
-  const [showPickProduk, setShowPickProduk] = useState(false);
-  const [showPickPesanan, setShowPickPesanan] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const scrollRef = useRef(null);
-  const pollRef = useRef(null);
-  const cameraInputRef = useRef(null);
-  const galleryInputRef = useRef(null);
-
-  useEffect(() => {
-    loadExistingCaseOnly();
-    if (toko?.salesId) {
-      supabaseFetch(`sales?select=nama&id=eq.${toko.salesId}`)
-        .then((rows) => setSalesInfo(rows[0] || null))
-        .catch(() => setSalesInfo(null));
-    }
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, []);
-
-  // Cuma AMBIL kasus yang sudah ada (kalau ada) - TIDAK bikin No Case baru
-  // di sini. No Case baru dibuat pas toko benar-benar kirim pesan pertama
-  // (lihat handleSend), supaya buka-tutup chat tanpa kirim apa-apa tidak
-  // bikin nomor kasus baru yang kosong.
-  async function loadExistingCaseOnly() {
-    setLoading(true);
-    try {
-      const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&status=eq.open&order=created_at.desc&limit=1`);
-      if (existing[0]) {
-        setCaseInfo(existing[0]);
-        await loadMessages(existing[0].id);
-        pollRef.current = setInterval(() => loadMessages(existing[0].id), 4000);
-      }
-    } catch (e) {
-      console.log("Gagal buka chat sales:", e.message);
-    }
-    setLoading(false);
-  }
-
-  async function loadMessages(caseId) {
-    try {
-      const rows = await supabaseFetch(`chat_messages?select=*&case_id=eq.${caseId}&order=created_at.asc`);
-      setMessages(rows);
-    } catch (e) { /* diamkan, coba lagi di polling berikutnya */ }
-  }
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
-
-  // Fungsi kirim generik - dipakai buat teks, gambar, referensi produk/pesanan/troli.
-  // Semuanya lewat sini supaya logika "bikin No Case kalau belum ada" konsisten.
-  async function sendMessage({ message, image_url, tipe_pesan }) {
-    if (sending) return;
-    setSending(true);
-    try {
-      let activeCase = caseInfo;
-      if (!activeCase) {
-        const [created] = await supabaseFetch("chat_cases", {
-          method: "POST",
-          body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
-        });
-        activeCase = created;
-        setCaseInfo(created);
-        pollRef.current = setInterval(() => loadMessages(created.id), 4000);
-      }
-      const [inserted] = await supabaseFetch("chat_messages", {
-        method: "POST",
-        body: JSON.stringify({ case_id: activeCase.id, sender_type: "toko", message: message || "", image_url: image_url || null, tipe_pesan: tipe_pesan || "teks" }),
-      });
-      setMessages((prev) => [...prev, inserted]);
-    } catch (e) {
-      alert("Gagal kirim pesan: " + e.message);
-    }
-    setSending(false);
-  }
-
-  async function handleSend() {
-    const text = input.trim();
-    if (!text) return;
-    setInput("");
-    await sendMessage({ message: text, tipe_pesan: "teks" });
-  }
-
-  function insertEmoji(emoji) {
-    setInput((prev) => prev + emoji);
-    setShowEmoji(false);
-  }
-
-  async function handlePickImage(e) {
-    const file = e.target.files[0];
-    e.target.value = ""; // supaya bisa pilih file yang sama lagi nanti
-    if (!file) return;
-    setShowAttachMenu(false);
-    setUploadingImage(true);
-    try {
-      const ext = file.name.split(".").pop();
-      const filePath = `chat-${toko.id}-${Date.now()}.${ext}`;
-      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
-      await sendMessage({ image_url: url, tipe_pesan: "gambar" });
-    } catch (e) {
-      alert("Gagal upload foto: " + e.message);
-    }
-    setUploadingImage(false);
-  }
-
-  async function kirimTroli() {
-    setShowAttachMenu(false);
-    const entries = Object.entries(cart || {});
-    if (entries.length === 0) {
-      alert("Keranjang Anda masih kosong.");
-      return;
-    }
-    const lines = entries.map(([kode, qty]) => {
-      const p = (products || []).find((x) => x.kode === kode);
-      return `- ${p?.nama || kode} x${qty}`;
-    });
-    const total = rincian?.totalSetelahDiskon ?? rincian?.total ?? 0;
-    const text = `🛒 Nanya soal keranjang saya:\n${lines.join("\n")}\nEstimasi total: ${rupiah(total)}`;
-    await sendMessage({ message: text, tipe_pesan: "troli" });
-  }
-
-  async function kirimProduk(p) {
-    setShowPickProduk(false);
-    setShowAttachMenu(false);
-    await sendMessage({ message: `📦 Nanya soal barang: ${p.nama} (${p.kode})`, tipe_pesan: "produk" });
-  }
-
-  async function kirimPesanan(o) {
-    setShowPickPesanan(false);
-    setShowAttachMenu(false);
-    await sendMessage({ message: `🧾 Nanya soal pesanan: ${o.id}`, tipe_pesan: "pesanan" });
-  }
-
-
-  if (loading) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "#9CA0A6", fontSize: 13 }}>Memuat chat...</p>
-      </div>
-    );
-  }
-
-  async function tutupKasus() {
-    if (!caseInfo || caseInfo.status === "closed") return;
-    if (!confirm("Tutup obrolan ini? Kalau nanti chat lagi, akan mulai No. Case baru.")) return;
-    try {
-      await supabaseFetch(`chat_cases?id=eq.${caseInfo.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ status: "closed" }),
-      });
-      setCaseInfo((prev) => ({ ...prev, status: "closed" }));
-      if (pollRef.current) clearInterval(pollRef.current);
-    } catch (e) {
-      alert("Gagal menutup obrolan: " + e.message);
-    }
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", background: "#F7F5F1", zIndex: 300 }}>
-      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
-          <ChevronLeft size={20} color="#24272B" />
-        </button>
-        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#D8E9E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Headphones size={17} color="#28685D" />
-        </div>
-        <div style={{ flex: 1 }}>
-          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0 }}>{salesInfo?.nama || "Sales"}</p>
-          <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Sales Toko {toko?.nama}</p>
-          <p style={{ fontSize: 10.5, color: "#B5B2AA", margin: 0 }}>{caseInfo?.no_case ? `No. Case: ${caseInfo.no_case}` : "Belum ada No. Case - kirim pesan dulu"}</p>
-        </div>
-        {caseInfo && caseInfo.status === "open" && (
-          <button onClick={tutupKasus} style={{ padding: "7px 12px", borderRadius: 8, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 11.5, fontWeight: 700, flexShrink: 0 }}>
-            Tutup
-          </button>
-        )}
-      </div>
-
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-        {messages.length === 0 && (
-          <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "20px 0" }}>
-            Belum ada pesan. Tulis pertanyaan Anda, sales akan membalas sesegera mungkin.
-          </p>
-        )}
-        {messages.map((m) => (
-          <div key={m.id} style={{ display: "flex", justifyContent: m.sender_type === "toko" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-            {m.tipe_pesan === "gambar" && m.image_url ? (
-              <img src={m.image_url} alt="Lampiran" style={{ maxWidth: "60%", borderRadius: 14, display: "block" }} />
-            ) : (
-              <div style={{
-                maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
-                background: m.sender_type === "toko" ? "#E8A426" : "#fff",
-                border: m.sender_type === "toko" ? "none" : "1px solid #EDEAE3",
-                fontSize: 13.5, lineHeight: 1.5, color: "#24272B", whiteSpace: "pre-line",
-                borderBottomRightRadius: m.sender_type === "toko" ? 4 : 14,
-                borderBottomLeftRadius: m.sender_type === "toko" ? 14 : 4,
-              }}>
-                {m.message}
-              </div>
-            )}
-          </div>
-        ))}
-        {uploadingImage && (
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-            <div style={{ padding: "10px 14px", borderRadius: 14, background: "#FBF0D9", fontSize: 12.5, color: "#8A6A1A" }}>Mengirim foto...</div>
-          </div>
-        )}
-      </div>
-
-      {caseInfo?.status === "closed" ? (
-        <div style={{ padding: "14px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, textAlign: "center" }}>
-          <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>Obrolan ini sudah ditutup.</p>
-        </div>
-      ) : (
-        <div style={{ background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, position: "relative" }}>
-          {/* Menu lampiran (+) */}
-          {showAttachMenu && (
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EDEAE3", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-              {[
-                { icon: Smile, label: "Emoji", onClick: () => { setShowEmoji(true); setShowAttachMenu(false); } },
-                { icon: Camera, label: "Ambil Foto", onClick: () => cameraInputRef.current?.click() },
-                { icon: ImageIcon, label: "Album Foto", onClick: () => galleryInputRef.current?.click() },
-                { icon: ShoppingCart, label: "Troli", onClick: kirimTroli },
-                { icon: Package, label: "Riwayat Produk", onClick: () => { setShowPickProduk(true); setShowAttachMenu(false); } },
-                { icon: ClipboardList, label: "Riwayat Pesanan", onClick: () => { setShowPickPesanan(true); setShowAttachMenu(false); } },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button key={item.label} onClick={item.onClick} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: "none", border: "none", padding: 4 }}>
-                    <div style={{ width: 46, height: 46, borderRadius: "50%", background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Icon size={20} color="#24272B" />
-                    </div>
-                    <span style={{ fontSize: 10.5, color: "#6B6F75", textAlign: "center" }}>{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Emoji picker sederhana */}
-          {showEmoji && (
-            <div style={{ padding: "12px 20px", borderBottom: "1px solid #EDEAE3", display: "flex", flexWrap: "wrap", gap: 10 }}>
-              {["😀","😂","😍","👍","🙏","😢","😡","🎉","❤️","🔥","👌","😅","🤔","😴","🙌","✅"].map((e) => (
-                <button key={e} onClick={() => insertEmoji(e)} style={{ fontSize: 22, background: "none", border: "none", padding: 2 }}>{e}</button>
-              ))}
-            </div>
-          )}
-
-          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={handlePickImage} />
-          <input ref={galleryInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePickImage} />
-
-          <div style={{ padding: "12px 20px", display: "flex", gap: 8, alignItems: "center" }}>
-            <button
-              onClick={() => { setShowAttachMenu((v) => !v); setShowEmoji(false); }}
-              style={{ width: 36, height: 36, borderRadius: "50%", border: "none", background: showAttachMenu ? "#E8A426" : "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-            >
-              <Plus size={18} color={showAttachMenu ? "#24272B" : "#6B6F75"} />
-            </button>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              onFocus={() => { setShowAttachMenu(false); setShowEmoji(false); }}
-              placeholder="Tulis pesan..."
-              enterKeyHint="send"
-              style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={sending || !input.trim()}
-              style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-            >
-              Kirim
-            </button>
           </div>
         </div>
       )}
@@ -3107,106 +3147,6 @@ function SalesChatScreen({ toko, onBack, products, orders, cart, rincian }) {
   );
 }
 
-function CsChatScreen({ toko, onBack }) {
-  const [messages, setMessages] = useState([
-    { role: "assistant", text: `Halo${toko?.nama ? " " + toko.nama : ""}! Saya INDAH, asisten customer service di sini. Ada yang bisa saya bantu seputar produk, cara order, atau status pesanan Anda?` },
-  ]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const scrollRef = useRef(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, sending]);
-
-  async function handleSend() {
-    const text = input.trim();
-    if (!text || sending) return;
-    const nextMessages = [...messages, { role: "user", text }];
-    setMessages(nextMessages);
-    setInput("");
-    setSending(true);
-
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 500,
-          system: `Kamu adalah INDAH, asisten AI customer service untuk toko B2B (distributor bahan bangunan & sparepart) yang melayani pelanggan lewat aplikasi order online ini. Tugasmu membantu pelanggan (pemilik toko yang jadi pelanggan B2B) dengan pertanyaan seputar produk, cara order, status pesanan, cara pembayaran, dan hal umum lain terkait layanan ini. Bersikap ramah, sopan, singkat, dan selalu pakai Bahasa Indonesia. Kalau ditanya hal di luar topik toko/produk/order, arahkan dengan sopan kembali ke seputar layanan ini. Kamu adalah AI, jangan berpura-pura jadi manusia kalau ditanya langsung. Nama toko yang sedang chat: ${toko?.nama || "Tamu"}.`,
-          messages: nextMessages.map((m) => ({ role: m.role, content: m.text })),
-        }),
-      });
-      const data = await response.json();
-      const replyText = data.content?.map((c) => c.text || "").join("") || "Maaf, saya belum bisa jawab itu sekarang.";
-      setMessages((prev) => [...prev, { role: "assistant", text: replyText }]);
-    } catch (e) {
-      setMessages((prev) => [...prev, { role: "assistant", text: "Maaf, sedang ada gangguan koneksi. Coba lagi sebentar ya." }]);
-    }
-    setSending(false);
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", background: "#F7F5F1", zIndex: 300 }}>
-      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
-          <ChevronLeft size={20} color="#24272B" />
-        </button>
-        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <MessageCircle size={17} color="#24272B" />
-        </div>
-        <div>
-          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0 }}>INDAH</p>
-          <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Asisten AI Customer Service</p>
-        </div>
-      </div>
-
-      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-            <div style={{
-              maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
-              background: m.role === "user" ? "#E8A426" : "#fff",
-              color: m.role === "user" ? "#24272B" : "#24272B",
-              border: m.role === "user" ? "none" : "1px solid #EDEAE3",
-              fontSize: 13.5, lineHeight: 1.5,
-              borderBottomRightRadius: m.role === "user" ? 4 : 14,
-              borderBottomLeftRadius: m.role === "user" ? 14 : 4,
-            }}>
-              {m.text}
-            </div>
-          </div>
-        ))}
-        {sending && (
-          <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
-            <div style={{ padding: "10px 14px", borderRadius: 14, background: "#fff", border: "1px solid #EDEAE3", fontSize: 13, color: "#9CA0A6" }}>
-              INDAH sedang mengetik...
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10 }}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Tulis pesan..."
-          enterKeyHint="send"
-          style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
-        />
-        <button
-          onClick={handleSend}
-          disabled={sending || !input.trim()}
-          style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-        >
-          Kirim
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // ============================================================
 // DETAIL KAMPANYE
@@ -3311,7 +3251,7 @@ function ServiceCentreScreen({ onBack }) {
 
       <div style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-          <Clock size={17} color="#8A6A1A" />
+          <Clock size={17} color="#B8860B" />
           <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>Jam Operasional</p>
         </div>
         <p style={{ fontSize: 13, color: "#6B6F75", margin: 0, paddingLeft: 27 }}>{CS_INFO.jamOperasional}</p>
@@ -3319,14 +3259,14 @@ function ServiceCentreScreen({ onBack }) {
 
       <div style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-          <MessageCircle size={17} color="#28685D" />
+          <MessageCircle size={17} color="#24272B" />
           <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>WhatsApp Customer Service</p>
         </div>
         <p className="disp" style={{ fontSize: 19, fontWeight: 700, color: "#24272B", margin: "0 0 12px", paddingLeft: 27 }}>{CS_INFO.whatsappDisplay}</p>
         <a
           href={`https://wa.me/${CS_INFO.whatsapp}`}
           target="_blank" rel="noopener noreferrer"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", background: "#28685D", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 700 }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", background: "#24272B", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 700 }}
         >
           <MessageCircle size={16} /> Chat Sekarang
         </a>
@@ -3355,7 +3295,7 @@ function BantuanScreen({ onBack }) {
         return (
           <div key={i} style={{ marginBottom: 22 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EFE1BE", color: "#8A6A1A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#EFE1BE", color: "#B8860B", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11.5, fontWeight: 700, flexShrink: 0 }}>
                 {i + 1}
               </div>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: 0 }}>{s.judul}</p>
@@ -3387,7 +3327,7 @@ function HelpVisualOrder() {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         <div style={{ background: "#fff", borderRadius: 9, padding: 8 }}>
-          <div style={{ width: "100%", aspectRatio: "1.6", background: "#DCE6F0", borderRadius: 6, marginBottom: 5 }} />
+          <div style={{ width: "100%", aspectRatio: "1.6", background: "#EFE1BE", borderRadius: 6, marginBottom: 5 }} />
           <div style={{ height: 5, width: "70%", background: "#E4E1DA", borderRadius: 3, marginBottom: 4 }} />
           <div style={{ height: 5, width: "45%", background: "#E4E1DA", borderRadius: 3 }} />
         </div>
@@ -3471,7 +3411,7 @@ function HelpVisualPayment() {
         </div>
         <div style={{ background: "#24272B", borderRadius: 8, padding: "8px 10px" }}>
           <Wallet size={14} color="#E8A426" />
-          <div style={{ height: 5, width: "50%", background: "#4A4E54", borderRadius: 3, marginTop: 6 }} />
+          <div style={{ height: 5, width: "50%", background: "#24272B", borderRadius: 3, marginTop: 6 }} />
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "#E8A426", borderRadius: 8, padding: "8px" }}>
@@ -3488,8 +3428,8 @@ function HelpVisualPayment() {
 function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, onBack }) {
   const WHEEL_SEGMENTS = [
     { points: 150, color: "#F0EDE6", text: "#6B6F75" },
-    { points: 250, color: "#D8E9E6", text: "#28685D" },
-    { points: 350, color: "#EFE1BE", text: "#8A6A1A" },
+    { points: 250, color: "#D8E9E6", text: "#24272B" },
+    { points: 350, color: "#EFE1BE", text: "#B8860B" },
     { points: 500, color: "#E8A426", text: "#24272B" },
   ];
   const [rotation, setRotation] = useState(0);
@@ -3561,7 +3501,7 @@ function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, 
 
           let bg = "#F7F5F1", fg = "#9CA0A6", border = "1px solid transparent";
           if (isSabtu && claimed === undefined && !missed) { bg = "#FBF0D9"; fg = "#B8860B"; }
-          if (claimed !== undefined) { bg = isSabtu ? "#EFE1BE" : "#D8E9E6"; fg = isSabtu ? "#8A6A1A" : "#28685D"; }
+          if (claimed !== undefined) { bg = isSabtu ? "#EFE1BE" : "#D8E9E6"; fg = isSabtu ? "#B8860B" : "#24272B"; }
           if (missed) { bg = "#F7F5F1"; fg = "#9CA0A6"; }
           if (isToday && !todayClaimed) { border = "1.5px solid #E8A426"; }
 
@@ -3580,7 +3520,7 @@ function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, 
       </div>
 
       {todayClaimed ? (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#D8E9E6", color: "#28685D", padding: "14px", borderRadius: 12, fontSize: 13.5, fontWeight: 700 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#D8E9E6", color: "#24272B", padding: "14px", borderRadius: 12, fontSize: 13.5, fontWeight: 700 }}>
           <Check size={16} /> Sudah diklaim hari ini, kembali lagi besok
         </div>
       ) : (
@@ -3633,7 +3573,7 @@ function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, 
 
         {lastWin !== null && !spinning && (
           <div style={{ textAlign: "center", marginBottom: 14 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#28685D", margin: 0 }}>🎉 Selamat! Anda dapat {lastWin} poin</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>🎉 Selamat! Anda dapat {lastWin} poin</p>
           </div>
         )}
 
