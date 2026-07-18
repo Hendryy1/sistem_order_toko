@@ -5,7 +5,7 @@ import {
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
   HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2,
-  Smile, Camera, Image as ImageIcon
+  Smile, Camera, Image as ImageIcon, Bell
 } from "lucide-react";
 
 // ============================================================
@@ -47,6 +47,50 @@ const MIN_CHECKOUT = 500000;
 // ---------- Koneksi Supabase (database asli, pengganti data contoh) ----------
 const SUPABASE_URL = "https://bzlktpveupyxtcuhrmgg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bGt0cHZldXB5eHRjdWhybWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMTIwNjQsImV4cCI6MjA5OTc4ODA2NH0.DKvaQ-_Gdi5nj5DFkhu-8IttPCztYuKCoMoXxcIUdEI";
+const VAPID_PUBLIC_KEY = "BIsMEruRFmmq-ybQepJ1Vpr8vCQTDhp-5W403C_icGEh4b5jSaCX9H4106Eysboa6cNzIQ83Bp6yDGJUXiFWc8k";
+
+// Ubah base64url (format VAPID) jadi Uint8Array yang dimengerti browser
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; i++) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+// Daftarkan service worker + minta izin notifikasi + simpan langganan push
+// ke database, supaya toko tetap dapat notif walau Web App sudah ditutup.
+async function subscribeToPush(clientId) {
+  try {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    const registration = await navigator.serviceWorker.register("/sw.js");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return;
+
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+
+    const json = subscription.toJSON();
+    await supabaseFetch("push_subscriptions", {
+      method: "POST",
+      prefer: "resolution=merge-duplicates,return=representation",
+      body: JSON.stringify({
+        client_id: clientId,
+        endpoint: json.endpoint,
+        p256dh: json.keys.p256dh,
+        auth: json.keys.auth,
+      }),
+    });
+  } catch (e) {
+    console.log("Gagal aktifkan notifikasi:", e.message);
+  }
+}
 
 async function supabaseFetch(path, options = {}, userToken = null) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -384,6 +428,7 @@ export default function OrderApp() {
     saveSession({ token, userId, email });
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
+    subscribeToPush(r.id);
     return true;
   }
 
@@ -2031,6 +2076,7 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
       </div>
 
       <div style={{ padding: "8px 20px 4px" }}>
+        <MenuRow icon={Bell} label="Aktifkan Notifikasi" onClick={() => subscribeToPush(toko.id)} />
         <MenuRow icon={RotateCcw} label="Order Ulang" onClick={onOpenOrderUlang} />
         <MenuRow icon={Star} label="Poin Saya" onClick={onOpenPoin} />
         <MenuRow icon={CreditCard} label="Ketentuan Pembayaran & Rekening Bank" onClick={onOpenRekening} />
