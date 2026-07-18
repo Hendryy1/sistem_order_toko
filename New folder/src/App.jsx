@@ -2490,7 +2490,7 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
         </div>
         <div style={{ flex: 1 }}>
           <p className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: 0 }}>{salesInfo ? salesInfo.nama : "Sales Anda"}</p>
-          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "2px 0 0" }}>Chat tersimpan, ada No. Case buat direview kapan saja</p>
+          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "2px 0 0" }}>Sales Toko {toko?.nama}</p>
         </div>
         <ChevronRight size={18} color="#9CA0A6" />
       </button>
@@ -2503,6 +2503,7 @@ function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
 // ============================================================
 function SalesChatScreen({ toko, onBack }) {
   const [caseInfo, setCaseInfo] = useState(null);
+  const [salesInfo, setSalesInfo] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -2511,25 +2512,28 @@ function SalesChatScreen({ toko, onBack }) {
   const pollRef = useRef(null);
 
   useEffect(() => {
-    initOrLoadCase();
+    loadExistingCaseOnly();
+    if (toko?.salesId) {
+      supabaseFetch(`sales?select=nama&id=eq.${toko.salesId}`)
+        .then((rows) => setSalesInfo(rows[0] || null))
+        .catch(() => setSalesInfo(null));
+    }
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, []);
 
-  async function initOrLoadCase() {
+  // Cuma AMBIL kasus yang sudah ada (kalau ada) - TIDAK bikin No Case baru
+  // di sini. No Case baru dibuat pas toko benar-benar kirim pesan pertama
+  // (lihat handleSend), supaya buka-tutup chat tanpa kirim apa-apa tidak
+  // bikin nomor kasus baru yang kosong.
+  async function loadExistingCaseOnly() {
     setLoading(true);
     try {
       const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&status=eq.open&order=created_at.desc&limit=1`);
-      let theCase = existing[0];
-      if (!theCase) {
-        const [created] = await supabaseFetch("chat_cases", {
-          method: "POST",
-          body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
-        });
-        theCase = created;
+      if (existing[0]) {
+        setCaseInfo(existing[0]);
+        await loadMessages(existing[0].id);
+        pollRef.current = setInterval(() => loadMessages(existing[0].id), 4000);
       }
-      setCaseInfo(theCase);
-      await loadMessages(theCase.id);
-      pollRef.current = setInterval(() => loadMessages(theCase.id), 4000);
     } catch (e) {
       console.log("Gagal buka chat sales:", e.message);
     }
@@ -2549,13 +2553,24 @@ function SalesChatScreen({ toko, onBack }) {
 
   async function handleSend() {
     const text = input.trim();
-    if (!text || sending || !caseInfo) return;
+    if (!text || sending) return;
     setSending(true);
     setInput("");
     try {
+      let activeCase = caseInfo;
+      if (!activeCase) {
+        // Baru sekarang bikin No Case - karena toko beneran kirim pesan pertama
+        const [created] = await supabaseFetch("chat_cases", {
+          method: "POST",
+          body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
+        });
+        activeCase = created;
+        setCaseInfo(created);
+        pollRef.current = setInterval(() => loadMessages(created.id), 4000);
+      }
       const [inserted] = await supabaseFetch("chat_messages", {
         method: "POST",
-        body: JSON.stringify({ case_id: caseInfo.id, sender_type: "toko", message: text }),
+        body: JSON.stringify({ case_id: activeCase.id, sender_type: "toko", message: text }),
       });
       setMessages((prev) => [...prev, inserted]);
     } catch (e) {
@@ -2582,8 +2597,9 @@ function SalesChatScreen({ toko, onBack }) {
           <Headphones size={17} color="#28685D" />
         </div>
         <div style={{ flex: 1 }}>
-          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0 }}>Chat Sales</p>
-          <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>No. Case: {caseInfo?.no_case}</p>
+          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0 }}>{salesInfo?.nama || "Sales"}</p>
+          <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Sales Toko {toko?.nama}</p>
+          <p style={{ fontSize: 10.5, color: "#B5B2AA", margin: 0 }}>{caseInfo?.no_case ? `No. Case: ${caseInfo.no_case}` : "Belum ada No. Case - kirim pesan dulu"}</p>
         </div>
       </div>
 
