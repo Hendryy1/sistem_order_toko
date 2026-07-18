@@ -2612,7 +2612,7 @@ function SalesChatScreen({ toko, onBack, products, orders, cart, rincian }) {
       const filePath = `chat-${toko.id}-${Date.now()}.${ext}`;
       const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
         method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": file.type || "application/octet-stream" },
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
         body: file,
       });
       if (!res.ok) throw new Error(await res.text());
@@ -2788,9 +2788,9 @@ function SalesChatScreen({ toko, onBack, products, orders, cart, rincian }) {
             <button
               onClick={handleSend}
               disabled={sending || !input.trim()}
-              style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+              style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
             >
-              <ArrowRight size={18} color="#24272B" />
+              Kirim
             </button>
           </div>
         </div>
@@ -2934,9 +2934,9 @@ function CsChatScreen({ toko, onBack }) {
         <button
           onClick={handleSend}
           disabled={sending || !input.trim()}
-          style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
         >
-          <ArrowRight size={18} color="#24272B" />
+          Kirim
         </button>
       </div>
     </div>
