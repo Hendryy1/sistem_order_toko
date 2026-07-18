@@ -823,12 +823,25 @@ export default function OrderApp() {
           cart={cart} addToCart={addToCart}
           onOpenProduct={(p) => { setSelectedProduct(p); setScreen("product"); }}
           onRequireLogin={() => setScreen("login")}
-          onOpenChat={() => setScreen("cs-chat")}
+          onOpenChat={() => setScreen("cs-chat-choice")}
+        />
+      )}
+
+      {screen === "cs-chat-choice" && (
+        <CsChatChoiceScreen
+          toko={toko}
+          onBack={() => setScreen("catalog")}
+          onChooseAi={() => setScreen("cs-chat")}
+          onChooseSales={() => setScreen("sales-chat")}
         />
       )}
 
       {screen === "cs-chat" && (
-        <CsChatScreen toko={toko} onBack={() => setScreen("catalog")} />
+        <CsChatScreen toko={toko} onBack={() => setScreen("cs-chat-choice")} />
+      )}
+
+      {screen === "sales-chat" && (
+        <SalesChatScreen toko={toko} onBack={() => setScreen("cs-chat-choice")} />
       )}
 
       {screen === "product" && selectedProduct && (
@@ -2433,6 +2446,189 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
 // ============================================================
 // CHAT CUSTOMER SERVICE AI - "INDAH"
 // ============================================================
+// ============================================================
+// PILIHAN CHAT: INDAH (AI) ATAU SALES
+// ============================================================
+function CsChatChoiceScreen({ toko, onBack, onChooseAi, onChooseSales }) {
+  const [salesInfo, setSalesInfo] = useState(null);
+
+  useEffect(() => {
+    if (!toko?.salesId) return;
+    supabaseFetch(`sales?select=nama,kode&id=eq.${toko.salesId}`)
+      .then((rows) => setSalesInfo(rows[0] || null))
+      .catch(() => setSalesInfo(null));
+  }, [toko?.salesId]);
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 20 }}>
+        <ChevronLeft size={18} /> Kembali
+      </button>
+      <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Mau Chat dengan Siapa?</h1>
+      <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 24px" }}>Pilih salah satu di bawah ini.</p>
+
+      <button
+        onClick={onChooseAi}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 16, padding: 18, marginBottom: 14, textAlign: "left" }}
+      >
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <MessageCircle size={22} color="#24272B" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: 0 }}>INDAH</p>
+          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "2px 0 0" }}>Asisten AI - balas instan, siap 24 jam</p>
+        </div>
+        <ChevronRight size={18} color="#9CA0A6" />
+      </button>
+
+      <button
+        onClick={onChooseSales}
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 14, background: "#fff", border: "1px solid #EDEAE3", borderRadius: 16, padding: 18, textAlign: "left" }}
+      >
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#D8E9E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Headphones size={22} color="#28685D" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p className="disp" style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: 0 }}>{salesInfo ? salesInfo.nama : "Sales Anda"}</p>
+          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "2px 0 0" }}>Chat tersimpan, ada No. Case buat direview kapan saja</p>
+        </div>
+        <ChevronRight size={18} color="#9CA0A6" />
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// CHAT DENGAN SALES (tersimpan permanen, ada No Case)
+// ============================================================
+function SalesChatScreen({ toko, onBack }) {
+  const [caseInfo, setCaseInfo] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const scrollRef = useRef(null);
+  const pollRef = useRef(null);
+
+  useEffect(() => {
+    initOrLoadCase();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, []);
+
+  async function initOrLoadCase() {
+    setLoading(true);
+    try {
+      const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&status=eq.open&order=created_at.desc&limit=1`);
+      let theCase = existing[0];
+      if (!theCase) {
+        const [created] = await supabaseFetch("chat_cases", {
+          method: "POST",
+          body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
+        });
+        theCase = created;
+      }
+      setCaseInfo(theCase);
+      await loadMessages(theCase.id);
+      pollRef.current = setInterval(() => loadMessages(theCase.id), 4000);
+    } catch (e) {
+      console.log("Gagal buka chat sales:", e.message);
+    }
+    setLoading(false);
+  }
+
+  async function loadMessages(caseId) {
+    try {
+      const rows = await supabaseFetch(`chat_messages?select=*&case_id=eq.${caseId}&order=created_at.asc`);
+      setMessages(rows);
+    } catch (e) { /* diamkan, coba lagi di polling berikutnya */ }
+  }
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages]);
+
+  async function handleSend() {
+    const text = input.trim();
+    if (!text || sending || !caseInfo) return;
+    setSending(true);
+    setInput("");
+    try {
+      const [inserted] = await supabaseFetch("chat_messages", {
+        method: "POST",
+        body: JSON.stringify({ case_id: caseInfo.id, sender_type: "toko", message: text }),
+      });
+      setMessages((prev) => [...prev, inserted]);
+    } catch (e) {
+      alert("Gagal kirim pesan: " + e.message);
+    }
+    setSending(false);
+  }
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "#9CA0A6", fontSize: 13 }}>Memuat chat...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
+      <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10 }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
+          <ChevronLeft size={20} color="#24272B" />
+        </button>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#D8E9E6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Headphones size={17} color="#28685D" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <p className="disp" style={{ fontSize: 15, fontWeight: 700, color: "#24272B", margin: 0 }}>Chat Sales</p>
+          <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>No. Case: {caseInfo?.no_case}</p>
+        </div>
+      </div>
+
+      <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+        {messages.length === 0 && (
+          <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "20px 0" }}>
+            Belum ada pesan. Tulis pertanyaan Anda, sales akan membalas sesegera mungkin.
+          </p>
+        )}
+        {messages.map((m) => (
+          <div key={m.id} style={{ display: "flex", justifyContent: m.sender_type === "toko" ? "flex-end" : "flex-start", marginBottom: 12 }}>
+            <div style={{
+              maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
+              background: m.sender_type === "toko" ? "#E8A426" : "#fff",
+              border: m.sender_type === "toko" ? "none" : "1px solid #EDEAE3",
+              fontSize: 13.5, lineHeight: 1.5, color: "#24272B",
+              borderBottomRightRadius: m.sender_type === "toko" ? 4 : 14,
+              borderBottomLeftRadius: m.sender_type === "toko" ? 14 : 4,
+            }}>
+              {m.message}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10 }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Tulis pesan..."
+          style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
+        />
+        <button
+          onClick={handleSend}
+          disabled={sending || !input.trim()}
+          style={{ width: 44, height: 44, borderRadius: 10, border: "none", background: (sending || !input.trim()) ? "#E4E1DA" : "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+        >
+          <ArrowRight size={18} color="#24272B" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function CsChatScreen({ toko, onBack }) {
   const [messages, setMessages] = useState([
     { role: "assistant", text: `Halo${toko?.nama ? " " + toko.nama : ""}! Saya INDAH, asisten customer service di sini. Ada yang bisa saya bantu seputar produk, cara order, atau status pesanan Anda?` },
