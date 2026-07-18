@@ -2603,7 +2603,7 @@ function SalesChatScreen({ toko, onBack }) {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
+    <div style={{ position: "fixed", inset: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", background: "#F7F5F1", zIndex: 300 }}>
       <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
           <ChevronLeft size={20} color="#24272B" />
@@ -2712,7 +2712,7 @@ function CsChatScreen({ toko, onBack }) {
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F7F5F1" }}>
+    <div style={{ position: "fixed", inset: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", background: "#F7F5F1", zIndex: 300 }}>
       <div style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #EDEAE3", background: "#fff", position: "sticky", top: 0, zIndex: 10, flexShrink: 0 }}>
         <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", padding: 0 }}>
           <ChevronLeft size={20} color="#24272B" />
