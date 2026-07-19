@@ -1628,7 +1628,7 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
                     {p.hargaAsli && (
                       <p style={{ fontSize: 11.5, color: "#B5B2AA", textDecoration: "line-through", margin: "0 0 1px" }}>{rupiah(p.hargaAsli)}</p>
                     )}
-                    <p className="disp" style={{ fontSize: 17, fontWeight: 700, color: p.hargaAsli ? "#C0392B" : "#24272B", margin: 0 }}>{rupiah(p.harga)}</p>
+                    <p className="disp" style={{ fontSize: 19, fontWeight: 700, color: p.hargaAsli ? "#C0392B" : "#24272B", margin: 0 }}>{rupiah(p.harga)}</p>
                     {p.isiPerKoli > 0 && (
                       qty >= p.isiPerKoli ? (
                         <p style={{ fontSize: 10, color: "#24272B", fontWeight: 700, margin: "4px 0 0", lineHeight: 1.3, display: "flex", alignItems: "center", gap: 3 }}>
@@ -1683,7 +1683,7 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
 function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty, onBack, onGoToCart, onRequireLogin }) {
   const meta = CATEGORY_META[product.kategori] || DEFAULT_CATEGORY_META;
   const Icon = meta.icon;
-  const [fotoUtama, setFotoUtama] = useState([]);
+  const [fotoUtama, setFotoUtama] = useState(product.gambarUrl ? [product.gambarUrl] : []);
   const [galeriDeskripsi, setGaleriDeskripsi] = useState([]);
   const [editingQty, setEditingQty] = useState(false);
   const [qtyInput, setQtyInput] = useState(String(qty));
