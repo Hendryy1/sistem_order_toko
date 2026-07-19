@@ -407,7 +407,11 @@ export default function OrderApp() {
   const [regLoading, setRegLoading] = useState(false);
   const [useAltAddress, setUseAltAddress] = useState(false);
   const [editingAlt, setEditingAlt] = useState(false);
-  const [altAddress, setAltAddress] = useState({ nama: "", telp: "", alamat: "" });
+  const [altAddress, setAltAddress] = useState({
+    nama: "", telp: "", alamat: "",
+    provinsi: "", provinsiId: "", kota: "", kotaId: "",
+    kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "",
+  });
   const [isDropship, setIsDropship] = useState(false);
   const [dropshipPrices, setDropshipPrices] = useState({}); // { kodeBarang: hargaDropshipPerUnit }
   const [savedAddresses, setSavedAddresses] = useState([]); // [{ id, nama, telp, alamat }]
@@ -432,7 +436,8 @@ export default function OrderApp() {
   // Toko di LUAR Pekanbaru: tidak berlaku minimal Rp500rb, tapi tiap barang
   // yang mau di-checkout WAJIB minimal 1 koli (sesuai isiPerKoli produknya).
   // Barang tanpa aturan koli (isiPerKoli 0/kosong) tidak kena aturan ini.
-  const isLuarPekanbaru = !!(toko?.kota && toko.kota.trim().toLowerCase() !== "pekanbaru");
+  const kotaTujuan = useAltAddress && altAddress.kota ? altAddress.kota : toko?.kota;
+  const isLuarPekanbaru = !!(kotaTujuan && kotaTujuan.trim().toLowerCase() !== "pekanbaru");
   const itemBelumSatuKoli = isLuarPekanbaru
     ? Object.entries(cart)
         .filter(([kode]) => checkedItems[kode] !== false)
@@ -675,7 +680,13 @@ export default function OrderApp() {
   }
 
   function pickSavedAddress(addr) {
-    setAltAddress({ nama: addr.nama, telp: addr.telp, alamat: addr.alamat });
+    setAltAddress({
+      nama: addr.nama || "", telp: addr.telp || "", alamat: addr.alamat || "",
+      provinsi: addr.provinsi || "", provinsiId: addr.provinsiId || "",
+      kota: addr.kota || "", kotaId: addr.kotaId || "",
+      kecamatan: addr.kecamatan || "", kecamatanId: addr.kecamatanId || "",
+      kelurahan: addr.kelurahan || "", kodePos: addr.kodePos || "",
+    });
     setEditingAlt(false);
   }
 
@@ -699,7 +710,12 @@ export default function OrderApp() {
         return { ...p, qty };
       });
     const tujuan = useAltAddress
-      ? { nama: altAddress.nama || toko.nama, telp: altAddress.telp, alamat: altAddress.alamat }
+      ? {
+          nama: altAddress.nama || toko.nama, telp: altAddress.telp,
+          alamat: altAddress.kota
+            ? `${altAddress.alamat}, ${altAddress.kelurahan}, ${altAddress.kecamatan}, ${altAddress.kota}, ${altAddress.provinsi} ${altAddress.kodePos}`
+            : altAddress.alamat,
+        }
       : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat };
     const itemsWithDropship = items.map((it) => ({
       ...it,
@@ -1848,6 +1864,62 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
   const [showPicker, setShowPicker] = useState(false);
   const items = Object.entries(cart).map(([kode, qty]) => ({ ...products.find((p) => p.kode === kode), qty }));
 
+  // Wilayah (provinsi/kota/kecamatan/kelurahan) untuk alamat pengiriman baru -
+  // sama persis pola yang dipakai saat pendaftaran toko.
+  const [provinces, setProvinces] = useState([]);
+  const [regencies, setRegencies] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [villages, setVillages] = useState([]);
+  const WILAYAH_PROXY = `${SUPABASE_URL}/functions/v1/wilayah-proxy`;
+  const titleCase = (s) => s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+
+  useEffect(() => {
+    fetch(`${WILAYAH_PROXY}?path=provinces.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setProvinces(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setProvinces(FALLBACK_WILAYAH.provinces));
+  }, []);
+
+  useEffect(() => {
+    if (!altAddress.provinsiId) { setRegencies([]); return; }
+    fetch(`${WILAYAH_PROXY}?path=regencies/${altAddress.provinsiId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setRegencies(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setRegencies(FALLBACK_WILAYAH.regencies[altAddress.provinsiId] || []));
+  }, [altAddress.provinsiId]);
+
+  useEffect(() => {
+    if (!altAddress.kotaId) { setDistricts([]); return; }
+    fetch(`${WILAYAH_PROXY}?path=districts/${altAddress.kotaId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setDistricts(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setDistricts(FALLBACK_WILAYAH.districts[altAddress.kotaId] || []));
+  }, [altAddress.kotaId]);
+
+  useEffect(() => {
+    if (!altAddress.kecamatanId) { setVillages([]); return; }
+    fetch(`${WILAYAH_PROXY}?path=villages/${altAddress.kecamatanId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setVillages(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setVillages(FALLBACK_WILAYAH.villages[altAddress.kecamatanId] || []));
+  }, [altAddress.kecamatanId]);
+
+  function selectProvinsiAlt(name) {
+    const found = provinces.find((p) => p.name === name);
+    setAltAddress({ ...altAddress, provinsi: name, provinsiId: found?.id || "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "" });
+  }
+  function selectKotaAlt(name) {
+    const found = regencies.find((r) => r.name === name);
+    setAltAddress({ ...altAddress, kota: name, kotaId: found?.id || "", kecamatan: "", kecamatanId: "", kelurahan: "" });
+  }
+  function selectKecamatanAlt(name) {
+    const found = districts.find((d) => d.name === name);
+    setAltAddress({ ...altAddress, kecamatan: name, kecamatanId: found?.id || "", kelurahan: "" });
+  }
+  function selectKelurahanAlt(name) {
+    setAltAddress({ ...altAddress, kelurahan: name });
+  }
+
   if (items.length === 0) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
@@ -1861,7 +1933,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
   const kurang = MIN_CHECKOUT - rincian.totalBayar;
   const setAlt = (k) => (e) => setAltAddress({ ...altAddress, [k]: e.target.value });
-  const canSaveAlt = altAddress.telp.trim() && altAddress.alamat.trim();
+  const canSaveAlt = altAddress.telp.trim() && altAddress.alamat.trim() && altAddress.provinsi && altAddress.kota && altAddress.kecamatan && altAddress.kelurahan;
 
   return (
     <div style={{ minHeight: "100vh", paddingBottom: 300 }}>
@@ -1946,12 +2018,33 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
               <Field label="No. Telepon Penerima">
                 <input value={altAddress.telp} onChange={setAlt("telp")} placeholder="0812xxxxxxx" style={inputStyle} />
               </Field>
-              <Field label="Alamat Pengiriman">
-                <textarea value={altAddress.alamat} onChange={setAlt("alamat")} rows={2} placeholder="Jl. Contoh No. 2, Kota" style={{ ...inputStyle, resize: "none" }} />
+              <Field label="Alamat (Jalan, No. Rumah)">
+                <textarea value={altAddress.alamat} onChange={setAlt("alamat")} rows={2} placeholder="Jl. Contoh No. 2" style={{ ...inputStyle, resize: "none" }} />
               </Field>
+              <Field label="Provinsi">
+                <AutocompleteField value={altAddress.provinsi} onSelect={selectProvinsiAlt} options={provinces.map((p) => p.name)} placeholder="Ketik nama provinsi..." />
+              </Field>
+              <Field label="Kota / Kabupaten">
+                <AutocompleteField value={altAddress.kota} onSelect={selectKotaAlt} options={regencies.map((r) => r.name)} placeholder="Ketik nama kota..." disabled={!altAddress.provinsiId} />
+              </Field>
+              <Field label="Kecamatan">
+                <AutocompleteField value={altAddress.kecamatan} onSelect={selectKecamatanAlt} options={districts.map((d) => d.name)} placeholder="Ketik nama kecamatan..." disabled={!altAddress.kotaId} />
+              </Field>
+              <Field label="Kelurahan">
+                <AutocompleteField value={altAddress.kelurahan} onSelect={selectKelurahanAlt} options={villages.map((v) => v.name)} placeholder="Ketik nama kelurahan..." disabled={!altAddress.kecamatanId} />
+              </Field>
+              <Field label="Kode Pos">
+                <input value={altAddress.kodePos} onChange={setAlt("kodePos")} placeholder="Isi manual, misal 28292" style={inputStyle} inputMode="numeric" maxLength={5} />
+              </Field>
+              {altAddress.kota && altAddress.kota.trim().toLowerCase() !== "pekanbaru" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#FFFBF0", color: "#8A6A1A", padding: "9px 12px", borderRadius: 9, fontSize: 11.5, fontWeight: 600, marginBottom: 14 }}>
+                  <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                  Kota ini di luar Pekanbaru - berlaku minimal order 1 koli per barang, bukan minimal Rp500rb.
+                </div>
+              )}
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                 <button
-                  onClick={() => { setUseAltAddress(false); setEditingAlt(false); setAltAddress({ nama: "", telp: "", alamat: "" }); }}
+                  onClick={() => { setUseAltAddress(false); setEditingAlt(false); setAltAddress({ nama: "", telp: "", alamat: "", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
                   style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontSize: 13, fontWeight: 600 }}
                 >
                   Batal
@@ -1971,7 +2064,10 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
             <div>
               <div style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6 }}>
                 <p style={{ margin: 0 }}>{altAddress.telp}</p>
-                <p style={{ margin: 0 }}>{altAddress.alamat}</p>
+                <p style={{ margin: 0 }}>
+                  {altAddress.alamat}
+                  {altAddress.kota && `, ${altAddress.kelurahan}, ${altAddress.kecamatan}, ${altAddress.kota}, ${altAddress.provinsi}`}
+                </p>
               </div>
               <div style={{ display: "flex", gap: 14, marginTop: 10, marginBottom: 12 }}>
                 <button
