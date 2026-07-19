@@ -827,6 +827,10 @@ export default function OrderApp() {
     const matchSearch = p.nama.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCategory && matchSearch;
   });
+  // Daftar kategori dihitung dari SEMUA produk aktif (bukan yang sudah
+  // kefilter kategori), supaya tab kategori lain tidak hilang begitu salah
+  // satu kategori dipilih. Kategori yang produk aktifnya 0 otomatis tidak muncul.
+  const availableCategories = ["Semua", ...Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)))];
 
   if (restoringSession) {
     return (
@@ -878,6 +882,7 @@ export default function OrderApp() {
           toko={toko} isGuest={isGuest}
           products={filteredProducts}
           productsLoading={productsLoading}
+          availableCategories={availableCategories}
           activeCategory={activeCategory} setActiveCategory={setActiveCategory}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery}
           cart={cart} addToCart={addToCart}
@@ -1312,10 +1317,8 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, productsLoading, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
-  // Gabungkan kategori bawaan dengan kategori baru (kalau ada) dari produk asli di database
-  const kategoriDariProduk = Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)));
-  const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
+function CatalogScreen({ toko, isGuest, products, productsLoading, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
+  const categories = availableCategories || ["Semua"];
   const [unreadCount, setUnreadCount] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
 
