@@ -3431,6 +3431,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
   const [uploadingToko, setUploadingToko] = useState(false);
   const [uploadingKtp, setUploadingKtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState(null);
 
   async function uploadFoto(file, jenis) {
     const setUploading = jenis === "toko" ? setUploadingToko : setUploadingKtp;
@@ -3507,11 +3508,11 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
               <div>
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO TOKO</p>
-                <img src={fotoToko} alt="Foto Toko" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10 }} />
+                <img src={fotoToko} alt="Foto Toko" onClick={() => setLightboxUrl(fotoToko)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
               </div>
               <div>
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO KTP</p>
-                <img src={fotoKtp} alt="Foto KTP" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10 }} />
+                <img src={fotoKtp} alt="Foto KTP" onClick={() => setLightboxUrl(fotoKtp)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
               </div>
             </div>
             <button
@@ -3568,6 +3569,21 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           </>
         )}
       </div>
+
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+        >
+          <img src={lightboxUrl} alt="Full" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, objectFit: "contain" }} />
+          <button
+            onClick={() => setLightboxUrl(null)}
+            style={{ position: "absolute", top: 20, right: 20, width: 40, height: 40, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
