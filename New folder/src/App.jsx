@@ -487,7 +487,13 @@ export default function OrderApp() {
       setLoginError("Pendaftaran toko ini ditolak Owner. Hubungi Service Centre untuk info lebih lanjut.");
       return false;
     }
-    const tokoData = { id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota, jenisBayar: r.jenis_pembayaran, email, salesId: r.sales_id || null };
+    const tokoData = {
+      id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota,
+      jenisBayar: r.jenis_pembayaran, email, salesId: r.sales_id || null,
+      statusVerifikasi: r.status_verifikasi || "belum_upload",
+      fotoTokoUrl: r.foto_toko_url || null, fotoKtpUrl: r.foto_ktp_url || null,
+      alasanVerifikasiDitolak: r.alasan_verifikasi_ditolak || null,
+    };
     setToko(tokoData);
     setAuthToken(token);
     setIsGuest(false);
@@ -666,6 +672,10 @@ export default function OrderApp() {
   }
 
   async function submitOrder() {
+    if (toko.statusVerifikasi !== "terverifikasi") {
+      alert("Toko Anda belum terverifikasi. Silakan upload foto toko & KTP dulu di menu Akun > Foto Toko, dan tunggu persetujuan Owner sebelum bisa order.");
+      return;
+    }
     if (cartTotal < MIN_CHECKOUT) return; // jaga-jaga, tombol sudah dinonaktifkan di UI
     const items = Object.entries(cart)
       .filter(([kode]) => checkedItems[kode] !== false)
@@ -1053,12 +1063,21 @@ export default function OrderApp() {
           onOpenPoin={() => setScreen("akun-poin")}
           onOpenOrderList={(key) => { setOrderListKey(key); setScreen("akun-orderlist"); }}
           onOpenSaldo={() => setScreen("akun-saldo")}
+          onOpenVerifikasi={() => setScreen("akun-verifikasi")}
           onLogout={handleLogout}
         />
       )}
 
       {screen === "akun-saldo" && (
         <SaldoScreen toko={toko} onBack={() => setScreen("akun")} />
+      )}
+
+      {screen === "akun-verifikasi" && (
+        <VerifikasiTokoScreen
+          toko={toko}
+          onBack={() => setScreen("akun")}
+          onUpdated={(updates) => setToko((prev) => ({ ...prev, ...updates }))}
+        />
       )}
 
       {screen === "akun-orderlist" && (
@@ -1835,6 +1854,14 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
         <p style={{ color: "#9CA0A6", fontSize: 13, marginTop: 2 }}>{items.length} jenis barang</p>
       </div>
 
+      {toko && toko.statusVerifikasi !== "terverifikasi" && (
+        <div style={{ margin: "0 20px 12px", background: "#FBEAEA", borderRadius: 12, padding: 14 }}>
+          <p style={{ fontSize: 12.5, color: "#C0392B", margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
+            Toko Anda belum terverifikasi. Upload foto toko & KTP dulu di menu Akun {'>'} Foto Toko sebelum bisa melakukan pemesanan.
+          </p>
+        </div>
+      )}
+
       {toko && (
         <div style={{ margin: "8px 20px 4px", background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
@@ -2198,7 +2225,7 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onOpenSaldo, onLogout }) {
+function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onOpenSaldo, onOpenVerifikasi, onLogout }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const counts = {
@@ -2262,6 +2289,16 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
 
       <div style={{ padding: "8px 20px 4px" }}>
         <MenuRow icon={Wallet} label="Saldo Saya" onClick={onOpenSaldo} />
+        <MenuRow
+          icon={User} label="Foto Toko"
+          onClick={onOpenVerifikasi}
+          badge={
+            toko.statusVerifikasi === "terverifikasi" ? { text: "Terverifikasi", bg: "#D8E9E6", color: "#28685D" } :
+            toko.statusVerifikasi === "menunggu_review" ? { text: "Menunggu Review", bg: "#FBF0D9", color: "#8A6A1A" } :
+            toko.statusVerifikasi === "ditolak" ? { text: "Ditolak", bg: "#FBEAEA", color: "#C0392B" } :
+            { text: "Wajib Isi", bg: "#FBEAEA", color: "#C0392B" }
+          }
+        />
         <MenuRow icon={Bell} label="Aktifkan Notifikasi" onClick={() => subscribeToPush(toko.id)} />
         <MenuRow icon={RotateCcw} label="Order Ulang" onClick={onOpenOrderUlang} />
         <MenuRow icon={Star} label="Poin Saya" onClick={onOpenPoin} />
@@ -3362,13 +3399,18 @@ function CampaignDetailScreen({ onBack, cartCount, onGoToCart, judul, deskripsi 
   );
 }
 
-function MenuRow({ icon: Icon, label, onClick }) {
+function MenuRow({ icon: Icon, label, onClick, badge }) {
   return (
     <button onClick={onClick} style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10, textAlign: "left" }}>
       <div style={{ width: 34, height: 34, borderRadius: 9, background: "#F7F5F1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
         <Icon size={17} color="#24272B" />
       </div>
       <span style={{ flex: 1, fontSize: 13.5, fontWeight: 600, color: "#24272B" }}>{label}</span>
+      {badge && (
+        <span style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 999, background: badge.bg, color: badge.color, marginRight: 4 }}>
+          {badge.text}
+        </span>
+      )}
       <ChevronRight size={17} color="#B5B2AA" />
     </button>
   );
@@ -3380,6 +3422,145 @@ function MenuRow({ icon: Icon, label, onClick }) {
 // ============================================================
 // SALDO SAYA - lihat saldo, nomor VA, dan riwayat transaksi
 // ============================================================
+// ============================================================
+// FOTO TOKO - upload foto toko & KTP untuk verifikasi (wajib sebelum order)
+// ============================================================
+function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
+  const [fotoToko, setFotoToko] = useState(toko.fotoTokoUrl);
+  const [fotoKtp, setFotoKtp] = useState(toko.fotoKtpUrl);
+  const [uploadingToko, setUploadingToko] = useState(false);
+  const [uploadingKtp, setUploadingKtp] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  async function uploadFoto(file, jenis) {
+    const setUploading = jenis === "toko" ? setUploadingToko : setUploadingKtp;
+    const setUrl = jenis === "toko" ? setFotoToko : setFotoKtp;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const filePath = `verifikasi-${jenis}-${toko.id}-${Date.now()}.${ext}`;
+      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
+      setUrl(url);
+    } catch (e) {
+      alert("Gagal upload foto: " + e.message);
+    }
+    setUploading(false);
+  }
+
+  async function kirimVerifikasi() {
+    if (!fotoToko || !fotoKtp) {
+      alert("Upload dulu kedua foto (Foto Toko dan Foto KTP) sebelum kirim.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await supabaseFetch(`clients?id=eq.${toko.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          foto_toko_url: fotoToko, foto_ktp_url: fotoKtp,
+          status_verifikasi: "menunggu_review", alasan_verifikasi_ditolak: null,
+        }),
+      });
+      onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
+      setSaved(true);
+    } catch (e) {
+      alert("Gagal kirim verifikasi: " + e.message);
+    }
+    setSubmitting(false);
+  }
+
+  const statusInfo = {
+    belum_upload: { text: "Anda belum mengirim foto verifikasi. Toko belum bisa melakukan pemesanan sampai proses ini selesai.", bg: "#FBEAEA", color: "#C0392B" },
+    menunggu_review: { text: "Foto Anda sudah terkirim dan sedang ditinjau oleh Owner. Mohon tunggu, biasanya diproses dalam 1x24 jam.", bg: "#FBF0D9", color: "#8A6A1A" },
+    terverifikasi: { text: "Toko Anda sudah terverifikasi. Anda sudah bisa melakukan pemesanan seperti biasa.", bg: "#D8E9E6", color: "#28685D" },
+    ditolak: { text: "Verifikasi ditolak. Silakan upload ulang foto yang jelas dan sesuai.", bg: "#FBEAEA", color: "#C0392B" },
+  }[toko.statusVerifikasi] || {};
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
+      <div style={{ padding: "18px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
+          <ChevronLeft size={18} /> Kembali
+        </button>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Foto Toko</h1>
+      </div>
+
+      <div style={{ padding: "0 20px" }}>
+        <div style={{ background: statusInfo.bg, borderRadius: 12, padding: 14, marginBottom: 20 }}>
+          <p style={{ fontSize: 12.5, color: statusInfo.color, margin: 0, lineHeight: 1.5, fontWeight: 600 }}>{statusInfo.text}</p>
+        </div>
+
+        {toko.statusVerifikasi === "ditolak" && toko.alasanVerifikasiDitolak && (
+          <div style={{ background: "#fff", border: "1px solid #F0CFC7", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+            <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700 }}>ALASAN DITOLAK</p>
+            <p style={{ fontSize: 13, color: "#C0392B", margin: 0 }}>{toko.alasanVerifikasiDitolak}</p>
+          </div>
+        )}
+
+        {saved ? (
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <Check size={40} color="#28685D" />
+            <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", marginTop: 12 }}>Foto berhasil dikirim!</p>
+            <p style={{ fontSize: 12.5, color: "#9CA0A6", marginTop: 4 }}>Tunggu persetujuan Owner ya.</p>
+          </div>
+        ) : (toko.statusVerifikasi !== "terverifikasi") && (
+          <>
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Foto Toko</p>
+              <label style={{ display: "block", width: "100%", height: 160, borderRadius: 12, border: fotoToko ? "none" : "1.5px dashed #E8A426", background: fotoToko ? `url(${fotoToko}) center/cover` : "#FFFBF0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                {!fotoToko && (uploadingToko ? <p style={{ fontSize: 12, color: "#8A6A1A" }}>Mengupload...</p> : (
+                  <div style={{ textAlign: "center" }}>
+                    <Camera size={24} color="#8A6A1A" />
+                    <p style={{ fontSize: 11.5, color: "#8A6A1A", marginTop: 6 }}>Tap untuk upload foto toko</p>
+                  </div>
+                ))}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingToko} onChange={(e) => { if (e.target.files[0]) uploadFoto(e.target.files[0], "toko"); }} />
+              </label>
+              {fotoToko && (
+                <button onClick={() => setFotoToko(null)} style={{ marginTop: 8, background: "none", border: "none", color: "#C0392B", fontSize: 11.5, fontWeight: 600, padding: 0 }}>Ganti Foto</button>
+              )}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Foto KTP</p>
+              <label style={{ display: "block", width: "100%", height: 160, borderRadius: 12, border: fotoKtp ? "none" : "1.5px dashed #E8A426", background: fotoKtp ? `url(${fotoKtp}) center/cover` : "#FFFBF0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                {!fotoKtp && (uploadingKtp ? <p style={{ fontSize: 12, color: "#8A6A1A" }}>Mengupload...</p> : (
+                  <div style={{ textAlign: "center" }}>
+                    <Camera size={24} color="#8A6A1A" />
+                    <p style={{ fontSize: 11.5, color: "#8A6A1A", marginTop: 6 }}>Tap untuk upload foto KTP</p>
+                  </div>
+                ))}
+                <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingKtp} onChange={(e) => { if (e.target.files[0]) uploadFoto(e.target.files[0], "ktp"); }} />
+              </label>
+              {fotoKtp && (
+                <button onClick={() => setFotoKtp(null)} style={{ marginTop: 8, background: "none", border: "none", color: "#C0392B", fontSize: 11.5, fontWeight: 600, padding: 0 }}>Ganti Foto</button>
+              )}
+              <p style={{ fontSize: 10.5, color: "#9CA0A6", marginTop: 8, lineHeight: 1.5 }}>
+                Data KTP hanya digunakan untuk keperluan verifikasi internal dan tidak dibagikan ke pihak lain.
+              </p>
+            </div>
+
+            <button
+              onClick={kirimVerifikasi}
+              disabled={submitting || uploadingToko || uploadingKtp}
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: (submitting || uploadingToko || uploadingKtp) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14 }}
+            >
+              {submitting ? "Mengirim..." : "Kirim untuk Verifikasi"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SaldoScreen({ toko, onBack }) {
   const [loading, setLoading] = useState(true);
   const [saldo, setSaldo] = useState(0);
