@@ -3434,6 +3434,57 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [editMode, setEditMode] = useState(false);
 
+  // Alur verifikasi email sebelum boleh ubah foto:
+  // "none" -> "sending" -> "input_code" -> (masuk editMode kalau kode benar)
+  const [emailOtpStep, setEmailOtpStep] = useState("none");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+
+  async function mulaiVerifikasiEmail() {
+    setEmailOtpStep("sending");
+    setOtpError("");
+    setOtpBusy(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email, create_user: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal kirim kode ke email.");
+      setEmailOtpStep("input_code");
+    } catch (e) {
+      alert("Gagal kirim kode verifikasi: " + e.message);
+      setEmailOtpStep("none");
+    }
+    setOtpBusy(false);
+  }
+
+  async function verifikasiKodeEmail() {
+    if (!otpCode.trim()) {
+      setOtpError("Masukkan kode yang dikirim ke email Anda.");
+      return;
+    }
+    setOtpBusy(true);
+    setOtpError("");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email, token: otpCode.trim(), type: "email" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Kode salah atau sudah kedaluwarsa.");
+      setEmailOtpStep("none");
+      setOtpCode("");
+      setEditMode(true);
+    } catch (e) {
+      setOtpError(e.message);
+    }
+    setOtpBusy(false);
+  }
+
   async function uploadFoto(file, jenis) {
     const setUploading = jenis === "toko" ? setUploadingToko : setUploadingKtp;
     const setUrl = jenis === "toko" ? setFotoToko : setFotoKtp;
@@ -3493,7 +3544,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           </button>
           {toko.statusVerifikasi === "terverifikasi" && !editMode && (
             <button
-              onClick={() => setEditMode(true)}
+              onClick={mulaiVerifikasiEmail}
               style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: "#fff", color: "#24272B", fontSize: 13, fontWeight: 700 }}
             >
               Ubah
@@ -3609,6 +3660,48 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           >
             <X size={20} />
           </button>
+        </div>
+      )}
+
+      {(emailOtpStep === "sending" || emailOtpStep === "input_code") && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 380, padding: 24 }}>
+            {emailOtpStep === "sending" ? (
+              <p style={{ textAlign: "center", fontSize: 13, color: "#6B6F75" }}>Mengirim kode ke email Anda...</p>
+            ) : (
+              <>
+                <h2 className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Verifikasi Email</h2>
+                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Kode 6 digit sudah dikirim ke <strong>{toko.email}</strong>. Masukkan di bawah ini untuk lanjut ubah foto.
+                </p>
+                <input
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="Kode dari email"
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 16, letterSpacing: 4, textAlign: "center", marginBottom: 12 }}
+                />
+                {otpError && <p style={{ fontSize: 12, color: "#C0392B", margin: "0 0 12px" }}>{otpError}</p>}
+                <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                  <button
+                    onClick={() => { setEmailOtpStep("none"); setOtpCode(""); setOtpError(""); }}
+                    style={{ flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 600, fontSize: 13 }}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={verifikasiKodeEmail}
+                    disabled={otpBusy}
+                    style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: otpBusy ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13 }}
+                  >
+                    {otpBusy ? "Memeriksa..." : "Verifikasi"}
+                  </button>
+                </div>
+                <button onClick={mulaiVerifikasiEmail} disabled={otpBusy} style={{ width: "100%", background: "none", border: "none", color: "#8A6A1A", fontSize: 12, fontWeight: 600, padding: 0 }}>
+                  Kirim ulang kode
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </div>
