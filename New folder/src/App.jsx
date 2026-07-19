@@ -5,7 +5,7 @@ import {
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
   HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2,
-  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical, Download
+  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical, Download, FileEdit
 } from "lucide-react";
 
 // ============================================================
@@ -3432,6 +3432,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
   const [uploadingKtp, setUploadingKtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState(null);
+  const [editMode, setEditMode] = useState(false);
 
   async function uploadFoto(file, jenis) {
     const setUploading = jenis === "toko" ? setUploadingToko : setUploadingKtp;
@@ -3469,6 +3470,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal kirim verifikasi.");
       onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
+      setEditMode(false);
     } catch (e) {
       alert("Gagal kirim verifikasi: " + e.message);
     }
@@ -3485,9 +3487,19 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
   return (
     <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
       <div style={{ padding: "18px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
-        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
-          <ChevronLeft size={18} /> Kembali
-        </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, padding: 0 }}>
+            <ChevronLeft size={18} /> Kembali
+          </button>
+          {toko.statusVerifikasi === "terverifikasi" && !editMode && (
+            <button
+              onClick={() => setEditMode(true)}
+              style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: "#fff", color: "#24272B", fontSize: 13, fontWeight: 700 }}
+            >
+              Ubah
+            </button>
+          )}
+        </div>
         <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Foto Toko</h1>
       </div>
 
@@ -3503,7 +3515,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           </div>
         )}
 
-        {toko.statusVerifikasi === "menunggu_review" ? (
+        {toko.statusVerifikasi === "menunggu_review" && !editMode ? (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
               <div>
@@ -3522,8 +3534,13 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
               Sedang di Review
             </button>
           </>
-        ) : toko.statusVerifikasi === "terverifikasi" ? null : (
+        ) : toko.statusVerifikasi === "terverifikasi" && !editMode ? null : (
           <>
+            {editMode && (
+              <p style={{ fontSize: 11.5, color: "#8A6A1A", background: "#FFFBF0", padding: 10, borderRadius: 9, margin: "0 0 16px", lineHeight: 1.5 }}>
+                Mengganti foto akan membuat toko Anda perlu diverifikasi ulang oleh Owner sebelum bisa order lagi.
+              </p>
+            )}
             <div style={{ marginBottom: 20 }}>
               <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Foto Toko</p>
               <label style={{ display: "block", width: "100%", height: 160, borderRadius: 12, border: fotoToko ? "none" : "1.5px dashed #E8A426", background: fotoToko ? `url(${fotoToko}) center/cover` : "#FFFBF0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
@@ -3559,13 +3576,23 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
               </p>
             </div>
 
-            <button
-              onClick={kirimVerifikasi}
-              disabled={submitting || uploadingToko || uploadingKtp}
-              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: (submitting || uploadingToko || uploadingKtp) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14 }}
-            >
-              {submitting ? "Mengirim..." : "Kirim untuk Verifikasi"}
-            </button>
+            <div style={{ display: "flex", gap: 10 }}>
+              {editMode && (
+                <button
+                  onClick={() => { setEditMode(false); setFotoToko(toko.fotoTokoUrl); setFotoKtp(toko.fotoKtpUrl); }}
+                  style={{ padding: "14px 20px", borderRadius: 12, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 600, fontSize: 14 }}
+                >
+                  Batal
+                </button>
+              )}
+              <button
+                onClick={kirimVerifikasi}
+                disabled={submitting || uploadingToko || uploadingKtp}
+                style={{ flex: 1, padding: 14, borderRadius: 12, border: "none", background: (submitting || uploadingToko || uploadingKtp) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14 }}
+              >
+                {submitting ? "Mengirim..." : "Kirim untuk Verifikasi"}
+              </button>
+            </div>
           </>
         )}
       </div>
