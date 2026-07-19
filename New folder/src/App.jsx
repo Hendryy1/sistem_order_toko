@@ -3263,7 +3263,7 @@ function MenuRow({ icon: Icon, label, onClick }) {
 function SaldoScreen({ toko, onBack }) {
   const [loading, setLoading] = useState(true);
   const [saldo, setSaldo] = useState(0);
-  const [va, setVa] = useState(null);
+  const [va, setVa] = useState([]);
   const [riwayat, setRiwayat] = useState([]);
 
   useEffect(() => {
@@ -3279,7 +3279,7 @@ function SaldoScreen({ toko, onBack }) {
         supabaseFetch(`saldo_ledger?select=*&client_id=eq.${toko.id}&order=created_at.desc&limit=30`),
       ]);
       setSaldo(Number(saldoRows[0]?.saldo || 0));
-      setVa(vaRows[0] || null);
+      setVa(vaRows || []);
       setRiwayat(ledgerRows);
     } catch (e) {
       console.log("Gagal muat saldo:", e.message);
@@ -3312,13 +3312,19 @@ function SaldoScreen({ toko, onBack }) {
             <p className="disp" style={{ fontSize: 30, fontWeight: 700, color: "#fff", margin: 0 }}>{rupiah(saldo)}</p>
           </div>
 
-          {va ? (
-            <div style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 18, marginBottom: 20 }}>
-              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
-              <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>{va.va_number}</p>
-              <p style={{ fontSize: 12.5, color: "#6B6F75", margin: 0 }}>Bank {va.bank_code}</p>
-              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "10px 0 0", lineHeight: 1.5 }}>
-                Transfer ke nomor VA ini kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
+          {va.length > 0 ? (
+            <div style={{ marginBottom: 20 }}>
+              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
+              {va.map((v) => (
+                <div key={v.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{v.bank_code}</p>
+                    <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{v.va_number}</p>
+                  </div>
+                </div>
+              ))}
+              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
+                Transfer ke salah satu nomor VA di atas kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
               </p>
             </div>
           ) : (
