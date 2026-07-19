@@ -3460,28 +3460,13 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
     }
     setSubmitting(true);
     try {
-      // Sementara pakai fetch mentah langsung (bukan lewat supabaseFetch)
-      // supaya bisa lihat PERSIS apa yang dibalas server - status code dan
-      // isi respons aslinya, buat pastikan penyebab gagalnya.
-      const rawRes = await fetch(`${SUPABASE_URL}/rest/v1/clients?id=eq.${toko.id}`, {
-        method: "PATCH",
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify({
-          foto_toko_url: fotoToko, foto_ktp_url: fotoKtp,
-          status_verifikasi: "menunggu_review", alasan_verifikasi_ditolak: null,
-        }),
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-verifikasi-toko`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: toko.id, foto_toko_url: fotoToko, foto_ktp_url: fotoKtp }),
       });
-      const rawText = await rawRes.text();
-      if (!rawRes.ok || !rawText || rawText === "[]") {
-        alert(`DIAGNOSTIK - Status: ${rawRes.status}\nToko ID: ${toko.id}\nRespons server: ${rawText}`);
-        setSubmitting(false);
-        return;
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal kirim verifikasi.");
       onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
     } catch (e) {
       alert("Gagal kirim verifikasi: " + e.message);
