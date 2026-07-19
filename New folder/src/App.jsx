@@ -294,6 +294,10 @@ const rupiah = (n) => "Rp" + n.toLocaleString("id-ID");
 // ============================================================
 export default function OrderApp() {
   const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
   const [campaignVisible, setCampaignVisible] = useState(true);
   const [campaignBanner, setCampaignBanner] = useState(null);
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
