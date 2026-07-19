@@ -414,7 +414,16 @@ export default function OrderApp() {
   });
   const [isDropship, setIsDropship] = useState(false);
   const [dropshipPrices, setDropshipPrices] = useState({}); // { kodeBarang: hargaDropshipPerUnit }
-  const [savedAddresses, setSavedAddresses] = useState([]); // [{ id, nama, telp, alamat }]
+  const [savedAddresses, setSavedAddresses] = useState(() => {
+    try {
+      const saved = localStorage.getItem("saved_addresses_v1");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
+  }); // [{ id, nama, telp, alamat, provinsi, kota, kecamatan, kelurahan, kodePos }]
+
+  useEffect(() => {
+    try { localStorage.setItem("saved_addresses_v1", JSON.stringify(savedAddresses)); } catch (e) {}
+  }, [savedAddresses]);
   const [dropshipSender, setDropshipSender] = useState("");
   const [savedSenderNames, setSavedSenderNames] = useState([]); // riwayat nama pengirim
   const [checkedItems, setCheckedItems] = useState({}); // { kodeBarang: false } -> default true kalau tidak ada di sini
@@ -1990,11 +1999,13 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                   style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 12px", marginBottom: 8, borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff" }}
                 >
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#24272B" }}>{addr.nama || toko.nama}</p>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA0A6" }}>{addr.telp} · {addr.alamat}</p>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA0A6" }}>
+                    {addr.telp} · {addr.alamat}{addr.kota ? `, ${addr.kota}` : ""}
+                  </p>
                 </button>
               ))}
               <button
-                onClick={() => { setShowPicker(false); setEditingAlt(true); setAltAddress({ nama: "", telp: "", alamat: "" }); }}
+                onClick={() => { setShowPicker(false); setEditingAlt(true); setAltAddress({ nama: "", telp: "", alamat: "", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
                 style={{ background: "none", border: "none", color: "#B8860B", fontSize: 12.5, fontWeight: 700, padding: "6px 0" }}
               >
                 + Alamat baru
