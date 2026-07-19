@@ -133,7 +133,21 @@ async function supabaseSignIn(email, password) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.msg || data.error_description || "Email atau password salah.");
-  return data; // { access_token, user, ... }
+  return data; // { access_token, refresh_token, user, ... }
+}
+
+// Perpanjang sesi pakai refresh_token - access_token Supabase cuma berlaku
+// ±1 jam, tapi refresh_token bisa dipakai berkali-kali buat dapat
+// access_token baru tanpa perlu login ulang, sampai user klik Logout sendiri.
+async function supabaseRefreshToken(refreshToken) {
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.msg || data.error_description || "Sesi berakhir, silakan login ulang.");
+  return data; // { access_token, refresh_token baru, ... }
 }
 
 // Simpan/ambil sesi login supaya tetap login walau halaman di-refresh.
@@ -459,7 +473,7 @@ export default function OrderApp() {
 
   // Ambil data toko (dari tabel clients langsung, pakai token sendiri, bukan view publik -
   // toko yang login boleh baca profil lengkap miliknya sendiri) lalu simpan sesi login.
-  async function loadTokoAndEnterApp(userId, token, email) {
+  async function loadTokoAndEnterApp(userId, token, email, refreshToken) {
     const rows = await supabaseFetch(`clients?select=*&id=eq.${userId}`, {}, token);
     if (!rows || rows.length === 0) {
       throw new Error("Akun ditemukan tapi profil toko belum ada. Coba daftar ulang.");
@@ -478,7 +492,7 @@ export default function OrderApp() {
     setAuthToken(token);
     setIsGuest(false);
     setScreen("catalog");
-    saveSession({ token, userId, email });
+    saveSession({ token, userId, email, refreshToken });
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
     return true;
@@ -525,7 +539,7 @@ export default function OrderApp() {
     setLoggingIn(true);
     try {
       const auth = await supabaseSignIn(loginForm.email.trim(), loginForm.password);
-      const ok = await loadTokoAndEnterApp(auth.user.id, auth.access_token, auth.user.email);
+      const ok = await loadTokoAndEnterApp(auth.user.id, auth.access_token, auth.user.email, auth.refresh_token);
       if (!ok) clearSession();
     } catch (e) {
       setLoginError(e.message);
@@ -559,14 +573,54 @@ export default function OrderApp() {
   }
 
   // Begitu app dibuka, cek dulu apakah ada sesi login tersimpan (supaya tidak
-  // disuruh login ulang tiap refresh halaman).
+  // disuruh login ulang tiap refresh halaman). access_token lama mungkin
+  // sudah kedaluwarsa (cuma berlaku ±1 jam), jadi selalu refresh dulu pakai
+  // refresh_token buat dapat access_token yang segar - begini user tetap
+  // login terus sampai benar-benar klik Logout, bukan expired sendiri.
   useEffect(() => {
     const session = loadSession();
     if (!session) { setRestoringSession(false); return; }
-    loadTokoAndEnterApp(session.userId, session.token, session.email)
+
+    async function restoreWithRefresh() {
+      if (session.refreshToken) {
+        try {
+          const refreshed = await supabaseRefreshToken(session.refreshToken);
+          await loadTokoAndEnterApp(session.userId, refreshed.access_token, session.email, refreshed.refresh_token);
+          return;
+        } catch (e) {
+          // refresh_token juga sudah tidak valid (kadaluwarsa/dicabut) -
+          // baru di titik ini beneran perlu login ulang
+          throw e;
+        }
+      }
+      // Sesi lama (sebelum fitur ini ada) belum punya refresh_token - coba
+      // pakai access_token yang tersimpan apa adanya, kalau gagal ya harus login ulang
+      await loadTokoAndEnterApp(session.userId, session.token, session.email);
+    }
+
+    restoreWithRefresh()
       .catch(() => clearSession())
       .finally(() => setRestoringSession(false));
   }, []);
+
+  // Refresh token secara berkala di latar belakang (tiap 45 menit) selama
+  // tab dibiarkan terbuka - supaya access_token tidak sempat kedaluwarsa di
+  // tengah pemakaian walau tidak pernah reload halaman.
+  useEffect(() => {
+    if (!toko) return;
+    const interval = setInterval(async () => {
+      const session = loadSession();
+      if (!session?.refreshToken) return;
+      try {
+        const refreshed = await supabaseRefreshToken(session.refreshToken);
+        setAuthToken(refreshed.access_token);
+        saveSession({ ...session, token: refreshed.access_token, refreshToken: refreshed.refresh_token });
+      } catch (e) {
+        console.log("Gagal refresh token di latar belakang:", e.message);
+      }
+    }, 45 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [toko]);
 
 
   function addToCart(kode, delta) {
