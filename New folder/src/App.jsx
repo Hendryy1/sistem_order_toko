@@ -3431,7 +3431,6 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
   const [uploadingToko, setUploadingToko] = useState(false);
   const [uploadingKtp, setUploadingKtp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   async function uploadFoto(file, jenis) {
     const setUploading = jenis === "toko" ? setUploadingToko : setUploadingKtp;
@@ -3469,7 +3468,6 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
         }),
       });
       onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
-      setSaved(true);
     } catch (e) {
       alert("Gagal kirim verifikasi: " + e.message);
     }
@@ -3504,13 +3502,26 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           </div>
         )}
 
-        {saved ? (
-          <div style={{ textAlign: "center", padding: "40px 0" }}>
-            <Check size={40} color="#28685D" />
-            <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", marginTop: 12 }}>Foto berhasil dikirim!</p>
-            <p style={{ fontSize: 12.5, color: "#9CA0A6", marginTop: 4 }}>Tunggu persetujuan Owner ya.</p>
-          </div>
-        ) : (toko.statusVerifikasi !== "terverifikasi") && (
+        {toko.statusVerifikasi === "menunggu_review" ? (
+          <>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              <div>
+                <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO TOKO</p>
+                <img src={fotoToko} alt="Foto Toko" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10 }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO KTP</p>
+                <img src={fotoKtp} alt="Foto KTP" style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10 }} />
+              </div>
+            </div>
+            <button
+              disabled
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: "#E4E1DA", color: "#9CA0A6", fontWeight: 700, fontSize: 14 }}
+            >
+              Sedang di Review
+            </button>
+          </>
+        ) : toko.statusVerifikasi === "terverifikasi" ? null : (
           <>
             <div style={{ marginBottom: 20 }}>
               <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Foto Toko</p>
