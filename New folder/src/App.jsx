@@ -5,7 +5,7 @@ import {
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
   HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2,
-  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical
+  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical, Download
 } from "lucide-react";
 
 // ============================================================
@@ -296,6 +296,34 @@ export default function OrderApp() {
   const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail
   const [campaignVisible, setCampaignVisible] = useState(true);
   const [campaignBanner, setCampaignBanner] = useState(null);
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // Deteksi apakah sudah dijalankan sebagai app terinstall (jangan tawarkan
+    // install lagi kalau sudah)
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    setIsStandalone(standalone);
+
+    // Android/Chrome: tangkap event ini supaya bisa munculkan tombol install
+    // sendiri (browser tidak munculkan prompt otomatis kalau sudah di-preventDefault)
+    function handleBeforeInstallPrompt(e) {
+      e.preventDefault();
+      setInstallPromptEvent(e);
+    }
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+  }, []);
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  async function handleInstallClick() {
+    if (installPromptEvent) {
+      installPromptEvent.prompt();
+      const { outcome } = await installPromptEvent.userChoice;
+      if (outcome === "accepted") setInstallPromptEvent(null);
+    }
+  }
 
   useEffect(() => {
     supabaseFetch("campaign_banner?select=*&limit=1")
@@ -897,6 +925,9 @@ export default function OrderApp() {
           onRequireLogin={() => setScreen("login")}
           onOpenChat={() => setScreen("cs-chat-choice")}
           onOpenNotifikasi={() => setScreen("notifikasi")}
+          showInstallButton={!isStandalone && (installPromptEvent || isIOS)}
+          isIOS={isIOS}
+          onInstallClick={handleInstallClick}
         />
       )}
 
@@ -1331,7 +1362,8 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, productsLoading, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
+function CatalogScreen({ toko, isGuest, products, productsLoading, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi, showInstallButton, isIOS, onInstallClick }) {
+  const [showIosTip, setShowIosTip] = useState(false);
   const categories = availableCategories || ["Semua"];
   const [unreadCount, setUnreadCount] = useState(0);
   const [showSearch, setShowSearch] = useState(false);
@@ -1399,6 +1431,36 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
           </button>
         )}
       </div>
+
+      {showInstallButton && (
+        <div style={{ padding: "14px 20px 0" }}>
+          <div style={{ background: "#fff", border: "1.5px solid #E8A426", borderRadius: 12, padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: "#FBF0D9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Download size={17} color="#8A6A1A" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: 0 }}>Pasang Aplikasi di HP</p>
+              <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Akses lebih cepat lewat layar utama</p>
+            </div>
+            <button
+              onClick={() => { if (isIOS) setShowIosTip(true); else onInstallClick(); }}
+              style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12, fontWeight: 700, flexShrink: 0 }}
+            >
+              Pasang
+            </button>
+          </div>
+          {showIosTip && (
+            <div style={{ marginTop: 8, background: "#FFFBF0", borderRadius: 10, padding: 12 }}>
+              <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: 0, lineHeight: 1.6 }}>
+                Di Safari: tekan ikon <strong>Share</strong> (kotak dengan panah ke atas) di bagian bawah layar, lalu pilih <strong>"Add to Home Screen"</strong>.
+              </p>
+              <button onClick={() => setShowIosTip(false)} style={{ marginTop: 8, background: "none", border: "none", color: "#8A6A1A", fontSize: 11, fontWeight: 700, padding: 0, textDecoration: "underline" }}>
+                Tutup
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 20px 4px", scrollbarWidth: "none" }}>
         {categories.map((cat) => {
