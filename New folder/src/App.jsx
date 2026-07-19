@@ -3196,6 +3196,14 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
 // DETAIL KAMPANYE
 // ============================================================
 function CampaignDetailScreen({ onBack, cartCount, onGoToCart, judul, deskripsi }) {
+  const [galeri, setGaleri] = useState([]);
+
+  useEffect(() => {
+    supabaseFetch("campaign_banner_images?select=*&order=urutan.asc")
+      .then(setGaleri)
+      .catch(() => setGaleri([]));
+  }, []);
+
   return (
     <div style={{ minHeight: "100vh" }}>
       <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #EDEAE3", position: "sticky", top: 0, zIndex: 10, background: "#fff" }}>
@@ -3211,12 +3219,19 @@ function CampaignDetailScreen({ onBack, cartCount, onGoToCart, judul, deskripsi 
           )}
         </button>
       </div>
-      <div style={{ padding: "20px 20px 40px" }}>
+      <div style={{ padding: "20px 20px 0" }}>
         <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 12px" }}>{judul || "Promo Spesial!"}</h1>
-        <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, whiteSpace: "pre-line" }}>
+        <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, whiteSpace: "pre-line", marginBottom: galeri.length > 0 ? 20 : 40 }}>
           {deskripsi || "Belum ada konten promo."}
         </p>
       </div>
+      {galeri.length > 0 && (
+        <div>
+          {galeri.map((img) => (
+            <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block" }} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
