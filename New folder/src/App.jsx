@@ -429,7 +429,22 @@ export default function OrderApp() {
     }, { subtotalSebelum: 0, totalDiskon: 0, totalBayar: 0 });
   }, [cart, checkedItems, products]);
   const cartTotal = cartRincian.totalBayar;
-  const belowMinimum = cartTotal > 0 && cartTotal < MIN_CHECKOUT;
+  // Toko di LUAR Pekanbaru: tidak berlaku minimal Rp500rb, tapi tiap barang
+  // yang mau di-checkout WAJIB minimal 1 koli (sesuai isiPerKoli produknya).
+  // Barang tanpa aturan koli (isiPerKoli 0/kosong) tidak kena aturan ini.
+  const isLuarPekanbaru = !!(toko?.kota && toko.kota.trim().toLowerCase() !== "pekanbaru");
+  const itemBelumSatuKoli = isLuarPekanbaru
+    ? Object.entries(cart)
+        .filter(([kode]) => checkedItems[kode] !== false)
+        .map(([kode, qty]) => {
+          const p = products.find((pr) => pr.kode === kode);
+          return p && p.isiPerKoli > 0 && qty < p.isiPerKoli ? { ...p, qty } : null;
+        })
+        .filter(Boolean)
+    : [];
+  const belowMinimum = isLuarPekanbaru
+    ? (cartTotal > 0 && itemBelumSatuKoli.length > 0)
+    : (cartTotal > 0 && cartTotal < MIN_CHECKOUT);
 
   // Tarik ulang riwayat order milik toko ini dari database (supaya tidak hilang
   // kalau refresh/login ulang di device lain - sebelumnya cuma tersimpan di HP saja).
@@ -676,7 +691,7 @@ export default function OrderApp() {
       alert("Toko Anda belum terverifikasi. Silakan upload foto toko & KTP dulu di menu Akun > Foto Toko, dan tunggu persetujuan Owner sebelum bisa order.");
       return;
     }
-    if (cartTotal < MIN_CHECKOUT) return; // jaga-jaga, tombol sudah dinonaktifkan di UI
+    if (belowMinimum) return; // jaga-jaga, tombol sudah dinonaktifkan di UI
     const items = Object.entries(cart)
       .filter(([kode]) => checkedItems[kode] !== false)
       .map(([kode, qty]) => {
@@ -1036,6 +1051,7 @@ export default function OrderApp() {
           dropshipPrices={dropshipPrices} setDropshipPrices={setDropshipPrices}
           dropshipSender={dropshipSender} setDropshipSender={setDropshipSender} savedSenderNames={savedSenderNames}
           cart={cart} products={products} rincian={cartRincian} belowMinimum={belowMinimum}
+          isLuarPekanbaru={isLuarPekanbaru} itemBelumSatuKoli={itemBelumSatuKoli}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
           addToCart={addToCart} setCartQty={setCartQty}
           onBack={() => setScreen("catalog")}
@@ -1826,7 +1842,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
   const [editingQtyKode, setEditingQtyKode] = useState(null);
   const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -2107,9 +2123,25 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
         </div>
 
         {belowMinimum && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#FBEAEA", color: "#C0392B", padding: "7px 10px", borderRadius: 9, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
-            <AlertCircle size={14} style={{ flexShrink: 0 }} />
-            Minimal order {rupiah(MIN_CHECKOUT)}. Tambah belanja {rupiah(Math.round(kurang))} lagi.
+          <div style={{ background: "#FBEAEA", color: "#C0392B", padding: "9px 10px", borderRadius: 9, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
+            {isLuarPekanbaru ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: itemBelumSatuKoli.length > 0 ? 4 : 0 }}>
+                  <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                  Toko di luar Pekanbaru wajib order minimal 1 koli per barang:
+                </div>
+                {itemBelumSatuKoli.map((p) => (
+                  <p key={p.kode} style={{ margin: "2px 0 0 20px" }}>
+                    {p.nama}: {p.qty}/{p.isiPerKoli} {p.satuan}
+                  </p>
+                ))}
+              </>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                Minimal order {rupiah(MIN_CHECKOUT)}. Tambah belanja {rupiah(Math.round(kurang))} lagi.
+              </div>
+            )}
           </div>
         )}
 
@@ -3437,6 +3469,15 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
   // Alur verifikasi email sebelum boleh ubah foto:
   // "none" -> "sending" -> "input_code" -> (masuk editMode kalau kode benar)
   const [emailOtpStep, setEmailOtpStep] = useState("none");
+  const [fotoKtpDisplayUrl, setFotoKtpDisplayUrl] = useState(null);
+
+  useEffect(() => {
+    // Kalau toko sudah pernah upload KTP sebelumnya, ambil signed URL-nya
+    // supaya bisa ditampilkan (path mentahnya tidak bisa diakses langsung)
+    if (toko.fotoKtpUrl) {
+      getSignedKtpUrl(toko.fotoKtpUrl).then(setFotoKtpDisplayUrl);
+    }
+  }, []);
   const [otpCode, setOtpCode] = useState("");
   const [otpError, setOtpError] = useState("");
   const [otpBusy, setOtpBusy] = useState(false);
@@ -3492,18 +3533,50 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
     try {
       const ext = file.name.split(".").pop();
       const filePath = `verifikasi-${jenis}-${toko.id}-${Date.now()}.${ext}`;
-      const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
-        body: file,
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
-      setUrl(url);
+
+      if (jenis === "ktp") {
+        // Foto KTP masuk bucket PRIVAT - tidak ada URL publik sama sekali.
+        // Yang disimpan cuma PATH-nya, nanti ditampilkan lewat signed URL
+        // sementara (lihat getSignedKtpUrl).
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/dokumen-verifikasi/${filePath}`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        setUrl(filePath);
+        const signed = await getSignedKtpUrl(filePath);
+        setFotoKtpDisplayUrl(signed);
+      } else {
+        const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
+          method: "POST",
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
+          body: file,
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
+        setUrl(url);
+      }
     } catch (e) {
       alert("Gagal upload foto: " + e.message);
     }
     setUploading(false);
+  }
+
+  async function getSignedKtpUrl(filePath) {
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/get-ktp-signed-url`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ file_path: filePath }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal ambil link foto KTP");
+      return data.signedUrl;
+    } catch (e) {
+      console.log("Gagal buat signed URL KTP:", e.message);
+      return null;
+    }
   }
 
   async function kirimVerifikasi() {
@@ -3575,7 +3648,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
               </div>
               <div>
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO KTP</p>
-                <img src={fotoKtp} alt="Foto KTP" onClick={() => setLightboxUrl(fotoKtp)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
+                <img src={fotoKtpDisplayUrl} alt="Foto KTP" onClick={() => setLightboxUrl(fotoKtpDisplayUrl)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
               </div>
             </div>
             <button
@@ -3610,7 +3683,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
 
             <div style={{ marginBottom: 24 }}>
               <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Foto KTP</p>
-              <label style={{ display: "block", width: "100%", height: 160, borderRadius: 12, border: fotoKtp ? "none" : "1.5px dashed #E8A426", background: fotoKtp ? `url(${fotoKtp}) center/cover` : "#FFFBF0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+              <label style={{ display: "block", width: "100%", height: 160, borderRadius: 12, border: fotoKtp ? "none" : "1.5px dashed #E8A426", background: fotoKtpDisplayUrl ? `url(${fotoKtpDisplayUrl}) center/cover` : "#FFFBF0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                 {!fotoKtp && (uploadingKtp ? <p style={{ fontSize: 12, color: "#8A6A1A" }}>Mengupload...</p> : (
                   <div style={{ textAlign: "center" }}>
                     <Camera size={24} color="#8A6A1A" />
@@ -3620,7 +3693,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
                 <input type="file" accept="image/*" style={{ display: "none" }} disabled={uploadingKtp} onChange={(e) => { if (e.target.files[0]) uploadFoto(e.target.files[0], "ktp"); }} />
               </label>
               {fotoKtp && (
-                <button onClick={() => setFotoKtp(null)} style={{ marginTop: 8, background: "none", border: "none", color: "#C0392B", fontSize: 11.5, fontWeight: 600, padding: 0 }}>Ganti Foto</button>
+                <button onClick={() => { setFotoKtp(null); setFotoKtpDisplayUrl(null); }} style={{ marginTop: 8, background: "none", border: "none", color: "#C0392B", fontSize: 11.5, fontWeight: 600, padding: 0 }}>Ganti Foto</button>
               )}
               <p style={{ fontSize: 10.5, color: "#9CA0A6", marginTop: 8, lineHeight: 1.5 }}>
                 Data KTP hanya digunakan untuk keperluan verifikasi internal dan tidak dibagikan ke pihak lain.
