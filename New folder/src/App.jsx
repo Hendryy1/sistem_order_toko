@@ -963,8 +963,13 @@ export default function OrderApp() {
           onOpenBantuan={() => setScreen("akun-bantuan")}
           onOpenPoin={() => setScreen("akun-poin")}
           onOpenOrderList={(key) => { setOrderListKey(key); setScreen("akun-orderlist"); }}
+          onOpenSaldo={() => setScreen("akun-saldo")}
           onLogout={handleLogout}
         />
+      )}
+
+      {screen === "akun-saldo" && (
+        <SaldoScreen toko={toko} onBack={() => setScreen("akun")} />
       )}
 
       {screen === "akun-orderlist" && (
@@ -2073,7 +2078,7 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onLogout }) {
+function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onOpenSaldo, onLogout }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const counts = {
@@ -2136,6 +2141,7 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
       </div>
 
       <div style={{ padding: "8px 20px 4px" }}>
+        <MenuRow icon={Wallet} label="Saldo Saya" onClick={onOpenSaldo} />
         <MenuRow icon={Bell} label="Aktifkan Notifikasi" onClick={() => subscribeToPush(toko.id)} />
         <MenuRow icon={RotateCcw} label="Order Ulang" onClick={onOpenOrderUlang} />
         <MenuRow icon={Star} label="Poin Saya" onClick={onOpenPoin} />
@@ -3251,6 +3257,100 @@ function MenuRow({ icon: Icon, label, onClick }) {
 // ============================================================
 // REKENING / KETENTUAN PEMBAYARAN
 // ============================================================
+// ============================================================
+// SALDO SAYA - lihat saldo, nomor VA, dan riwayat transaksi
+// ============================================================
+function SaldoScreen({ toko, onBack }) {
+  const [loading, setLoading] = useState(true);
+  const [saldo, setSaldo] = useState(0);
+  const [va, setVa] = useState(null);
+  const [riwayat, setRiwayat] = useState([]);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const [saldoRows, vaRows, ledgerRows] = await Promise.all([
+        supabaseFetch(`v_saldo_toko?select=saldo&client_id=eq.${toko.id}`),
+        supabaseFetch(`virtual_accounts?select=*&client_id=eq.${toko.id}`),
+        supabaseFetch(`saldo_ledger?select=*&client_id=eq.${toko.id}&order=created_at.desc&limit=30`),
+      ]);
+      setSaldo(Number(saldoRows[0]?.saldo || 0));
+      setVa(vaRows[0] || null);
+      setRiwayat(ledgerRows);
+    } catch (e) {
+      console.log("Gagal muat saldo:", e.message);
+    }
+    setLoading(false);
+  }
+
+  const labelJenis = {
+    topup_va: "Top Up via VA",
+    pakai_bayar_order: "Dipakai Bayar Order",
+    refund: "Refund",
+    adjustment_manual: "Penyesuaian",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
+      <div style={{ padding: "18px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
+          <ChevronLeft size={18} /> Kembali
+        </button>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Saldo Saya</h1>
+      </div>
+
+      {loading ? (
+        <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "40px 0" }}>Memuat...</p>
+      ) : (
+        <div style={{ padding: "0 20px" }}>
+          <div style={{ background: "#24272B", borderRadius: 16, padding: 20, marginBottom: 16 }}>
+            <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 6px" }}>Saldo Tersedia</p>
+            <p className="disp" style={{ fontSize: 30, fontWeight: 700, color: "#fff", margin: 0 }}>{rupiah(saldo)}</p>
+          </div>
+
+          {va ? (
+            <div style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 18, marginBottom: 20 }}>
+              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
+              <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>{va.va_number}</p>
+              <p style={{ fontSize: 12.5, color: "#6B6F75", margin: 0 }}>Bank {va.bank_code}</p>
+              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "10px 0 0", lineHeight: 1.5 }}>
+                Transfer ke nomor VA ini kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
+              </p>
+            </div>
+          ) : (
+            <div style={{ background: "#FBF0D9", borderRadius: 14, padding: 16, marginBottom: 20 }}>
+              <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
+                Anda belum punya nomor Virtual Account. Hubungi Sales/CS untuk dibuatkan.
+              </p>
+            </div>
+          )}
+
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: "0 0 10px" }}>Riwayat Transaksi</p>
+          {riwayat.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Belum ada transaksi saldo.</p>
+          ) : (
+            riwayat.map((r) => (
+              <div key={r.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{labelJenis[r.jenis] || r.jenis}</p>
+                  <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>{new Date(r.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</p>
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: Number(r.jumlah) >= 0 ? "#28685D" : "#C0392B" }}>
+                  {Number(r.jumlah) >= 0 ? "+" : ""}{rupiah(r.jumlah)}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RekeningScreen({ onBack }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
   function copyNumber(nomor, idx) {
