@@ -540,8 +540,9 @@ export default function OrderApp() {
       const day = now.getDay();
       const sunday = new Date(now); sunday.setDate(now.getDate() - day); sunday.setHours(0, 0, 0, 0);
       const saturday = new Date(sunday); saturday.setDate(sunday.getDate() + 6); saturday.setHours(23, 59, 59, 999);
-      const sundayStr = sunday.toISOString().slice(0, 10);
-      const saturdayStr = saturday.toISOString().slice(0, 10);
+      const toLocalDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const sundayStr = toLocalDateStr(sunday);
+      const saturdayStr = toLocalDateStr(saturday);
 
       const [checkinRows, ledgerRows, ticketRows] = await Promise.all([
         supabaseFetch(`daily_checkins?select=tanggal,poin&client_id=eq.${clientId}&tanggal=gte.${sundayStr}&tanggal=lte.${saturdayStr}`, {}, token),
@@ -900,7 +901,11 @@ export default function OrderApp() {
       earned = randBetween(10, 50);
     }
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    // PENTING: pakai tanggal LOKAL (bukan toISOString() yang otomatis geser
+    // ke UTC) - supaya "hari ini" di database selalu cocok dengan "hari ini"
+    // di jam HP pengguna, tidak geser di waktu-waktu tertentu (misal malam hari).
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
     try {
       await supabaseFetch("daily_checkins", {
         method: "POST",
@@ -913,7 +918,15 @@ export default function OrderApp() {
       setDailyClaims((prev) => ({ ...prev, [today]: earned }));
       setPointsBalance((prev) => prev + earned);
     } catch (e) {
-      alert("Gagal simpan poin, coba lagi: " + e.message);
+      if (e.message.includes("23505") || e.message.includes("duplicate key")) {
+        // Sudah pernah diklaim hari ini (kemungkinan klik dobel atau sesi
+        // beda perangkat) - tandai saja sebagai sudah diklaim, jangan
+        // munculkan error yang membingungkan.
+        setDailyClaims((prev) => ({ ...prev, [today]: prev[today] ?? 0 }));
+        alert("Poin hari ini sudah pernah diklaim sebelumnya.");
+      } else {
+        alert("Gagal simpan poin, coba lagi: " + e.message);
+      }
     }
   }
 
@@ -1598,7 +1611,7 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
           const Icon = meta.icon;
           const qty = cart[p.kode] || 0;
           return (
-            <div key={p.kode} style={{ background: "#fff", borderRadius: 16, padding: 14, border: "1px solid #EDEAE3" }}>
+            <div key={p.kode} style={{ background: "#fff", borderRadius: 16, padding: 10, border: "1px solid #EDEAE3" }}>
               <button onClick={() => onOpenProduct(p)} style={{ background: "none", border: "none", padding: 0, width: "100%", textAlign: "left" }}>
                 <div style={{ width: "100%", aspectRatio: "1", background: p.gambarUrl ? `url(${p.gambarUrl}) center/cover` : meta.bg, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
                   {!p.gambarUrl && <Icon size={30} color={meta.fg} strokeWidth={1.8} />}
@@ -2190,7 +2203,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                   </div>
                 )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
                 <button aria-label={`Hapus ${p.nama}`} onClick={() => addToCart(p.kode, -p.qty)} style={{ background: "none", border: "none", color: "#C0392B" }}><X size={16} /></button>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#F7F5F1", borderRadius: 8, padding: "4px 8px" }}>
                   <button aria-label={`Kurangi ${p.nama}`} onClick={() => addToCart(p.kode, -1)} style={{ background: "none", border: "none", color: "#24272B" }}><Minus size={13} /></button>
