@@ -3460,13 +3460,19 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
     }
     setSubmitting(true);
     try {
-      await supabaseFetch(`clients?id=eq.${toko.id}`, {
+      const result = await supabaseFetch(`clients?id=eq.${toko.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           foto_toko_url: fotoToko, foto_ktp_url: fotoKtp,
           status_verifikasi: "menunggu_review", alasan_verifikasi_ditolak: null,
         }),
       });
+      // PostgREST tetap balas "sukses" (200) walau 0 baris ke-update (misal
+      // diblokir RLS diam-diam) - jadi kita HARUS cek isinya, bukan cuma
+      // percaya request tidak error.
+      if (!result || result.length === 0) {
+        throw new Error("Data tidak tersimpan (kemungkinan diblokir izin akses). Coba logout lalu login ulang, lalu coba lagi.");
+      }
       onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
     } catch (e) {
       alert("Gagal kirim verifikasi: " + e.message);
