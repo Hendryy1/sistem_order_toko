@@ -297,7 +297,8 @@ export default function OrderApp() {
   const [campaignVisible, setCampaignVisible] = useState(true);
   const [campaignReturnScreen, setCampaignReturnScreen] = useState("catalog");
   const [csReturnScreen, setCsReturnScreen] = useState("akun");
-  const [products, setProducts] = useState(SAMPLE_PRODUCTS); // fallback dulu, diganti data asli kalau fetch berhasil
+  const [products, setProducts] = useState([]); // kosong dulu, diisi data asli setelah selesai dimuat
+  const [productsLoading, setProductsLoading] = useState(true);
   const [dbError, setDbError] = useState("");
 
   useEffect(() => {
@@ -309,9 +310,14 @@ export default function OrderApp() {
           stockRows.forEach((r) => { stockMap[r.kode] = r.stock_akhir; });
         } catch (e) { /* kalau gagal, pakai stock_awal sebagai cadangan */ }
         const mapped = rows.map((r) => mapSupabaseProduct({ ...r, stock_akhir: stockMap[r.kode] }));
-        if (mapped.length > 0) setProducts(mapped);
+        setProducts(mapped); // tampilkan apa adanya dari database, walau hasilnya 0 barang
+        setProductsLoading(false);
       })
       .catch(() => {
+        // Cuma di sini (BENAR-BENAR gagal konek) baru pakai data contoh, supaya
+        // tidak salah kelihatan produk contoh nongol dulu padahal database aslinya baik-baik saja.
+        setProducts(SAMPLE_PRODUCTS);
+        setProductsLoading(false);
         setDbError("Tidak bisa akses database asli (mode preview) - sementara pakai data contoh.");
       });
   }, []);
@@ -871,6 +877,7 @@ export default function OrderApp() {
         <CatalogScreen
           toko={toko} isGuest={isGuest}
           products={filteredProducts}
+          productsLoading={productsLoading}
           activeCategory={activeCategory} setActiveCategory={setActiveCategory}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery}
           cart={cart} addToCart={addToCart}
@@ -1305,7 +1312,7 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
+function CatalogScreen({ toko, isGuest, products, productsLoading, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
   // Gabungkan kategori bawaan dengan kategori baru (kalau ada) dari produk asli di database
   const kategoriDariProduk = Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)));
   const categories = ["Semua", ...Array.from(new Set([...Object.keys(CATEGORY_META), ...kategoriDariProduk]))];
@@ -1445,7 +1452,12 @@ function CatalogScreen({ toko, isGuest, products, activeCategory, setActiveCateg
             </div>
           );
         })}
-        {products.length === 0 && (
+        {products.length === 0 && productsLoading && (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 0", color: "#9CA0A6" }}>
+            Memuat produk...
+          </div>
+        )}
+        {products.length === 0 && !productsLoading && (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 0", color: "#9CA0A6" }}>
             Barang tidak ketemu. Coba kata kunci lain.
           </div>
