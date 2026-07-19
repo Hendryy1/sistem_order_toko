@@ -295,6 +295,13 @@ const rupiah = (n) => "Rp" + n.toLocaleString("id-ID");
 export default function OrderApp() {
   const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail
   const [campaignVisible, setCampaignVisible] = useState(true);
+  const [campaignBanner, setCampaignBanner] = useState(null);
+
+  useEffect(() => {
+    supabaseFetch("campaign_banner?select=*&limit=1")
+      .then((rows) => setCampaignBanner(rows[0] || null))
+      .catch(() => setCampaignBanner(null));
+  }, []);
   const [campaignReturnScreen, setCampaignReturnScreen] = useState("catalog");
   const [csReturnScreen, setCsReturnScreen] = useState("akun");
   const [products, setProducts] = useState([]); // kosong dulu, diisi data asli setelah selesai dimuat
@@ -851,9 +858,9 @@ export default function OrderApp() {
         ::selection { background: #E8A426; color: #24272B; }
       `}</style>
 
-      {campaignVisible && screen !== "login" && screen !== "register" && screen !== "campaign-detail" && (
+      {campaignVisible && campaignBanner?.aktif && campaignBanner?.gambar_url && screen !== "login" && screen !== "register" && screen !== "campaign-detail" && (
         <FloatingCampaignWidget
-          imageUrl="https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif"
+          imageUrl={campaignBanner.gambar_url}
           onClose={() => setCampaignVisible(false)}
           onOpenDetail={() => { setCampaignReturnScreen(screen); setScreen("campaign-detail"); }}
         />
@@ -998,6 +1005,8 @@ export default function OrderApp() {
           onBack={() => setScreen(campaignReturnScreen)}
           cartCount={Object.values(cart).reduce((a, b) => a + b, 0)}
           onGoToCart={() => setScreen("cart")}
+          judul={campaignBanner?.judul}
+          deskripsi={campaignBanner?.deskripsi}
         />
       )}
       {screen === "akun-poin" && (
@@ -3186,7 +3195,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
 // ============================================================
 // DETAIL KAMPANYE
 // ============================================================
-function CampaignDetailScreen({ onBack, cartCount, onGoToCart }) {
+function CampaignDetailScreen({ onBack, cartCount, onGoToCart, judul, deskripsi }) {
   return (
     <div style={{ minHeight: "100vh" }}>
       <div style={{ padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #EDEAE3", position: "sticky", top: 0, zIndex: 10, background: "#fff" }}>
@@ -3203,10 +3212,9 @@ function CampaignDetailScreen({ onBack, cartCount, onGoToCart }) {
         </button>
       </div>
       <div style={{ padding: "20px 20px 40px" }}>
-        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 12px" }}>Promo Spesial!</h1>
-        <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6 }}>
-          Ini halaman detail kampanye. Isi dengan konten promo, syarat & ketentuan,
-          atau apapun yang Anda perlukan di sini.
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 12px" }}>{judul || "Promo Spesial!"}</h1>
+        <p style={{ fontSize: 13.5, color: "#6B6F75", lineHeight: 1.6, whiteSpace: "pre-line" }}>
+          {deskripsi || "Belum ada konten promo."}
         </p>
       </div>
     </div>
