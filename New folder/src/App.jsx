@@ -1170,7 +1170,7 @@ export default function OrderApp() {
       )}
 
       {screen === "akun-tentang" && (
-        <TentangScreen onBack={() => setScreen("akun-info")} />
+        <TentangScreen toko={toko} onBack={() => setScreen("akun-info")} />
       )}
 
       {screen === "akun-saldo" && (
@@ -4145,7 +4145,44 @@ function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpda
 // ============================================================
 // TENTANG
 // ============================================================
-function TentangScreen({ onBack }) {
+// Nomor perangkat - dibuat sekali & disimpan di HP, dipakai buat identifikasi
+// perangkat (misal kalau ada laporan masalah teknis)
+function getDeviceId() {
+  try {
+    let id = localStorage.getItem("device_id_v1");
+    if (!id) {
+      id = "DEV-" + Math.random().toString(36).slice(2, 10).toUpperCase() + "-" + Date.now().toString(36).toUpperCase();
+      localStorage.setItem("device_id_v1", id);
+    }
+    return id;
+  } catch (e) {
+    return "DEV-UNKNOWN";
+  }
+}
+
+function TentangScreen({ toko, onBack }) {
+  const [expanded, setExpanded] = useState(null); // "syarat" | "privasi" | null
+  const [showHapusAkun, setShowHapusAkun] = useState(false);
+  const [alasanHapus, setAlasanHapus] = useState("");
+  const [submittingHapus, setSubmittingHapus] = useState(false);
+  const [sudahDiajukan, setSudahDiajukan] = useState(false);
+
+  async function ajukanHapusAkun() {
+    setSubmittingHapus(true);
+    try {
+      await supabaseFetch("permintaan_hapus_akun", {
+        method: "POST",
+        body: JSON.stringify({ client_id: toko.id, alasan: alasanHapus || null }),
+      });
+      setSudahDiajukan(true);
+    } catch (e) {
+      alert("Gagal mengajukan: " + e.message);
+    }
+    setSubmittingHapus(false);
+  }
+
+  const sectionStyle = { padding: "14px 0", borderBottom: "1px solid #EDEAE3" };
+
   return (
     <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
       <div style={{ padding: "18px 20px 16px" }}>
@@ -4156,11 +4193,93 @@ function TentangScreen({ onBack }) {
       </div>
       <div style={{ padding: "0 20px" }}>
         <p style={{ fontSize: 13.5, color: "#24272B", fontWeight: 700, margin: "0 0 4px" }}>INDO GARUDA ABADI</p>
-        <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6, marginBottom: 20 }}>
           Aplikasi order online untuk pelanggan distributor Indo Garuda Abadi. Dibuat untuk mempermudah proses pemesanan, pembayaran, dan pengecekan status pesanan secara online.
         </p>
-        <p style={{ fontSize: 11.5, color: "#9CA0A6", marginTop: 20 }}>Versi 1.0</p>
+
+        <div style={sectionStyle}>
+          <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Perangkat</p>
+          <p style={{ fontSize: 12.5, color: "#24272B", fontFamily: "monospace", margin: 0 }}>{getDeviceId()}</p>
+        </div>
+
+        <div style={sectionStyle}>
+          <button onClick={() => setExpanded(expanded === "syarat" ? null : "syarat")} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", padding: 0 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B" }}>Syarat & Ketentuan Registrasi</span>
+            <ChevronRight size={16} color="#9CA0A6" style={{ transform: expanded === "syarat" ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+          </button>
+          {expanded === "syarat" && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "#6B6F75", lineHeight: 1.7 }}>
+              <p>1. Toko yang mendaftar wajib mengisi data yang benar dan sesuai identitas pemilik/penanggung jawab toko.</p>
+              <p>2. Verifikasi (foto toko & KTP) wajib diselesaikan sebelum akun dapat melakukan pemesanan.</p>
+              <p>3. Harga, ketentuan pembayaran, dan syarat pengiriman dapat berubah sewaktu-waktu sesuai kebijakan Indo Garuda Abadi.</p>
+              <p>4. Akun yang terbukti memberikan data palsu berhak ditolak atau dinonaktifkan oleh Owner.</p>
+              <p>5. Dengan mendaftar, pengguna setuju data yang diberikan digunakan untuk keperluan transaksi dan verifikasi sesuai Kebijakan Privasi.</p>
+            </div>
+          )}
+        </div>
+
+        <div style={sectionStyle}>
+          <button onClick={() => setExpanded(expanded === "privasi" ? null : "privasi")} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", background: "none", border: "none", padding: 0 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B" }}>Kebijakan Privasi</span>
+            <ChevronRight size={16} color="#9CA0A6" style={{ transform: expanded === "privasi" ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+          </button>
+          {expanded === "privasi" && (
+            <div style={{ marginTop: 12, fontSize: 12, color: "#6B6F75", lineHeight: 1.7 }}>
+              <p>1. Data yang dikumpulkan meliputi: nama, alamat, no. HP, email, foto toko, dan foto KTP untuk keperluan verifikasi & transaksi.</p>
+              <p>2. Foto KTP disimpan secara terpisah dan tidak dapat diakses publik, hanya dapat dilihat oleh staff berwenang untuk keperluan verifikasi.</p>
+              <p>3. Data tidak dibagikan ke pihak ketiga di luar keperluan operasional (misal pengiriman, pembayaran).</p>
+              <p>4. Pengguna dapat mengajukan penghapusan akun & data melalui menu ini kapan saja.</p>
+            </div>
+          )}
+        </div>
+
+        <div style={sectionStyle}>
+          <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700, textTransform: "uppercase" }}>Versi</p>
+          <p style={{ fontSize: 12.5, color: "#24272B", margin: 0 }}>1.0</p>
+        </div>
+
+        <div style={{ padding: "20px 0 0" }}>
+          {sudahDiajukan ? (
+            <div style={{ background: "#D8E9E6", borderRadius: 12, padding: 14 }}>
+              <p style={{ fontSize: 12.5, color: "#28685D", margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
+                Permintaan penghapusan akun Anda sudah diterima dan sedang diproses tim kami.
+              </p>
+            </div>
+          ) : (
+            <button onClick={() => setShowHapusAkun(true)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 13, fontWeight: 700, padding: 0 }}>
+              Ajukan Penghapusan Akun
+            </button>
+          )}
+        </div>
       </div>
+
+      {showHapusAkun && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 380, padding: 24 }}>
+            <h2 className="disp" style={{ fontSize: 17, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Ajukan Penghapusan Akun</h2>
+            <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 16px", lineHeight: 1.6 }}>
+              Permintaan Anda akan ditinjau oleh tim kami. Akun tidak langsung terhapus otomatis - Anda akan dihubungi untuk konfirmasi lebih lanjut.
+            </p>
+            <textarea
+              value={alasanHapus} onChange={(e) => setAlasanHapus(e.target.value)}
+              placeholder="Alasan (opsional)..." rows={3}
+              style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13, resize: "vertical", marginBottom: 14 }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setShowHapusAkun(false)} style={{ flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 600, fontSize: 13 }}>
+                Batal
+              </button>
+              <button
+                onClick={async () => { await ajukanHapusAkun(); setShowHapusAkun(false); }}
+                disabled={submittingHapus}
+                style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: submittingHapus ? "#E4E1DA" : "#C0392B", color: "#fff", fontWeight: 700, fontSize: 13 }}
+              >
+                {submittingHapus ? "Mengirim..." : "Ajukan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
