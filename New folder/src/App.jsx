@@ -303,6 +303,26 @@ function hitungRincianItem(product, qty) {
 
 const rupiah = (n) => "Rp" + n.toLocaleString("id-ID");
 
+// Sensor nama: tampilkan huruf pertama & terakhir tiap kata, sisanya *
+function sensorNama(nama) {
+  if (!nama) return "-";
+  return nama
+    .split(" ")
+    .map((word) => {
+      if (word.length <= 2) return word;
+      return word[0] + "*".repeat(word.length - 2) + word[word.length - 1];
+    })
+    .join(" ");
+}
+
+// Sensor no HP: tampilkan 2 digit depan & 2 digit belakang, sisanya *
+function sensorNoHp(hp) {
+  if (!hp) return "-";
+  const digits = hp.replace(/\s/g, "");
+  if (digits.length <= 4) return digits;
+  return digits.slice(0, 2) + "*".repeat(digits.length - 4) + digits.slice(-2);
+}
+
 // ============================================================
 // KOMPONEN UTAMA
 // ============================================================
@@ -401,7 +421,7 @@ export default function OrderApp() {
     try { localStorage.setItem("cart_v1", JSON.stringify(cart)); } catch (e) {}
   }, [cart]);
   const [orders, setOrders] = useState([]);
-  const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
+  const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "", namaOwner: "", tanggalLahir: "", jenisUsaha: "" });
   const [regSubmitted, setRegSubmitted] = useState(false);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
@@ -522,6 +542,9 @@ export default function OrderApp() {
       statusVerifikasi: r.status_verifikasi || "belum_upload",
       fotoTokoUrl: r.foto_toko_url || null, fotoKtpUrl: r.foto_ktp_url || null,
       alasanVerifikasiDitolak: r.alasan_verifikasi_ditolak || null,
+      namaOwner: r.nama_owner || null, tanggalLahir: r.tanggal_lahir || null,
+      jenisUsaha: r.jenis_usaha || null, provinsi: r.provinsi || null,
+      status: r.status || null, noHpDiubahTerakhir: r.no_hp_diubah_terakhir || null,
     };
     setToko(tokoData);
     setAuthToken(token);
@@ -967,6 +990,10 @@ export default function OrderApp() {
           telp: regForm.telp,
           jenis_pembayaran: "Transfer",
           kota: regForm.kota,
+          provinsi: regForm.provinsi,
+          nama_owner: regForm.namaOwner || null,
+          tanggal_lahir: regForm.tanggalLahir || null,
+          jenis_usaha: regForm.jenisUsaha || null,
           status: "pending",
           // kode TIDAK diisi -> otomatis dibuatkan nomor berikutnya oleh database
         }),
@@ -1118,8 +1145,32 @@ export default function OrderApp() {
           onOpenOrderList={(key) => { setOrderListKey(key); setScreen("akun-orderlist"); }}
           onOpenSaldo={() => setScreen("akun-saldo")}
           onOpenVerifikasi={() => setScreen("akun-verifikasi")}
+          onOpenInfoAkun={() => setScreen("akun-info")}
           onLogout={handleLogout}
         />
+      )}
+
+      {screen === "akun-info" && (
+        <InformasiAkunScreen
+          toko={toko}
+          onBack={() => setScreen("akun")}
+          onOpenAlamat={() => setScreen("akun-alamat")}
+          onOpenTentang={() => setScreen("akun-tentang")}
+          onUpdated={(updates) => setToko((prev) => ({ ...prev, ...updates }))}
+        />
+      )}
+
+      {screen === "akun-alamat" && (
+        <DaftarAlamatScreen
+          toko={toko}
+          savedAddresses={savedAddresses}
+          setSavedAddresses={setSavedAddresses}
+          onBack={() => setScreen("akun-info")}
+        />
+      )}
+
+      {screen === "akun-tentang" && (
+        <TentangScreen onBack={() => setScreen("akun-info")} />
       )}
 
       {screen === "akun-saldo" && (
@@ -1382,6 +1433,9 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
       <Field label="Nama Toko"><input value={regForm.nama} onChange={set("nama")} placeholder="Toko Jaya Sentosa" style={inputStyle} /></Field>
       <Field label="Alamat (Jalan, No. Rumah)"><textarea value={regForm.alamat} onChange={set("alamat")} placeholder="Jl. Contoh No. 1" rows={2} style={{ ...inputStyle, resize: "none" }} /></Field>
       <Field label="No. Telepon"><input value={regForm.telp} onChange={set("telp")} placeholder="0812xxxxxxx" style={inputStyle} /></Field>
+      <Field label="Nama Pemilik (Owner)"><input value={regForm.namaOwner} onChange={set("namaOwner")} placeholder="Nama lengkap pemilik toko" style={inputStyle} /></Field>
+      <Field label="Tanggal Lahir Pemilik"><input type="date" value={regForm.tanggalLahir} onChange={set("tanggalLahir")} style={inputStyle} /></Field>
+      <Field label="Jenis Usaha"><input value={regForm.jenisUsaha} onChange={set("jenisUsaha")} placeholder="misal Toko Bangunan, Toko Sparepart" style={inputStyle} /></Field>
 
       <Field label="Provinsi">
         <AutocompleteField value={regForm.provinsi} onSelect={selectProvinsi} options={provinces.map((p) => p.name)} placeholder="Ketik nama provinsi..." />
@@ -2377,7 +2431,7 @@ function HistoryScreen({ orders, onBack }) {
 // ============================================================
 // AKUN
 // ============================================================
-function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onOpenSaldo, onOpenVerifikasi, onLogout }) {
+function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening, onOpenCS, onOpenBantuan, onOpenPoin, onOpenOrderList, onOpenOrderUlang, onOpenSaldo, onOpenVerifikasi, onOpenInfoAkun, onLogout }) {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const counts = {
@@ -2402,7 +2456,10 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
           </div>
           <div>
             <p className="disp" style={{ color: "#fff", fontSize: 19, fontWeight: 700, margin: 0 }}>{toko?.nama}</p>
-            <p style={{ color: "#9CA0A6", fontSize: 12, margin: "2px 0 0" }}>Kode Toko: {toko?.kode}</p>
+            <button onClick={onOpenInfoAkun} style={{ background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 3 }}>
+              <span style={{ color: "#9CA0A6", fontSize: 12 }}>Kode Toko: {toko?.kode}</span>
+              <ChevronRight size={13} color="#9CA0A6" />
+            </button>
           </div>
         </div>
       </div>
@@ -3897,6 +3954,362 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ============================================================
+// INFORMASI AKUN - detail akun toko, sensor data sensitif
+// ============================================================
+function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpdated }) {
+  const [showEditHp, setShowEditHp] = useState(false);
+  const [hpStep, setHpStep] = useState("konfirmasi"); // konfirmasi | form
+  const [hpBaru, setHpBaru] = useState("");
+  const [savingHp, setSavingHp] = useState(false);
+  const [hpError, setHpError] = useState("");
+  const [resettingPw, setResettingPw] = useState(false);
+
+  const hariSejakUbahHp = toko.noHpDiubahTerakhir
+    ? Math.floor((Date.now() - new Date(toko.noHpDiubahTerakhir).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const bolehUbahHp = hariSejakUbahHp === null || hariSejakUbahHp >= 60;
+  const sisaHari = bolehUbahHp ? 0 : 60 - hariSejakUbahHp;
+
+  async function simpanHpBaru() {
+    if (!hpBaru.trim()) {
+      setHpError("Masukkan nomor HP baru.");
+      return;
+    }
+    setSavingHp(true);
+    setHpError("");
+    try {
+      await supabaseFetch(`clients?id=eq.${toko.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ telp: hpBaru.trim(), no_hp_diubah_terakhir: new Date().toISOString() }),
+      });
+      onUpdated({ telp: hpBaru.trim(), noHpDiubahTerakhir: new Date().toISOString() });
+      setShowEditHp(false);
+      setHpStep("konfirmasi");
+      setHpBaru("");
+    } catch (e) {
+      setHpError("Gagal simpan: " + e.message);
+    }
+    setSavingHp(false);
+  }
+
+  async function resetPassword() {
+    setResettingPw(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email }),
+      });
+      if (!res.ok) throw new Error("Gagal kirim email reset password.");
+      alert(`Link reset password sudah dikirim ke ${toko.email}. Cek email Anda.`);
+    } catch (e) {
+      alert(e.message);
+    }
+    setResettingPw(false);
+  }
+
+  const rowStyle = { padding: "14px 0", borderBottom: "1px solid #EDEAE3" };
+  const labelStyle = { fontSize: 11, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700, textTransform: "uppercase" };
+  const valueStyle = { fontSize: 14, color: "#24272B", margin: 0, fontWeight: 600 };
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
+      <div style={{ padding: "18px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
+          <ChevronLeft size={18} /> Kembali
+        </button>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Informasi Akun</h1>
+      </div>
+
+      <div style={{ padding: "0 20px" }}>
+        <div style={rowStyle}>
+          <p style={labelStyle}>Kode Customer</p>
+          <p style={valueStyle}>{toko.kode}</p>
+        </div>
+
+        <div style={rowStyle}>
+          <p style={labelStyle}>Nama Owner</p>
+          <p style={valueStyle}>{sensorNama(toko.namaOwner) || "-"}</p>
+        </div>
+
+        <div style={rowStyle}>
+          <p style={labelStyle}>Tanggal Lahir</p>
+          <p style={valueStyle}>{toko.tanggalLahir ? new Date(toko.tanggalLahir).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" }) : "-"}</p>
+        </div>
+
+        <div style={rowStyle}>
+          <p style={labelStyle}>Nama Toko</p>
+          <p style={valueStyle}>{sensorNama(toko.nama)}</p>
+        </div>
+
+        <div style={{ ...rowStyle, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <p style={labelStyle}>No. HP</p>
+            <p style={valueStyle}>{sensorNoHp(toko.telp)}</p>
+          </div>
+          <button onClick={() => { setShowEditHp(true); setHpStep("konfirmasi"); }} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <FileEdit size={15} color="#24272B" />
+          </button>
+        </div>
+
+        <div style={rowStyle}>
+          <button onClick={resetPassword} disabled={resettingPw} style={{ background: "none", border: "none", padding: 0, color: "#B8860B", fontSize: 13.5, fontWeight: 700 }}>
+            {resettingPw ? "Mengirim..." : "Reset Password"}
+          </button>
+        </div>
+
+        <div style={rowStyle}>
+          <p style={labelStyle}>Jenis Usaha</p>
+          <p style={valueStyle}>{toko.jenisUsaha || "-"}</p>
+        </div>
+
+        <div style={rowStyle}>
+          <p style={labelStyle}>Status</p>
+          <p style={valueStyle}>{toko.status === "aktif" ? "Aktif" : toko.status || "-"}</p>
+        </div>
+
+        <div style={rowStyle}>
+          <p style={labelStyle}>Provinsi</p>
+          <p style={valueStyle}>{toko.provinsi || "-"}</p>
+        </div>
+
+        <button onClick={onOpenAlamat} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid #EDEAE3", background: "none", border: "none", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "#EDEAE3" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#24272B" }}>Daftar Alamat</span>
+          <ChevronRight size={17} color="#B5B2AA" />
+        </button>
+
+        <button onClick={onOpenTentang} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", background: "none", border: "none" }}>
+          <span style={{ fontSize: 14, fontWeight: 600, color: "#24272B" }}>Tentang</span>
+          <ChevronRight size={17} color="#B5B2AA" />
+        </button>
+      </div>
+
+      {showEditHp && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: 20 }}>
+          <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 380, padding: 24 }}>
+            {hpStep === "konfirmasi" ? (
+              <>
+                <h2 className="disp" style={{ fontSize: 17, fontWeight: 700, color: "#24272B", margin: "0 0 10px" }}>Ubah No. HP</h2>
+                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 20px", lineHeight: 1.6 }}>
+                  Satu akun hanya dapat melakukan perubahan nomor HP <strong>sekali setiap 60 hari</strong>.
+                  {!bolehUbahHp && (
+                    <span style={{ display: "block", marginTop: 8, color: "#C0392B", fontWeight: 600 }}>
+                      Anda baru bisa mengubah lagi dalam {sisaHari} hari.
+                    </span>
+                  )}
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setShowEditHp(false)} style={{ flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 600, fontSize: 13 }}>
+                    Batalkan
+                  </button>
+                  <button
+                    onClick={() => bolehUbahHp && setHpStep("form")}
+                    disabled={!bolehUbahHp}
+                    style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: bolehUbahHp ? "#E8A426" : "#E4E1DA", color: bolehUbahHp ? "#24272B" : "#9CA0A6", fontWeight: 700, fontSize: 13 }}
+                  >
+                    Lanjutkan
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="disp" style={{ fontSize: 17, fontWeight: 700, color: "#24272B", margin: "0 0 14px" }}>Masukkan No. HP Baru</h2>
+                <input
+                  value={hpBaru} onChange={(e) => setHpBaru(e.target.value)}
+                  placeholder="0812xxxxxxx"
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 14, marginBottom: 10 }}
+                />
+                {hpError && <p style={{ fontSize: 12, color: "#C0392B", margin: "0 0 10px" }}>{hpError}</p>}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => { setShowEditHp(false); setHpStep("konfirmasi"); setHpBaru(""); }} style={{ flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 600, fontSize: 13 }}>
+                    Batal
+                  </button>
+                  <button onClick={simpanHpBaru} disabled={savingHp} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: savingHp ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13 }}>
+                    {savingHp ? "Menyimpan..." : "Simpan"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// TENTANG
+// ============================================================
+function TentangScreen({ onBack }) {
+  return (
+    <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
+      <div style={{ padding: "18px 20px 16px" }}>
+        <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
+          <ChevronLeft size={18} /> Kembali
+        </button>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Tentang</h1>
+      </div>
+      <div style={{ padding: "0 20px" }}>
+        <p style={{ fontSize: 13.5, color: "#24272B", fontWeight: 700, margin: "0 0 4px" }}>INDO GARUDA ABADI</p>
+        <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6 }}>
+          Aplikasi order online untuk pelanggan distributor Indo Garuda Abadi. Dibuat untuk mempermudah proses pemesanan, pembayaran, dan pengecekan status pesanan secara online.
+        </p>
+        <p style={{ fontSize: 11.5, color: "#9CA0A6", marginTop: 20 }}>Versi 1.0</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// DAFTAR ALAMAT (kelola alamat pengiriman tersimpan, lepas dari checkout)
+// ============================================================
+function DaftarAlamatScreen({ toko, savedAddresses, setSavedAddresses, onBack }) {
+  const [mode, setMode] = useState("list"); // list | form
+  const [form, setForm] = useState({
+    nama: "", telp: "", alamat: "",
+    provinsi: "", provinsiId: "", kota: "", kotaId: "",
+    kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "",
+  });
+
+  const [provinces, setProvinces] = useState([]);
+  const [regencies, setRegencies] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [villages, setVillages] = useState([]);
+  const WILAYAH_PROXY = `${SUPABASE_URL}/functions/v1/wilayah-proxy`;
+  const titleCase = (s) => s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+
+  useEffect(() => {
+    fetch(`${WILAYAH_PROXY}?path=provinces.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setProvinces(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setProvinces(FALLBACK_WILAYAH.provinces));
+  }, []);
+  useEffect(() => {
+    if (!form.provinsiId) { setRegencies([]); return; }
+    fetch(`${WILAYAH_PROXY}?path=regencies/${form.provinsiId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setRegencies(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setRegencies(FALLBACK_WILAYAH.regencies[form.provinsiId] || []));
+  }, [form.provinsiId]);
+  useEffect(() => {
+    if (!form.kotaId) { setDistricts([]); return; }
+    fetch(`${WILAYAH_PROXY}?path=districts/${form.kotaId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setDistricts(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setDistricts(FALLBACK_WILAYAH.districts[form.kotaId] || []));
+  }, [form.kotaId]);
+  useEffect(() => {
+    if (!form.kecamatanId) { setVillages([]); return; }
+    fetch(`${WILAYAH_PROXY}?path=villages/${form.kecamatanId}.json`, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } })
+      .then((r) => r.json())
+      .then((data) => setVillages(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
+      .catch(() => setVillages(FALLBACK_WILAYAH.villages[form.kecamatanId] || []));
+  }, [form.kecamatanId]);
+
+  function selectProvinsi(name) {
+    const found = provinces.find((p) => p.name === name);
+    setForm({ ...form, provinsi: name, provinsiId: found?.id || "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "" });
+  }
+  function selectKota(name) {
+    const found = regencies.find((r) => r.name === name);
+    setForm({ ...form, kota: name, kotaId: found?.id || "", kecamatan: "", kecamatanId: "", kelurahan: "" });
+  }
+  function selectKecamatan(name) {
+    const found = districts.find((d) => d.name === name);
+    setForm({ ...form, kecamatan: name, kecamatanId: found?.id || "", kelurahan: "" });
+  }
+
+  const canSave = form.telp.trim() && form.alamat.trim() && form.provinsi && form.kota && form.kecamatan && form.kelurahan;
+
+  function simpanAlamat() {
+    setSavedAddresses((prev) => [...prev, { id: Date.now(), ...form }]);
+    setForm({ nama: "", telp: "", alamat: "", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
+    setMode("list");
+  }
+
+  function hapusAlamat(id) {
+    if (!confirm("Hapus alamat ini?")) return;
+    setSavedAddresses((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  const inputStyle = { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" };
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "0 0 30px" }}>
+      <div style={{ padding: "18px 20px 16px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <button onClick={() => (mode === "form" ? setMode("list") : onBack())} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 10 }}>
+          <ChevronLeft size={18} /> Kembali
+        </button>
+        <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: 0 }}>Daftar Alamat</h1>
+      </div>
+
+      <div style={{ padding: "0 20px" }}>
+        {mode === "list" ? (
+          <>
+            {savedAddresses.length === 0 ? (
+              <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "40px 0" }}>Belum ada alamat tersimpan.</p>
+            ) : (
+              savedAddresses.map((addr) => (
+                <div key={addr.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                  <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: "#24272B" }}>{addr.nama || toko.nama}</p>
+                  <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6B6F75" }}>{addr.telp}</p>
+                  <p style={{ margin: "3px 0 0", fontSize: 12, color: "#6B6F75" }}>
+                    {addr.alamat}{addr.kota ? `, ${addr.kelurahan}, ${addr.kecamatan}, ${addr.kota}, ${addr.provinsi}` : ""}
+                  </p>
+                  <button onClick={() => hapusAlamat(addr.id)} style={{ marginTop: 8, background: "none", border: "none", color: "#C0392B", fontSize: 11.5, fontWeight: 600, padding: 0 }}>
+                    Hapus
+                  </button>
+                </div>
+              ))
+            )}
+            <button
+              onClick={() => setMode("form")}
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontWeight: 700, fontSize: 13.5, marginTop: 8 }}
+            >
+              + Daftarkan Alamat Baru
+            </button>
+          </>
+        ) : (
+          <>
+            <Field label="Nama Penerima">
+              <input value={form.nama} onChange={(e) => setForm({ ...form, nama: e.target.value })} placeholder={toko.nama} style={inputStyle} />
+            </Field>
+            <Field label="No. Telepon Penerima">
+              <input value={form.telp} onChange={(e) => setForm({ ...form, telp: e.target.value })} placeholder="0812xxxxxxx" style={inputStyle} />
+            </Field>
+            <Field label="Alamat (Jalan, No. Rumah)">
+              <textarea value={form.alamat} onChange={(e) => setForm({ ...form, alamat: e.target.value })} rows={2} placeholder="Jl. Contoh No. 2" style={{ ...inputStyle, resize: "none" }} />
+            </Field>
+            <Field label="Provinsi">
+              <AutocompleteField value={form.provinsi} onSelect={selectProvinsi} options={provinces.map((p) => p.name)} placeholder="Ketik nama provinsi..." />
+            </Field>
+            <Field label="Kota / Kabupaten">
+              <AutocompleteField value={form.kota} onSelect={selectKota} options={regencies.map((r) => r.name)} placeholder="Ketik nama kota..." disabled={!form.provinsiId} />
+            </Field>
+            <Field label="Kecamatan">
+              <AutocompleteField value={form.kecamatan} onSelect={selectKecamatan} options={districts.map((d) => d.name)} placeholder="Ketik nama kecamatan..." disabled={!form.kotaId} />
+            </Field>
+            <Field label="Kelurahan">
+              <AutocompleteField value={form.kelurahan} onSelect={(name) => setForm({ ...form, kelurahan: name })} options={villages.map((v) => v.name)} placeholder="Ketik nama kelurahan..." disabled={!form.kecamatanId} />
+            </Field>
+            <Field label="Kode Pos">
+              <input value={form.kodePos} onChange={(e) => setForm({ ...form, kodePos: e.target.value })} placeholder="Isi manual, misal 28292" style={inputStyle} inputMode="numeric" maxLength={5} />
+            </Field>
+            <button
+              onClick={simpanAlamat}
+              disabled={!canSave}
+              style={{ width: "100%", padding: 14, borderRadius: 12, border: "none", background: canSave ? "#E8A426" : "#E4E1DA", color: canSave ? "#24272B" : "#9CA0A6", fontWeight: 700, fontSize: 14, marginTop: 6 }}
+            >
+              Simpan Alamat
+            </button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
