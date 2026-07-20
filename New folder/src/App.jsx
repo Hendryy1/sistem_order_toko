@@ -103,7 +103,7 @@ async function subscribeToPush(clientId) {
 // koneksi macet (misal pas pindah dari WiFi ke jaringan seluler), permintaan
 // itu otomatis dianggap gagal setelah 15 detik, bukan macet "Memuat..."
 // selamanya tanpa kepastian.
-async function fetchDenganTimeout(url, options = {}, timeoutMs = 15000) {
+async function fetchDenganTimeout(url, options = {}, timeoutMs = 6000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -158,12 +158,12 @@ async function supabaseSignIn(email, password) {
 // Perpanjang sesi pakai refresh_token - access_token Supabase cuma berlaku
 // ±1 jam, tapi refresh_token bisa dipakai berkali-kali buat dapat
 // access_token baru tanpa perlu login ulang, sampai user klik Logout sendiri.
-async function supabaseRefreshToken(refreshToken) {
+async function supabaseRefreshToken(refreshToken, timeoutMs) {
   const res = await fetchDenganTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
     headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
-  });
+  }, timeoutMs);
   const data = await res.json();
   if (!res.ok) throw new Error(data.msg || data.error_description || "Sesi berakhir, silakan login ulang.");
   return data; // { access_token, refresh_token baru, ... }
@@ -708,9 +708,9 @@ export default function OrderApp() {
       return msg.includes("koneksi terlalu lama") || msg.includes("failed to fetch") || msg.includes("network") || msg.includes("load failed");
     }
 
-    async function restoreWithRefresh() {
+    async function restoreWithRefresh(timeoutMs) {
       if (session.refreshToken) {
-        const refreshed = await supabaseRefreshToken(session.refreshToken);
+        const refreshed = await supabaseRefreshToken(session.refreshToken, timeoutMs);
         await loadTokoAndEnterApp(session.userId, refreshed.access_token, session.email, refreshed.refresh_token);
         return;
       }
@@ -722,13 +722,16 @@ export default function OrderApp() {
     // Coba sampai 3x kalau penyebabnya error jaringan (jeda singkat di
     // antaranya) - supaya pergantian jaringan sesaat (WiFi ke 4G dsb) bisa
     // "lewat begitu saja" tanpa perlu logout, asal jaringan baru cepat siap.
+    // Percobaan PERTAMA pakai batas waktu lebih pendek (4 detik) - soalnya
+    // kalau koneksi lama (WiFi) masih "sekarat", lebih baik cepat menyerah &
+    // langsung coba lewat jalur baru, daripada nunggu lama-lama di situ.
     async function restoreDenganPercobaanUlang(percobaanKe = 1) {
       try {
-        await restoreWithRefresh();
+        await restoreWithRefresh(percobaanKe === 1 ? 4000 : 6000);
         setRestoringSession(false);
       } catch (e) {
         if (isNetworkError(e) && percobaanKe < 3) {
-          setTimeout(() => restoreDenganPercobaanUlang(percobaanKe + 1), 1500);
+          setTimeout(() => restoreDenganPercobaanUlang(percobaanKe + 1), 500);
           return;
         }
         if (isNetworkError(e)) {
