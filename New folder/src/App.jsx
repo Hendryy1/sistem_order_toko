@@ -330,13 +330,20 @@ export default function OrderApp() {
   const [screen, setScreen] = useState(() => {
     // Deteksi kalau app dibuka dari link reset password email (Supabase
     // menambahkan token di URL fragment/hash: #access_token=...&type=recovery)
-    if (window.location.hash.includes("type=recovery")) return "reset-password-form";
+    // ATAU kalau linknya sudah tidak valid/kedaluwarsa/sudah dipakai, Supabase
+    // kirim pola beda: #error=...&error_description=...
+    if (window.location.hash.includes("type=recovery") || window.location.hash.includes("error=")) return "reset-password-form";
     return "catalog";
   }); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail | reset-password-form
   const [recoveryToken, setRecoveryToken] = useState(() => {
     const hash = window.location.hash.replace(/^#/, "");
     const params = new URLSearchParams(hash);
     return params.get("access_token") || null;
+  });
+  const [recoveryLinkError, setRecoveryLinkError] = useState(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hash);
+    return params.get("error_description") ? params.get("error_description").replace(/\+/g, " ") : null;
   });
 
   // Kalau tab yang sama dipakai buka LAGI link reset password (browser HP
@@ -345,10 +352,11 @@ export default function OrderApp() {
   // kedeteksi ulang setiap kali linknya dibuka.
   useEffect(() => {
     function handleHashChange() {
-      if (window.location.hash.includes("type=recovery")) {
+      if (window.location.hash.includes("type=recovery") || window.location.hash.includes("error=")) {
         const hash = window.location.hash.replace(/^#/, "");
         const params = new URLSearchParams(hash);
         setRecoveryToken(params.get("access_token") || null);
+        setRecoveryLinkError(params.get("error_description") ? params.get("error_description").replace(/\+/g, " ") : null);
         setScreen("reset-password-form");
       }
     }
@@ -667,7 +675,7 @@ export default function OrderApp() {
     // Kalau lagi buka link reset password (dari email), JANGAN restore sesi
     // login lama - biarkan user selesai ganti password dulu, jangan sampai
     // "dipaksa" pindah ke Catalog di tengah proses itu.
-    if (window.location.hash.includes("type=recovery")) { setRestoringSession(false); return; }
+    if (window.location.hash.includes("type=recovery") || window.location.hash.includes("error=")) { setRestoringSession(false); return; }
 
     const session = loadSession();
     if (!session) { setRestoringSession(false); return; }
@@ -1048,7 +1056,7 @@ export default function OrderApp() {
   const availableCategories = ["Semua", ...Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)))];
 
   if (screen === "reset-password-form") {
-    return <ResetPasswordFormScreen recoveryToken={recoveryToken} onDone={() => { window.location.hash = ""; setScreen("login"); }} />;
+    return <ResetPasswordFormScreen recoveryToken={recoveryToken} recoveryLinkError={recoveryLinkError} onDone={() => { window.location.hash = ""; setScreen("login"); }} />;
   }
 
   if (restoringSession) {
@@ -1292,7 +1300,7 @@ export default function OrderApp() {
 // ============================================================
 // FORM RESET PASSWORD - dibuka dari link email reset password
 // ============================================================
-function ResetPasswordFormScreen({ recoveryToken, onDone }) {
+function ResetPasswordFormScreen({ recoveryToken, recoveryLinkError, onDone }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -1363,6 +1371,13 @@ function ResetPasswordFormScreen({ recoveryToken, onDone }) {
       <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 380, padding: 28 }}>
         {checkingUsed ? (
           <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6" }}>Memeriksa link...</p>
+        ) : recoveryLinkError ? (
+          <>
+            <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Sudah Tidak Berlaku</h1>
+            <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6 }}>
+              Link ini sudah pernah dipakai atau sudah kedaluwarsa. Silakan minta link baru dari menu Informasi Akun kalau masih perlu ganti password.
+            </p>
+          </>
         ) : !recoveryToken ? (
           <>
             <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Tidak Valid</h1>
