@@ -327,7 +327,17 @@ function sensorNoHp(hp) {
 // KOMPONEN UTAMA
 // ============================================================
 export default function OrderApp() {
-  const [screen, setScreen] = useState("catalog"); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail
+  const [screen, setScreen] = useState(() => {
+    // Deteksi kalau app dibuka dari link reset password email (Supabase
+    // menambahkan token di URL fragment/hash: #access_token=...&type=recovery)
+    if (window.location.hash.includes("type=recovery")) return "reset-password-form";
+    return "catalog";
+  }); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail | reset-password-form
+  const [recoveryToken] = useState(() => {
+    const hash = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hash);
+    return params.get("access_token") || null;
+  });
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -1015,6 +1025,10 @@ export default function OrderApp() {
   // satu kategori dipilih. Kategori yang produk aktifnya 0 otomatis tidak muncul.
   const availableCategories = ["Semua", ...Array.from(new Set(products.map((p) => p.kategori).filter(Boolean)))];
 
+  if (screen === "reset-password-form") {
+    return <ResetPasswordFormScreen recoveryToken={recoveryToken} onDone={() => { window.location.hash = ""; setScreen("login"); }} />;
+  }
+
   if (restoringSession) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#24272B" }}>
@@ -1253,6 +1267,81 @@ export default function OrderApp() {
 // ============================================================
 // LOGIN
 // ============================================================
+// ============================================================
+// FORM RESET PASSWORD - dibuka dari link email reset password
+// ============================================================
+function ResetPasswordFormScreen({ recoveryToken, onDone }) {
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  async function submit() {
+    setError("");
+    if (!password || password.length < 6) {
+      setError("Password minimal 6 karakter.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Konfirmasi password tidak cocok.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        method: "PUT",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${recoveryToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal ubah password. Link mungkin sudah kedaluwarsa.");
+      setSuccess(true);
+    } catch (e) {
+      setError(e.message);
+    }
+    setSubmitting(false);
+  }
+
+  const inputStyle = { width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 14, outline: "none", marginBottom: 12 };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F5F1", padding: 20 }}>
+      <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 380, padding: 28 }}>
+        {!recoveryToken ? (
+          <>
+            <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Tidak Valid</h1>
+            <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6 }}>
+              Link reset password ini tidak valid atau sudah kedaluwarsa. Silakan minta link baru dari menu Informasi Akun.
+            </p>
+          </>
+        ) : success ? (
+          <>
+            <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#28685D", margin: "0 0 10px" }}>Password Berhasil Diubah</h1>
+            <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6, marginBottom: 20 }}>
+              Silakan login kembali menggunakan password baru Anda.
+            </p>
+            <button onClick={onDone} style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14 }}>
+              Ke Halaman Login
+            </button>
+          </>
+        ) : (
+          <>
+            <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Buat Password Baru</h1>
+            <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>Masukkan password baru untuk akun Anda.</p>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password baru (min. 6 karakter)" style={inputStyle} />
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Konfirmasi password baru" style={inputStyle} />
+            {error && <p style={{ fontSize: 12, color: "#C0392B", margin: "0 0 12px" }}>{error}</p>}
+            <button onClick={submit} disabled={submitting} style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: submitting ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14 }}>
+              {submitting ? "Menyimpan..." : "Simpan Password Baru"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister, onGuestBrowse }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", padding: "32px 28px", background: "#24272B" }}>
@@ -4000,7 +4089,7 @@ function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpda
   async function resetPassword() {
     setResettingPw(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover`, {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/recover?redirect_to=${encodeURIComponent(window.location.origin)}`, {
         method: "POST",
         headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({ email: toko.email }),
