@@ -647,6 +647,11 @@ export default function OrderApp() {
   // refresh_token buat dapat access_token yang segar - begini user tetap
   // login terus sampai benar-benar klik Logout, bukan expired sendiri.
   useEffect(() => {
+    // Kalau lagi buka link reset password (dari email), JANGAN restore sesi
+    // login lama - biarkan user selesai ganti password dulu, jangan sampai
+    // "dipaksa" pindah ke Catalog di tengah proses itu.
+    if (window.location.hash.includes("type=recovery")) { setRestoringSession(false); return; }
+
     const session = loadSession();
     if (!session) { setRestoringSession(false); return; }
 
@@ -1276,6 +1281,28 @@ function ResetPasswordFormScreen({ recoveryToken, onDone }) {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [checkingUsed, setCheckingUsed] = useState(true);
+  const [alreadyUsed, setAlreadyUsed] = useState(false);
+
+  // Hash sederhana buat jadikan token panjang jadi kode pendek unik (tidak
+  // perlu simpan token asli di database, cukup "sidik jari"-nya saja)
+  function hashToken(token) {
+    let hash = 0;
+    for (let i = 0; i < token.length; i++) {
+      hash = (hash << 5) - hash + token.charCodeAt(i);
+      hash |= 0;
+    }
+    return "h" + Math.abs(hash).toString(36) + token.length;
+  }
+
+  useEffect(() => {
+    if (!recoveryToken) { setCheckingUsed(false); return; }
+    const hash = hashToken(recoveryToken);
+    supabaseFetch(`password_reset_used?select=id&token_hash=eq.${hash}`)
+      .then((rows) => setAlreadyUsed(rows.length > 0))
+      .catch(() => {})
+      .finally(() => setCheckingUsed(false));
+  }, [recoveryToken]);
 
   async function submit() {
     setError("");
@@ -1296,6 +1323,15 @@ function ResetPasswordFormScreen({ recoveryToken, onDone }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal ubah password. Link mungkin sudah kedaluwarsa.");
+
+      // Tandai link ini sudah dipakai, supaya tidak bisa dipakai lagi
+      try {
+        await supabaseFetch("password_reset_used", {
+          method: "POST",
+          body: JSON.stringify({ token_hash: hashToken(recoveryToken) }),
+        });
+      } catch (e) { /* kalau gagal tandai, tidak masalah - password tetap sudah berubah */ }
+
       setSuccess(true);
     } catch (e) {
       setError(e.message);
@@ -1308,11 +1344,20 @@ function ResetPasswordFormScreen({ recoveryToken, onDone }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F5F1", padding: 20 }}>
       <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 380, padding: 28 }}>
-        {!recoveryToken ? (
+        {checkingUsed ? (
+          <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6" }}>Memeriksa link...</p>
+        ) : !recoveryToken ? (
           <>
             <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Tidak Valid</h1>
             <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6 }}>
               Link reset password ini tidak valid atau sudah kedaluwarsa. Silakan minta link baru dari menu Informasi Akun.
+            </p>
+          </>
+        ) : alreadyUsed ? (
+          <>
+            <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Sudah Dipakai</h1>
+            <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6 }}>
+              Link reset password ini sudah pernah digunakan sebelumnya. Setiap link cuma berlaku sekali - silakan minta link baru dari menu Informasi Akun kalau masih perlu ganti password.
             </p>
           </>
         ) : success ? (
