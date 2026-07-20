@@ -1323,9 +1323,14 @@ function ResetPasswordFormScreen({ recoveryToken, recoveryLinkError, onDone }) {
   useEffect(() => {
     if (!recoveryToken) { setCheckingUsed(false); return; }
     const hash = hashToken(recoveryToken);
-    supabaseFetch(`password_reset_used?select=id&token_hash=eq.${hash}`)
-      .then((rows) => setAlreadyUsed(rows.length > 0))
-      .catch(() => {})
+    fetch(`${SUPABASE_URL}/functions/v1/cek-token-reset`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ token_hash: hash, action: "check" }),
+    })
+      .then((r) => r.json())
+      .then((data) => setAlreadyUsed(!!data.used))
+      .catch(() => setAlreadyUsed(true)) // GAGAL-TERTUTUP: kalau gagal cek, anggap mencurigakan & blokir, bukan izinkan
       .finally(() => setCheckingUsed(false));
   }, [recoveryToken]);
 
@@ -1349,13 +1354,16 @@ function ResetPasswordFormScreen({ recoveryToken, recoveryLinkError, onDone }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal ubah password. Link mungkin sudah kedaluwarsa.");
 
-      // Tandai link ini sudah dipakai, supaya tidak bisa dipakai lagi
-      try {
-        await supabaseFetch("password_reset_used", {
-          method: "POST",
-          body: JSON.stringify({ token_hash: hashToken(recoveryToken) }),
-        });
-      } catch (e) { /* kalau gagal tandai, tidak masalah - password tetap sudah berubah */ }
+      // Tandai link ini sudah dipakai lewat Edge Function (pasti berhasil,
+      // tidak seperti insert langsung yang gagal diam-diam karena RLS)
+      const markRes = await fetch(`${SUPABASE_URL}/functions/v1/cek-token-reset`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ token_hash: hashToken(recoveryToken), action: "mark" }),
+      });
+      if (!markRes.ok) {
+        console.log("Gagal tandai token reset sebagai sudah dipakai - ini celah keamanan, cek Edge Function");
+      }
 
       setSuccess(true);
     } catch (e) {
