@@ -4153,17 +4153,63 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
 // ============================================================
 function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpdated }) {
   const [showEditHp, setShowEditHp] = useState(false);
-  const [hpStep, setHpStep] = useState("konfirmasi"); // konfirmasi | form
+  const [hpStep, setHpStep] = useState("konfirmasi"); // konfirmasi | otp_kirim | otp_input | form
   const [hpBaru, setHpBaru] = useState("");
   const [savingHp, setSavingHp] = useState(false);
   const [hpError, setHpError] = useState("");
   const [resettingPw, setResettingPw] = useState(false);
+  const [otpCodeHp, setOtpCodeHp] = useState("");
+  const [otpErrorHp, setOtpErrorHp] = useState("");
+  const [otpBusyHp, setOtpBusyHp] = useState(false);
 
   const hariSejakUbahHp = toko.noHpDiubahTerakhir
     ? Math.floor((Date.now() - new Date(toko.noHpDiubahTerakhir).getTime()) / (1000 * 60 * 60 * 24))
     : null;
   const bolehUbahHp = hariSejakUbahHp === null || hariSejakUbahHp >= 60;
   const sisaHari = bolehUbahHp ? 0 : 60 - hariSejakUbahHp;
+
+  async function mulaiVerifikasiEmailHp() {
+    setHpStep("otp_kirim");
+    setOtpErrorHp("");
+    setOtpBusyHp(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email, create_user: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal kirim kode ke email.");
+      setHpStep("otp_input");
+    } catch (e) {
+      alert("Gagal kirim kode verifikasi: " + e.message);
+      setHpStep("konfirmasi");
+    }
+    setOtpBusyHp(false);
+  }
+
+  async function verifikasiKodeEmailHp() {
+    if (!otpCodeHp.trim()) {
+      setOtpErrorHp("Masukkan kode yang dikirim ke email Anda.");
+      return;
+    }
+    setOtpBusyHp(true);
+    setOtpErrorHp("");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email, token: otpCodeHp.trim(), type: "email" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Kode salah atau sudah kedaluwarsa.");
+      setOtpCodeHp("");
+      setHpStep("form");
+    } catch (e) {
+      setOtpErrorHp(e.message);
+    }
+    setOtpBusyHp(false);
+  }
 
   async function simpanHpBaru() {
     if (!hpBaru.trim()) {
@@ -4173,10 +4219,13 @@ function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpda
     setSavingHp(true);
     setHpError("");
     try {
-      await supabaseFetch(`clients?id=eq.${toko.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ telp: hpBaru.trim(), no_hp_diubah_terakhir: new Date().toISOString() }),
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/update-no-hp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ client_id: toko.id, no_hp_baru: hpBaru.trim() }),
       });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal simpan no. HP.");
       onUpdated({ telp: hpBaru.trim(), noHpDiubahTerakhir: new Date().toISOString() });
       setShowEditHp(false);
       setHpStep("konfirmasi");
@@ -4298,13 +4347,39 @@ function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpda
                     Batalkan
                   </button>
                   <button
-                    onClick={() => bolehUbahHp && setHpStep("form")}
+                    onClick={() => bolehUbahHp && mulaiVerifikasiEmailHp()}
                     disabled={!bolehUbahHp}
                     style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: bolehUbahHp ? "#E8A426" : "#E4E1DA", color: bolehUbahHp ? "#24272B" : "#9CA0A6", fontWeight: 700, fontSize: 13 }}
                   >
                     Lanjutkan
                   </button>
                 </div>
+              </>
+            ) : hpStep === "otp_kirim" ? (
+              <p style={{ textAlign: "center", fontSize: 13, color: "#6B6F75" }}>Mengirim kode ke email Anda...</p>
+            ) : hpStep === "otp_input" ? (
+              <>
+                <h2 className="disp" style={{ fontSize: 17, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Verifikasi Email</h2>
+                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 16px", lineHeight: 1.5 }}>
+                  Kode 6 digit sudah dikirim ke <strong>{toko.email}</strong>. Masukkan di bawah ini untuk lanjut ubah No. HP.
+                </p>
+                <input
+                  value={otpCodeHp} onChange={(e) => setOtpCodeHp(e.target.value)}
+                  placeholder="Kode dari email"
+                  style={{ width: "100%", padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 16, letterSpacing: 4, textAlign: "center", marginBottom: 12 }}
+                />
+                {otpErrorHp && <p style={{ fontSize: 12, color: "#C0392B", margin: "0 0 12px" }}>{otpErrorHp}</p>}
+                <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                  <button onClick={() => { setShowEditHp(false); setHpStep("konfirmasi"); setOtpCodeHp(""); }} style={{ flex: 1, padding: 12, borderRadius: 10, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 600, fontSize: 13 }}>
+                    Batal
+                  </button>
+                  <button onClick={verifikasiKodeEmailHp} disabled={otpBusyHp} style={{ flex: 1, padding: 12, borderRadius: 10, border: "none", background: otpBusyHp ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13 }}>
+                    {otpBusyHp ? "Memeriksa..." : "Verifikasi"}
+                  </button>
+                </div>
+                <button onClick={mulaiVerifikasiEmailHp} disabled={otpBusyHp} style={{ width: "100%", background: "none", border: "none", color: "#8A6A1A", fontSize: 12, fontWeight: 600, padding: 0 }}>
+                  Kirim ulang kode
+                </button>
               </>
             ) : (
               <>
