@@ -333,11 +333,28 @@ export default function OrderApp() {
     if (window.location.hash.includes("type=recovery")) return "reset-password-form";
     return "catalog";
   }); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail | reset-password-form
-  const [recoveryToken] = useState(() => {
+  const [recoveryToken, setRecoveryToken] = useState(() => {
     const hash = window.location.hash.replace(/^#/, "");
     const params = new URLSearchParams(hash);
     return params.get("access_token") || null;
   });
+
+  // Kalau tab yang sama dipakai buka LAGI link reset password (browser HP
+  // kadang tidak reload penuh, cuma ganti hash URL) - useState di atas cuma
+  // jalan sekali pas awal mount, jadi perlu dengar perubahan hash juga biar
+  // kedeteksi ulang setiap kali linknya dibuka.
+  useEffect(() => {
+    function handleHashChange() {
+      if (window.location.hash.includes("type=recovery")) {
+        const hash = window.location.hash.replace(/^#/, "");
+        const params = new URLSearchParams(hash);
+        setRecoveryToken(params.get("access_token") || null);
+        setScreen("reset-password-form");
+      }
+    }
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
