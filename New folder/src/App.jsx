@@ -99,8 +99,27 @@ async function subscribeToPush(clientId) {
   }
 }
 
+// Batas waktu otomatis buat SEMUA permintaan ke Supabase - supaya kalau
+// koneksi macet (misal pas pindah dari WiFi ke jaringan seluler), permintaan
+// itu otomatis dianggap gagal setelah 15 detik, bukan macet "Memuat..."
+// selamanya tanpa kepastian.
+async function fetchDenganTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (e) {
+    if (e.name === "AbortError") {
+      throw new Error("Koneksi terlalu lama merespons (mungkin sinyal lemah/baru ganti jaringan). Coba lagi.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function supabaseFetch(path, options = {}, userToken = null) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const res = await fetchDenganTimeout(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: SUPABASE_ANON_KEY,
@@ -126,7 +145,7 @@ async function supabaseSignUp(email, password) {
 }
 
 async function supabaseSignIn(email, password) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+  const res = await fetchDenganTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
     method: "POST",
     headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -140,7 +159,7 @@ async function supabaseSignIn(email, password) {
 // ±1 jam, tapi refresh_token bisa dipakai berkali-kali buat dapat
 // access_token baru tanpa perlu login ulang, sampai user klik Logout sendiri.
 async function supabaseRefreshToken(refreshToken) {
-  const res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+  const res = await fetchDenganTimeout(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
     method: "POST",
     headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
     body: JSON.stringify({ refresh_token: refreshToken }),
