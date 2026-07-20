@@ -699,26 +699,53 @@ export default function OrderApp() {
     const session = loadSession();
     if (!session) { setRestoringSession(false); return; }
 
+    // Bedakan error KONEKSI/JARINGAN (misal pas pindah WiFi ke 4G, sinyal
+    // sempat putus sesaat) dari error OTENTIKASI ASLI (refresh_token memang
+    // sudah tidak valid/dicabut). Cuma error otentikasi asli yang boleh
+    // logout - error jaringan harus dicoba ulang, bukan langsung logout.
+    function isNetworkError(e) {
+      const msg = (e?.message || "").toLowerCase();
+      return msg.includes("koneksi terlalu lama") || msg.includes("failed to fetch") || msg.includes("network") || msg.includes("load failed");
+    }
+
     async function restoreWithRefresh() {
       if (session.refreshToken) {
-        try {
-          const refreshed = await supabaseRefreshToken(session.refreshToken);
-          await loadTokoAndEnterApp(session.userId, refreshed.access_token, session.email, refreshed.refresh_token);
-          return;
-        } catch (e) {
-          // refresh_token juga sudah tidak valid (kadaluwarsa/dicabut) -
-          // baru di titik ini beneran perlu login ulang
-          throw e;
-        }
+        const refreshed = await supabaseRefreshToken(session.refreshToken);
+        await loadTokoAndEnterApp(session.userId, refreshed.access_token, session.email, refreshed.refresh_token);
+        return;
       }
       // Sesi lama (sebelum fitur ini ada) belum punya refresh_token - coba
       // pakai access_token yang tersimpan apa adanya, kalau gagal ya harus login ulang
       await loadTokoAndEnterApp(session.userId, session.token, session.email);
     }
 
-    restoreWithRefresh()
-      .catch(() => clearSession())
-      .finally(() => setRestoringSession(false));
+    // Coba sampai 3x kalau penyebabnya error jaringan (jeda singkat di
+    // antaranya) - supaya pergantian jaringan sesaat (WiFi ke 4G dsb) bisa
+    // "lewat begitu saja" tanpa perlu logout, asal jaringan baru cepat siap.
+    async function restoreDenganPercobaanUlang(percobaanKe = 1) {
+      try {
+        await restoreWithRefresh();
+        setRestoringSession(false);
+      } catch (e) {
+        if (isNetworkError(e) && percobaanKe < 3) {
+          setTimeout(() => restoreDenganPercobaanUlang(percobaanKe + 1), 1500);
+          return;
+        }
+        if (isNetworkError(e)) {
+          // Sudah dicoba 3x tetap gagal karena jaringan - JANGAN hapus sesi
+          // (mungkin cuma lagi benar-benar tidak ada sinyal), biarkan user
+          // coba lagi manual (refresh halaman) tanpa kehilangan sesi login-nya.
+          setRestoringSession(false);
+          return;
+        }
+        // Ini baru error otentikasi asli (refresh_token invalid/dicabut) -
+        // baru di titik ini beneran perlu hapus sesi & minta login ulang.
+        clearSession();
+        setRestoringSession(false);
+      }
+    }
+
+    restoreDenganPercobaanUlang();
   }, []);
 
   // Refresh token secara berkala di latar belakang (tiap 45 menit) selama
