@@ -1308,6 +1308,14 @@ function ResetPasswordFormScreen({ recoveryToken, recoveryLinkError, onDone }) {
   const [success, setSuccess] = useState(false);
   const [checkingUsed, setCheckingUsed] = useState(true);
   const [alreadyUsed, setAlreadyUsed] = useState(false);
+  const [formExpired, setFormExpired] = useState(false);
+
+  const BATAS_WAKTU_FORM_DETIK = 5 * 60; // 5 menit sejak halaman dibuka
+
+  useEffect(() => {
+    const timer = setTimeout(() => setFormExpired(true), BATAS_WAKTU_FORM_DETIK * 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Hash sederhana buat jadikan token panjang jadi kode pendek unik (tidak
   // perlu simpan token asli di database, cukup "sidik jari"-nya saja)
@@ -1335,6 +1343,7 @@ function ResetPasswordFormScreen({ recoveryToken, recoveryLinkError, onDone }) {
   }, [recoveryToken]);
 
   async function submit() {
+    if (formExpired) return; // jaga-jaga, tombol sudah tidak tampil kalau ini true
     setError("");
     if (!password || password.length < 6) {
       setError("Password minimal 6 karakter.");
@@ -1398,6 +1407,13 @@ function ResetPasswordFormScreen({ recoveryToken, recoveryLinkError, onDone }) {
             <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Sudah Dipakai</h1>
             <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6 }}>
               Link reset password ini sudah pernah digunakan sebelumnya. Setiap link cuma berlaku sekali - silakan minta link baru dari menu Informasi Akun kalau masih perlu ganti password.
+            </p>
+          </>
+        ) : formExpired && !success ? (
+          <>
+            <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#C0392B", margin: "0 0 10px" }}>Link Sudah Tidak Berlaku</h1>
+            <p style={{ fontSize: 13, color: "#6B6F75", lineHeight: 1.6 }}>
+              Waktu untuk ganti password sudah habis. Silakan minta link baru dari menu Informasi Akun.
             </p>
           </>
         ) : success ? (
