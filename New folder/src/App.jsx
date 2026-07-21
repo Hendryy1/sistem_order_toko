@@ -2182,7 +2182,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
             )}
             <button onClick={() => onChangeQty(1)} style={{ background: "none", border: "none", color: "#24272B" }}><Plus size={18} /></button>
           </div>
-          <button onClick={onBack} style={{ flex: 1, padding: "14px", borderRadius: 12, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 15 }}>
+          <button onClick={() => (qty > 0 ? onGoToCart() : onBack())} style={{ flex: 1, padding: "14px", borderRadius: 12, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 15 }}>
             {qty > 0 ? "Sudah di keranjang" : "Tambah ke keranjang"}
           </button>
         </div>
