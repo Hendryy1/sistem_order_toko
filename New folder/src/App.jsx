@@ -387,6 +387,17 @@ export default function OrderApp() {
     window.scrollTo(0, 0);
   }, [screen]);
   const [campaignVisible, setCampaignVisible] = useState(true);
+
+  // Daftarkan Service Worker otomatis begitu app dibuka - supaya tampilan
+  // app bisa di-cache dan muncul instan saat jaringan transisi, TERLEPAS
+  // dari apakah user mengaktifkan notifikasi atau tidak (sebelumnya SW
+  // cuma didaftarkan kalau user klik "Aktifkan Notifikasi").
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+  }, []);
+
   const [campaignBanner, setCampaignBanner] = useState(null);
   const [installPromptEvent, setInstallPromptEvent] = useState(null);
   const [isStandalone, setIsStandalone] = useState(false);
@@ -487,6 +498,7 @@ export default function OrderApp() {
     kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "",
   });
   const [isDropship, setIsDropship] = useState(false);
+  const [metodeBayar, setMetodeBayar] = useState("transfer"); // "transfer" | "cod"
   const [dropshipPrices, setDropshipPrices] = useState({}); // { kodeBarang: hargaDropshipPerUnit }
   const [savedAddresses, setSavedAddresses] = useState(() => {
     try {
@@ -521,6 +533,12 @@ export default function OrderApp() {
   // Barang tanpa aturan koli (isiPerKoli 0/kosong) tidak kena aturan ini.
   const kotaTujuan = useAltAddress && altAddress.kota ? altAddress.kota : toko?.kota;
   const isLuarPekanbaru = !!(kotaTujuan && kotaTujuan.trim().toLowerCase() !== "pekanbaru");
+
+  // COD cuma boleh dipilih kalau tujuan pengiriman di Pekanbaru - kalau
+  // alamat berubah jadi luar kota, otomatis balik ke transfer
+  useEffect(() => {
+    if (isLuarPekanbaru && metodeBayar === "cod") setMetodeBayar("transfer");
+  }, [isLuarPekanbaru]);
   const itemBelumSatuKoli = isLuarPekanbaru
     ? Object.entries(cart)
         .filter(([kode]) => checkedItems[kode] !== false)
@@ -863,6 +881,7 @@ export default function OrderApp() {
             tujuan_nama: tujuan.nama,
             tujuan_telp: tujuan.telp,
             tujuan_alamat: tujuan.alamat,
+            metode_bayar: metodeBayar,
           }),
         }, authToken);
         noNota = insertedOrder.no_nota; // pakai nomor resmi dari database
@@ -915,6 +934,7 @@ export default function OrderApp() {
     setAltAddress({ nama: "", telp: "", alamat: "" });
     setIsDropship(false);
     setDropshipPrices({});
+    setMetodeBayar("transfer");
     setScreen("success");
   }
 
@@ -1210,6 +1230,7 @@ export default function OrderApp() {
           dropshipSender={dropshipSender} setDropshipSender={setDropshipSender} savedSenderNames={savedSenderNames}
           cart={cart} products={products} rincian={cartRincian} belowMinimum={belowMinimum}
           isLuarPekanbaru={isLuarPekanbaru} itemBelumSatuKoli={itemBelumSatuKoli}
+          metodeBayar={metodeBayar} setMetodeBayar={setMetodeBayar}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
           addToCart={addToCart} setCartQty={setCartQty}
           onBack={() => setScreen("catalog")}
@@ -2173,7 +2194,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
   const [editingQtyKode, setEditingQtyKode] = useState(null);
   const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -2555,6 +2576,26 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                 Minimal order {rupiah(MIN_CHECKOUT)}. Tambah belanja {rupiah(Math.round(kurang))} lagi.
               </div>
             )}
+          </div>
+        )}
+
+        {!isLuarPekanbaru && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", margin: "0 0 8px", textTransform: "uppercase" }}>Metode Pembayaran</p>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setMetodeBayar("transfer")}
+                style={{ flex: 1, padding: "10px", borderRadius: 10, border: metodeBayar === "transfer" ? "1.5px solid #E8A426" : "1.5px solid #E4E1DA", background: metodeBayar === "transfer" ? "#FBF0D9" : "#fff", fontSize: 13, fontWeight: 700, color: "#24272B" }}
+              >
+                Transfer
+              </button>
+              <button
+                onClick={() => setMetodeBayar("cod")}
+                style={{ flex: 1, padding: "10px", borderRadius: 10, border: metodeBayar === "cod" ? "1.5px solid #E8A426" : "1.5px solid #E4E1DA", background: metodeBayar === "cod" ? "#FBF0D9" : "#fff", fontSize: 13, fontWeight: 700, color: "#24272B" }}
+              >
+                COD (Bayar di Tempat)
+              </button>
+            </div>
           </div>
         )}
 
