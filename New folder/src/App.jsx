@@ -1324,7 +1324,7 @@ export default function OrderApp() {
       )}
 
       {screen === "akun-rekening" && (
-        <RekeningScreen onBack={() => setScreen("akun")} />
+        <RekeningScreen toko={toko} onBack={() => setScreen("akun")} />
       )}
       {screen === "akun-cs" && (
         <ServiceCentreScreen onBack={() => setScreen(csReturnScreen)} />
@@ -4885,8 +4885,19 @@ function SaldoScreen({ toko, onBack }) {
   );
 }
 
-function RekeningScreen({ onBack }) {
+function RekeningScreen({ toko, onBack }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
+  const [vaList, setVaList] = useState([]);
+  const [loadingVa, setLoadingVa] = useState(true);
+
+  useEffect(() => {
+    if (!toko?.id) { setLoadingVa(false); return; }
+    supabaseFetch(`virtual_accounts?select=bank_code,va_number&client_id=eq.${toko.id}`)
+      .then(setVaList)
+      .catch(() => setVaList([]))
+      .finally(() => setLoadingVa(false));
+  }, [toko?.id]);
+
   function copyNumber(nomor, idx) {
     if (navigator.clipboard) navigator.clipboard.writeText(nomor).catch(() => {});
     setCopiedIdx(idx);
@@ -4901,19 +4912,33 @@ function RekeningScreen({ onBack }) {
       </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "4px 0 16px" }}>Pembayaran & Rekening Bank</h1>
 
-      <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Rekening Perusahaan</p>
-      {COMPANY_INFO.rekening.map((r, i) => (
-        <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-          <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.bank}</p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.nomor}</p>
-            <button onClick={() => copyNumber(r.nomor, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
-              <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
-            </button>
-          </div>
-          <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {r.atasNama}</p>
+      <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Virtual Account Toko Anda</p>
+      <p style={{ fontSize: 12, color: "#6B6F75", marginBottom: 14, lineHeight: 1.5 }}>
+        Transfer ke nomor VA di bawah ini untuk isi saldo toko Anda - saldo bisa langsung dipakai bayar pesanan.
+      </p>
+
+      {loadingVa ? (
+        <p style={{ fontSize: 12.5, color: "#9CA0A6" }}>Memuat...</p>
+      ) : vaList.length === 0 ? (
+        <div style={{ background: "#FFFBF0", border: "1px solid #E8A426", borderRadius: 14, padding: 16 }}>
+          <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
+            Toko Anda belum punya nomor VA. Hubungi Owner/Admin lewat menu Customer Service untuk dibuatkan.
+          </p>
         </div>
-      ))}
+      ) : (
+        vaList.map((r, i) => (
+          <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+            <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.bank_code}</p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.va_number}</p>
+              <button onClick={() => copyNumber(r.va_number, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
+                <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
+              </button>
+            </div>
+            <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {toko?.nama}</p>
+          </div>
+        ))
+      )}
 
       <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", margin: "16px 0 10px" }}>Ketentuan Pembayaran</p>
       <div style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16 }}>
