@@ -896,8 +896,9 @@ export default function OrderApp() {
           alamat: altAddress.kota
             ? `${altAddress.alamat}, ${altAddress.kelurahan}, ${altAddress.kecamatan}, ${altAddress.kota}, ${altAddress.provinsi} ${altAddress.kodePos}`
             : altAddress.alamat,
+          kota: altAddress.kota || toko.kota,
         }
-      : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat };
+      : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat, kota: toko.kota };
     const itemsWithDropship = items.map((it) => ({
       ...it,
       hargaDropship: isDropship && dropshipPrices[it.kode] ? Number(dropshipPrices[it.kode]) : null,
@@ -922,6 +923,7 @@ export default function OrderApp() {
             tujuan_nama: tujuan.nama,
             tujuan_telp: tujuan.telp,
             tujuan_alamat: tujuan.alamat,
+            tujuan_kota: tujuan.kota,
             metode_bayar: metodeBayar,
           }),
         }, authToken);
