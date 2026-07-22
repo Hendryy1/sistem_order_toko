@@ -4890,7 +4890,7 @@ function SaldoScreen({ toko, onBack }) {
               <p style={{ fontSize: 11.5, color: "#C0392B", margin: "0 0 6px", fontWeight: 700, textTransform: "uppercase" }}>Total Perlu Dibayarkan</p>
               <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#C0392B", margin: "0 0 8px" }}>{rupiah(totalKurangBayar)}</p>
               <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "0 0 8px", lineHeight: 1.5 }}>
-                Saldo Anda sempat dipakai membayar pesanan di bawah ini, tapi tidak cukup untuk melunasi semuanya. Sisa kekurangan ini perlu dibayar sendiri (transfer manual) supaya pesanan bisa lanjut diproses.
+                Saldo Anda sempat dipakai membayar pesanan di bawah ini, tapi tidak cukup untuk melunasi semuanya. Sisa kekurangan ini perlu melakukan pembayaran ke salah satu VA bank di atas supaya pesanan bisa lanjut diproses.
               </p>
               {orderKurangBayar.map((o, i) => (
                 <p key={i} style={{ fontSize: 12, color: "#6B6F75", margin: "2px 0" }}>
