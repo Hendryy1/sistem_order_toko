@@ -500,16 +500,23 @@ export default function OrderApp() {
   const [isDropship, setIsDropship] = useState(false);
   const [metodeBayar, setMetodeBayar] = useState("transfer"); // "transfer" | "cod"
   const [dropshipPrices, setDropshipPrices] = useState({}); // { kodeBarang: hargaDropshipPerUnit }
-  const [savedAddresses, setSavedAddresses] = useState(() => {
-    try {
-      const saved = localStorage.getItem("saved_addresses_v1");
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  }); // [{ id, nama, telp, alamat, provinsi, kota, kecamatan, kelurahan, kodePos }]
+  const [savedAddresses, setSavedAddresses] = useState([]); // [{ id, nama, telp, alamat, provinsi, kota, kecamatan, kelurahan, kodePos }]
 
-  useEffect(() => {
-    try { localStorage.setItem("saved_addresses_v1", JSON.stringify(savedAddresses)); } catch (e) {}
-  }, [savedAddresses]);
+  // Alamat tersimpan sekarang disimpan PERMANEN di database (bukan cuma
+  // localStorage HP lagi - itu bisa hilang, terutama di Safari/iPhone yang
+  // otomatis hapus data browser setelah ~7 hari tidak dibuka).
+  async function loadSavedAddresses(clientId) {
+    try {
+      const rows = await supabaseFetch(`alamat_tersimpan?select=*&client_id=eq.${clientId}&order=created_at.desc`);
+      setSavedAddresses(rows.map((r) => ({
+        id: r.id, nama: r.nama, telp: r.telp, alamat: r.alamat,
+        provinsi: r.provinsi, kota: r.kota, kecamatan: r.kecamatan, kelurahan: r.kelurahan, kodePos: r.kode_pos,
+      })));
+    } catch (e) {
+      console.log("Gagal muat alamat tersimpan:", e.message);
+    }
+  }
+
   const [dropshipSender, setDropshipSender] = useState("");
   const [savedSenderNames, setSavedSenderNames] = useState([]); // riwayat nama pengirim
   const [checkedItems, setCheckedItems] = useState({}); // { kodeBarang: false } -> default true kalau tidak ada di sini
@@ -625,6 +632,7 @@ export default function OrderApp() {
     saveSession({ token, userId, email, refreshToken });
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
+    loadSavedAddresses(r.id);
     return true;
   }
 
@@ -811,10 +819,22 @@ export default function OrderApp() {
   }
 
   // Simpan alamat yang baru diisi ke daftar alamat tersimpan (kalau belum ada persis sama)
-  function saveCurrentAddress() {
+  async function saveCurrentAddress() {
     const exists = savedAddresses.some((a) => a.telp === altAddress.telp && a.alamat === altAddress.alamat);
     if (!exists && altAddress.alamat.trim()) {
-      setSavedAddresses((prev) => [...prev, { id: Date.now(), ...altAddress }]);
+      try {
+        const [inserted] = await supabaseFetch("alamat_tersimpan", {
+          method: "POST",
+          body: JSON.stringify({
+            client_id: toko.id, nama: altAddress.nama, telp: altAddress.telp, alamat: altAddress.alamat,
+            provinsi: altAddress.provinsi, kota: altAddress.kota, kecamatan: altAddress.kecamatan,
+            kelurahan: altAddress.kelurahan, kode_pos: altAddress.kodePos,
+          }),
+        });
+        setSavedAddresses((prev) => [{ ...altAddress, id: inserted.id }, ...prev]);
+      } catch (e) {
+        alert("Gagal simpan alamat: " + e.message);
+      }
     }
     setEditingAlt(false);
   }
@@ -4700,15 +4720,32 @@ function DaftarAlamatScreen({ toko, savedAddresses, setSavedAddresses, onBack })
 
   const canSave = form.telp.trim() && form.alamat.trim() && form.provinsi && form.kota && form.kecamatan && form.kelurahan;
 
-  function simpanAlamat() {
-    setSavedAddresses((prev) => [...prev, { id: Date.now(), ...form }]);
-    setForm({ nama: "", telp: "", alamat: "", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
-    setMode("list");
+  async function simpanAlamat() {
+    try {
+      const [inserted] = await supabaseFetch("alamat_tersimpan", {
+        method: "POST",
+        body: JSON.stringify({
+          client_id: toko.id, nama: form.nama, telp: form.telp, alamat: form.alamat,
+          provinsi: form.provinsi, kota: form.kota, kecamatan: form.kecamatan,
+          kelurahan: form.kelurahan, kode_pos: form.kodePos,
+        }),
+      });
+      setSavedAddresses((prev) => [{ ...form, id: inserted.id }, ...prev]);
+      setForm({ nama: "", telp: "", alamat: "", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" });
+      setMode("list");
+    } catch (e) {
+      alert("Gagal simpan alamat: " + e.message);
+    }
   }
 
-  function hapusAlamat(id) {
+  async function hapusAlamat(id) {
     if (!confirm("Hapus alamat ini?")) return;
-    setSavedAddresses((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await supabaseFetch(`alamat_tersimpan?id=eq.${id}`, { method: "DELETE" });
+      setSavedAddresses((prev) => prev.filter((a) => a.id !== id));
+    } catch (e) {
+      alert("Gagal hapus alamat: " + e.message);
+    }
   }
 
   const inputStyle = { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" };
