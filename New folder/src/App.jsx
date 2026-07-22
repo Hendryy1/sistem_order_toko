@@ -4793,6 +4793,8 @@ function SaldoScreen({ toko, onBack }) {
   const [saldo, setSaldo] = useState(0);
   const [va, setVa] = useState([]);
   const [riwayat, setRiwayat] = useState([]);
+  const [totalKurangBayar, setTotalKurangBayar] = useState(0);
+  const [orderKurangBayar, setOrderKurangBayar] = useState([]);
 
   useEffect(() => {
     load();
@@ -4809,6 +4811,26 @@ function SaldoScreen({ toko, onBack }) {
       setSaldo(Number(saldoRows[0]?.saldo || 0));
       setVa(vaRows || []);
       setRiwayat(ledgerRows);
+
+      // Cari order yang PERNAH kepotong saldo ("pakai_bayar_order") tapi
+      // saldo-nya TIDAK CUKUP buat melunasi semua (masih belum_lunas) -
+      // sisa kekurangannya itu yang perlu dibayarkan sendiri oleh toko.
+      const potonganRows = await supabaseFetch(
+        `saldo_ledger?select=order_id,jumlah&client_id=eq.${toko.id}&jenis=eq.pakai_bayar_order`
+      );
+      const orderIdsKepotong = [...new Set(potonganRows.map((r) => r.order_id).filter(Boolean))];
+      if (orderIdsKepotong.length > 0) {
+        const ordersBelumLunas = await supabaseFetch(
+          `orders?select=id,no_nota,status_bayar,order_items(subtotal_setelah_diskon)&id=in.(${orderIdsKepotong.join(",")})&status_bayar=eq.belum_lunas`
+        );
+        const daftarKurang = ordersBelumLunas.map((o) => {
+          const totalOrder = (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0);
+          const sudahDipotong = potonganRows.filter((r) => r.order_id === o.id).reduce((sum, r) => sum + Math.abs(Number(r.jumlah || 0)), 0);
+          return { no_nota: o.no_nota, kurang: Math.max(0, totalOrder - sudahDipotong) };
+        }).filter((o) => o.kurang > 0);
+        setOrderKurangBayar(daftarKurang);
+        setTotalKurangBayar(daftarKurang.reduce((sum, o) => sum + o.kurang, 0));
+      }
     } catch (e) {
       console.log("Gagal muat saldo:", e.message);
     }
@@ -4860,6 +4882,21 @@ function SaldoScreen({ toko, onBack }) {
               <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
                 Anda belum punya nomor Virtual Account. Hubungi Sales/CS untuk dibuatkan.
               </p>
+            </div>
+          )}
+
+          {totalKurangBayar > 0 && (
+            <div style={{ background: "#FBEAEA", border: "1px solid #F0CFC7", borderRadius: 14, padding: 16, marginBottom: 20 }}>
+              <p style={{ fontSize: 11.5, color: "#C0392B", margin: "0 0 6px", fontWeight: 700, textTransform: "uppercase" }}>Total Perlu Dibayarkan</p>
+              <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#C0392B", margin: "0 0 8px" }}>{rupiah(totalKurangBayar)}</p>
+              <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "0 0 8px", lineHeight: 1.5 }}>
+                Saldo Anda sempat dipakai membayar pesanan di bawah ini, tapi tidak cukup untuk melunasi semuanya. Sisa kekurangan ini perlu dibayar sendiri (transfer manual) supaya pesanan bisa lanjut diproses.
+              </p>
+              {orderKurangBayar.map((o, i) => (
+                <p key={i} style={{ fontSize: 12, color: "#6B6F75", margin: "2px 0" }}>
+                  {o.no_nota}: <strong style={{ color: "#C0392B" }}>{rupiah(o.kurang)}</strong>
+                </p>
+              ))}
             </div>
           )}
 
