@@ -4820,8 +4820,11 @@ function SaldoScreen({ toko, onBack }) {
       );
       const orderIdsKepotong = [...new Set(potonganRows.map((r) => r.order_id).filter(Boolean))];
       if (orderIdsKepotong.length > 0) {
+        // Kecualikan COD total - saldo cuma dipakai buat order Transfer,
+        // COD dibayar tunai saat barang sampai jadi tidak boleh dihitung
+        // sebagai "kekurangan bayar dari saldo" di sini.
         const ordersBelumLunas = await supabaseFetch(
-          `orders?select=id,no_nota,status_bayar,order_items(subtotal_setelah_diskon)&id=in.(${orderIdsKepotong.join(",")})&status_bayar=eq.belum_lunas`
+          `orders?select=id,no_nota,status_bayar,metode_bayar,order_items(subtotal_setelah_diskon)&id=in.(${orderIdsKepotong.join(",")})&status_bayar=eq.belum_lunas&metode_bayar=eq.transfer`
         );
         const daftarKurang = ordersBelumLunas.map((o) => {
           const totalOrder = (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0);
