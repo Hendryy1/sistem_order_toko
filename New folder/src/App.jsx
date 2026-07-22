@@ -899,6 +899,7 @@ export default function OrderApp() {
           kota: altAddress.kota || toko.kota,
         }
       : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat, kota: toko.kota };
+    console.log("DIAGNOSTIK tujuan:", JSON.stringify(tujuan), "| useAltAddress:", useAltAddress, "| altAddress.kota:", altAddress.kota, "| toko.kota:", toko.kota);
     const itemsWithDropship = items.map((it) => ({
       ...it,
       hargaDropship: isDropship && dropshipPrices[it.kode] ? Number(dropshipPrices[it.kode]) : null,
