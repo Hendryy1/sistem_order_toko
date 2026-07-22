@@ -472,19 +472,39 @@ export default function OrderApp() {
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [restoringSession, setRestoringSession] = useState(true);
-  const [cart, setCart] = useState(() => {
-    try {
-      const saved = localStorage.getItem("cart_v1");
-      return saved ? JSON.parse(saved) : {};
-    } catch (e) { return {}; }
-  }); // { kodeBarang: qty }
+  const [cart, setCart] = useState({}); // { kodeBarang: qty }
+  const [cartLoaded, setCartLoaded] = useState(false);
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  // Keranjang sekarang disimpan PERMANEN di database (bukan localStorage HP
+  // lagi - sama seperti alamat, itu bisa hilang kalau data browser
+  // terhapus, terutama di Safari/iPhone).
+  async function loadCart(clientId) {
+    try {
+      const rows = await supabaseFetch(`keranjang_toko?select=isi&client_id=eq.${clientId}`);
+      setCart(rows[0]?.isi || {});
+    } catch (e) {
+      console.log("Gagal muat keranjang:", e.message);
+    } finally {
+      setCartLoaded(true);
+    }
+  }
+
+  // Simpan ke database setiap kali isi keranjang berubah (jeda sedikit biar
+  // tidak nembak database tiap klik +/- secara beruntun)
   useEffect(() => {
-    try { localStorage.setItem("cart_v1", JSON.stringify(cart)); } catch (e) {}
-  }, [cart]);
+    if (!toko?.id || !cartLoaded) return;
+    const timer = setTimeout(() => {
+      supabaseFetch(`keranjang_toko?on_conflict=client_id`, {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+        body: JSON.stringify({ client_id: toko.id, isi: cart, updated_at: new Date().toISOString() }),
+      }).catch((e) => console.log("Gagal simpan keranjang:", e.message));
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [cart, toko?.id, cartLoaded]);
   const [orders, setOrders] = useState([]);
   const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "", namaOwner: "", tanggalLahir: "", jenisUsaha: "" });
   const [regSubmitted, setRegSubmitted] = useState(false);
@@ -633,6 +653,7 @@ export default function OrderApp() {
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
     loadSavedAddresses(r.id);
+    loadCart(r.id);
     return true;
   }
 
