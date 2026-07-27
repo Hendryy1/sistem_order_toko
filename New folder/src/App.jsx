@@ -604,6 +604,14 @@ export default function OrderApp() {
           : o.status,
         alasanRetur: o.alasan_retur || null,
         alasanDibatalkan: o.alasan_dibatalkan || null,
+        waktuTahap: {
+          diterima: o.created_at,
+          disetujui: o.disetujui_at,
+          dikemas: o.picking_selesai_at,
+          siapKirim: o.outbound_verified_at,
+          dikirim: o.tanggal_dikirim,
+          selesai: o.selesai_at,
+        },
         sudahBayar: o.status_bayar === "lunas",
         buktiTransferUrl: o.bukti_transfer_url || null,
         isDropship: o.is_dropship,
@@ -3071,7 +3079,7 @@ function ReorderConfirmScreen({ order, onConfirm, onBack }) {
 // TIMELINE VISUAL - progress pesanan step-by-step, supaya toko bisa
 // pantau posisi pesanannya dengan jelas
 // ============================================================
-function OrderTrackingTimeline({ status }) {
+function OrderTrackingTimeline({ status, waktuTahap }) {
   if (status === "Dibatalkan") {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "#FBEAEA", borderRadius: 10, marginBottom: 16 }}>
@@ -3089,7 +3097,19 @@ function OrderTrackingTimeline({ status }) {
     );
   }
 
-  const langkah = ["Pesanan Diterima", "Disetujui", "Dikemas", "Siap Dikirim", "Dikirim", "Selesai"];
+  function formatWaktu(iso) {
+    if (!iso) return null;
+    return new Date(iso).toLocaleString("id-ID", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  const langkah = [
+    { label: "Pesanan Diterima", waktu: waktuTahap?.diterima },
+    { label: "Disetujui", waktu: waktuTahap?.disetujui },
+    { label: "Dikemas", waktu: waktuTahap?.dikemas },
+    { label: "Siap Dikirim", waktu: waktuTahap?.siapKirim },
+    { label: "Dikirim", waktu: waktuTahap?.dikirim },
+    { label: "Selesai", waktu: waktuTahap?.selesai },
+  ];
   const stepIndex = {
     "Menunggu Persetujuan": 0,
     "Menunggu Pembayaran": 1,
@@ -3101,7 +3121,7 @@ function OrderTrackingTimeline({ status }) {
 
   return (
     <div style={{ marginBottom: 18, padding: "16px 4px" }}>
-      {langkah.map((label, i) => (
+      {langkah.map((step, i) => (
         <div key={i} style={{ display: "flex", gap: 12 }}>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div style={{
@@ -3115,10 +3135,15 @@ function OrderTrackingTimeline({ status }) {
               <div style={{ width: 2, flex: 1, minHeight: 22, background: i < stepIndex ? "#28685D" : "#F0EDE6" }} />
             )}
           </div>
-          <p style={{ fontSize: 13, fontWeight: i === stepIndex ? 700 : 600, color: i <= stepIndex ? "#24272B" : "#B8B4AB", margin: "0 0 20px" }}>
-            {label}
-            {i === stepIndex && <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#28685D", marginTop: 2 }}>Tahap saat ini</span>}
-          </p>
+          <div style={{ margin: "0 0 20px" }}>
+            <p style={{ fontSize: 13, fontWeight: i === stepIndex ? 700 : 600, color: i <= stepIndex ? "#24272B" : "#B8B4AB", margin: 0 }}>
+              {step.label}
+              {i === stepIndex && <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#28685D", marginTop: 2 }}>Tahap saat ini</span>}
+            </p>
+            {formatWaktu(step.waktu) && (
+              <p style={{ fontSize: 11, color: "#9CA0A6", margin: "3px 0 0" }}>{formatWaktu(step.waktu)}</p>
+            )}
+          </div>
         </div>
       ))}
     </div>
@@ -3171,7 +3196,7 @@ function OrderDetailModal({ order, onClose }) {
           </div>
         )}
 
-        <OrderTrackingTimeline status={order.status} />
+        <OrderTrackingTimeline status={order.status} waktuTahap={order.waktuTahap} />
 
         <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang Dipesan</p>
         {order.items.map((it, i) => (
