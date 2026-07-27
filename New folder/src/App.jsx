@@ -595,10 +595,14 @@ export default function OrderApp() {
           o.status === "menunggu_persetujuan" ? "Menunggu Persetujuan"
           : o.status === "ditolak" ? "Dibatalkan"
           : o.status === "menunggu_pembayaran" ? "Menunggu Pembayaran"
-          : o.status === "menunggu_pengiriman" ? "Menunggu Pengiriman"
+          : o.status === "menunggu_pengiriman" ? "Sedang Diproses"
+          : o.status === "siap_dikirim" ? "Siap Dikirim"
           : o.status === "proses_dikirim" || o.status === "dikirim" ? "Dikirim"
+          : o.status === "diretur" ? "Diretur"
+          : o.status === "selesai" && o.alasan_retur ? "Retur Selesai"
           : o.status === "selesai" ? "Selesai"
           : o.status,
+        alasanRetur: o.alasan_retur || null,
         alasanDibatalkan: o.alasan_dibatalkan || null,
         sudahBayar: o.status_bayar === "lunas",
         buktiTransferUrl: o.bukti_transfer_url || null,
@@ -3063,6 +3067,64 @@ function ReorderConfirmScreen({ order, onConfirm, onBack }) {
 // ============================================================
 // MODAL DETAIL PESANAN
 // ============================================================
+// ============================================================
+// TIMELINE VISUAL - progress pesanan step-by-step, supaya toko bisa
+// pantau posisi pesanannya dengan jelas
+// ============================================================
+function OrderTrackingTimeline({ status }) {
+  if (status === "Dibatalkan") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "#FBEAEA", borderRadius: 10, marginBottom: 16 }}>
+        <X size={16} color="#C0392B" />
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#C0392B", margin: 0 }}>Pesanan Dibatalkan</p>
+      </div>
+    );
+  }
+  if (status === "Diretur" || status === "Retur Selesai") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 12, background: "#FBF0D9", borderRadius: 10, marginBottom: 16 }}>
+        <RotateCcw size={16} color="#B8860B" />
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#B8860B", margin: 0 }}>{status === "Retur Selesai" ? "Retur Sudah Diselesaikan" : "Pesanan Sedang Diretur"}</p>
+      </div>
+    );
+  }
+
+  const langkah = ["Pesanan Diterima", "Disetujui", "Dikemas", "Siap Dikirim", "Dikirim", "Selesai"];
+  const stepIndex = {
+    "Menunggu Persetujuan": 0,
+    "Menunggu Pembayaran": 1,
+    "Sedang Diproses": 2,
+    "Siap Dikirim": 3,
+    "Dikirim": 4,
+    "Selesai": 5,
+  }[status] ?? 0;
+
+  return (
+    <div style={{ marginBottom: 18, padding: "16px 4px" }}>
+      {langkah.map((label, i) => (
+        <div key={i} style={{ display: "flex", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              background: i <= stepIndex ? "#28685D" : "#F0EDE6",
+              color: i <= stepIndex ? "#fff" : "#B8B4AB",
+            }}>
+              {i < stepIndex ? <Check size={13} /> : <span style={{ fontSize: 10, fontWeight: 700 }}>{i + 1}</span>}
+            </div>
+            {i < langkah.length - 1 && (
+              <div style={{ width: 2, flex: 1, minHeight: 22, background: i < stepIndex ? "#28685D" : "#F0EDE6" }} />
+            )}
+          </div>
+          <p style={{ fontSize: 13, fontWeight: i === stepIndex ? 700 : 600, color: i <= stepIndex ? "#24272B" : "#B8B4AB", margin: "0 0 20px" }}>
+            {label}
+            {i === stepIndex && <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#28685D", marginTop: 2 }}>Tahap saat ini</span>}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function OrderDetailModal({ order, onClose }) {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}>
@@ -3081,7 +3143,11 @@ function OrderDetailModal({ order, onClose }) {
         </p>
 
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: order.status === "Dibatalkan" ? "#C0392B" : "#B8860B", background: order.status === "Dibatalkan" ? "#FBEAEA" : "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999,
+            color: order.status === "Dibatalkan" ? "#C0392B" : order.status === "Diretur" || order.status === "Retur Selesai" ? "#B8860B" : order.status === "Selesai" ? "#8A6A1A" : order.status === "Dikirim" || order.status === "Siap Dikirim" ? "#28685D" : "#B8860B",
+            background: order.status === "Dibatalkan" ? "#FBEAEA" : order.status === "Diretur" || order.status === "Retur Selesai" ? "#FBF0D9" : order.status === "Selesai" ? "#EFE1BE" : order.status === "Dikirim" || order.status === "Siap Dikirim" ? "#D8E9E6" : "#FBF0D9",
+          }}>
             {order.status}
           </span>
           <span style={{ fontSize: 11, fontWeight: 700, color: order.sudahBayar ? "#24272B" : "#C0392B", background: order.sudahBayar ? "#D8E9E6" : "#FBEAEA", padding: "4px 10px", borderRadius: 999 }}>
@@ -3097,6 +3163,15 @@ function OrderDetailModal({ order, onClose }) {
             <p style={{ fontSize: 12, color: "#C0392B", margin: 0 }}>{order.alasanDibatalkan}</p>
           </div>
         )}
+
+        {(order.status === "Diretur" || order.status === "Retur Selesai") && order.alasanRetur && (
+          <div style={{ background: "#FBF0D9", borderRadius: 10, padding: 10, marginBottom: 16 }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#B8860B", textTransform: "uppercase", margin: "0 0 4px" }}>Alasan Retur</p>
+            <p style={{ fontSize: 12, color: "#B8860B", margin: 0 }}>{order.alasanRetur}</p>
+          </div>
+        )}
+
+        <OrderTrackingTimeline status={order.status} />
 
         <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang Dipesan</p>
         {order.items.map((it, i) => (
