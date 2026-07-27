@@ -2772,13 +2772,13 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
 
   const counts = {
     pesanan: orders.filter((o) => o.status === "Menunggu Persetujuan").length,
-    kirim: orders.filter((o) => o.status === "Menunggu Pengiriman").length,
+    kirim: orders.filter((o) => o.status === "Sedang Diproses" || o.status === "Siap Dikirim").length,
     konfirmasi: orders.filter((o) => o.status === "Dikirim").length,
     bayar: orders.filter((o) => !o.sudahBayar && o.status !== "Dibatalkan").length,
   };
   const tiles = [
     { key: "pesanan", label: "Pesanan", icon: ClipboardList, count: counts.pesanan, matchStatus: "Menunggu Persetujuan" },
-    { key: "kirim", label: "Menunggu Pengiriman", icon: Truck, count: counts.kirim, matchStatus: "Menunggu Pengiriman" },
+    { key: "kirim", label: "Menunggu Pengiriman", icon: Truck, count: counts.kirim, matchStatus: null },
     { key: "konfirmasi", label: "Konfirmasi Penerimaan", icon: PackageCheck, count: counts.konfirmasi, matchStatus: "Dikirim" },
     { key: "bayar", label: "Belum Bayar", icon: Wallet, count: counts.bayar, matchStatus: null },
   ];
@@ -2897,12 +2897,12 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
     pesanan: "Pesanan", kirim: "Menunggu Pengiriman", konfirmasi: "Konfirmasi Penerimaan", bayar: "Belum Bayar",
   };
   const MATCH_STATUS = {
-    pesanan: "Menunggu Persetujuan", kirim: "Menunggu Pengiriman", konfirmasi: "Dikirim",
+    pesanan: ["Menunggu Persetujuan"], kirim: ["Sedang Diproses", "Siap Dikirim"], konfirmasi: ["Dikirim"],
   };
 
   const filteredOrders = filterKey === "bayar"
     ? orders.filter((o) => !o.sudahBayar && o.status !== "Dibatalkan")
-    : orders.filter((o) => o.status === MATCH_STATUS[filterKey]);
+    : orders.filter((o) => (MATCH_STATUS[filterKey] || []).includes(o.status));
 
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
@@ -2975,8 +2975,11 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
             {o.status === "Menunggu Persetujuan" && (
               <p style={{ fontSize: 11, color: "#B8860B", margin: "4px 0 0" }}>Menunggu Owner menyetujui pesanan ini.</p>
             )}
-            {o.status === "Menunggu Pengiriman" && (
+            {o.status === "Sedang Diproses" && (
               <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Barang sedang disiapkan untuk dikirim.</p>
+            )}
+            {o.status === "Siap Dikirim" && (
+              <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Barang sudah siap, menunggu diambil kurir.</p>
             )}
           </div>
         ))
