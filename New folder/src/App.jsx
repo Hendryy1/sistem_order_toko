@@ -462,6 +462,7 @@ export default function OrderApp() {
 
   const [isGuest, setIsGuest] = useState(true);
   const [pointsBalance, setPointsBalance] = useState(0);
+  const [poinDipakai, setPoinDipakai] = useState(0); // poin yang dipilih customer buat potongan checkout
   const [dailyClaims, setDailyClaims] = useState({}); // { 0: poin, 1: poin, ... } key = hari (0=Minggu...6=Sabtu), minggu berjalan (sesi ini saja)
   const [spinTickets, setSpinTickets] = useState(0);
   const [orderListKey, setOrderListKey] = useState(null); // "pesanan" | "kirim" | "konfirmasi" | "bayar"
@@ -921,6 +922,8 @@ export default function OrderApp() {
     // kode di bawah cuma dipakai fallback kalau memang toko sedang mode tanpa database.
     let noNota = "NOTA-" + String(1000 + orders.length + 1).slice(1);
 
+    const poinDipakaiValid = poinDipakai >= 5000 ? poinDipakai : 0;
+
     if (toko.id) {
       try {
         const [insertedOrder] = await supabaseFetch("orders", {
@@ -938,6 +941,11 @@ export default function OrderApp() {
             tujuan_alamat: tujuan.alamat,
             tujuan_kota: tujuan.kota,
             metode_bayar: metodeBayar,
+            ...(poinDipakaiValid > 0 ? {
+              diskon_tambahan_jenis: "rupiah",
+              diskon_tambahan_nilai: poinDipakaiValid,
+              diskon_tambahan_keterangan: `Potongan dari ${poinDipakaiValid.toLocaleString("id-ID")} poin`,
+            } : {}),
           }),
         }, authToken);
         noNota = insertedOrder.no_nota; // pakai nomor resmi dari database
@@ -955,6 +963,24 @@ export default function OrderApp() {
             }))
           ),
         }, authToken);
+
+        // Kurangi saldo poin toko kalau tadi pakai potongan poin - dicatat
+        // sebagai baris NEGATIF di points_ledger (jenis 'redeem')
+        if (poinDipakaiValid > 0) {
+          try {
+            await supabaseFetch("points_ledger", {
+              method: "POST",
+              body: JSON.stringify({
+                client_id: toko.id, poin: -poinDipakaiValid, sumber: "redeem",
+                keterangan: `Dipakai buat potongan order ${noNota}`,
+              }),
+            }, authToken);
+            setPointsBalance((prev) => prev - poinDipakaiValid);
+            setPoinDipakai(0);
+          } catch (e) {
+            console.log("Gagal catat pengurangan poin:", e.message);
+          }
+        }
       } catch (e) {
         console.log("Gagal simpan order ke database asli (mode preview?):", e.message);
       }
@@ -1279,6 +1305,7 @@ export default function OrderApp() {
           metodeBayar={metodeBayar} setMetodeBayar={setMetodeBayar}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
           addToCart={addToCart} setCartQty={setCartQty}
+          pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
           onBack={() => setScreen("catalog")}
           onCheckout={submitOrder}
         />
@@ -2240,7 +2267,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, pointsBalance, poinDipakai, setPoinDipakai, onBack, onCheckout }) {
   const [editingQtyKode, setEditingQtyKode] = useState(null);
   const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -2586,7 +2613,38 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
         })}
       </div>
 
-      <div style={{ position: "fixed", bottom: 72, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "10px 20px 12px" }}>
+      <div style={{ position: "fixed", bottom: 72, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "10px 20px 12px", zIndex: 50 }}>
+        {pointsBalance >= 5000 && (
+          <div style={{ background: "#FBF0D9", borderRadius: 9, padding: 10, marginBottom: 8, position: "relative", zIndex: 51 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: poinDipakai > 0 ? 6 : 0 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#8A6A1A" }}>Gunakan Poin (punya {pointsBalance.toLocaleString("id-ID")} pts)</span>
+              {poinDipakai > 0 && (
+                <button type="button" onClick={() => setPoinDipakai(0)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 11, fontWeight: 700, position: "relative", zIndex: 52, cursor: "pointer" }}>Batal</button>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={5000}
+                max={Math.min(pointsBalance, Math.floor(rincian.totalBayar))}
+                value={poinDipakai || ""}
+                onChange={(e) => {
+                  const v = Number(e.target.value) || 0;
+                  const batasAtas = Math.min(pointsBalance, Math.floor(rincian.totalBayar));
+                  setPoinDipakai(Math.min(v, batasAtas));
+                }}
+                placeholder="Minimal 5000"
+                style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #E4C88A", fontSize: 13, position: "relative", zIndex: 52, pointerEvents: "auto" }}
+              />
+              <span style={{ fontSize: 11, color: "#8A6A1A", fontWeight: 600 }}>= {rupiah(poinDipakai)}</span>
+            </div>
+            {poinDipakai > 0 && poinDipakai < 5000 && (
+              <p style={{ fontSize: 10.5, color: "#C0392B", margin: "6px 0 0" }}>Minimal pakai 5000 poin.</p>
+            )}
+          </div>
+        )}
+
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#6B6F75", marginBottom: 3 }}>
           <span>Subtotal</span>
           <span>{rupiah(Math.round(rincian.subtotalSebelum))}</span>
@@ -2597,9 +2655,15 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
             <span>-{rupiah(Math.round(rincian.totalDiskon))}</span>
           </div>
         )}
+        {poinDipakai >= 5000 && (
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#8A6A1A", fontWeight: 600, marginBottom: 3 }}>
+            <span>Potongan Poin ({poinDipakai.toLocaleString("id-ID")} pts)</span>
+            <span>-{rupiah(poinDipakai)}</span>
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingTop: 5, borderTop: "1px dashed #EDEAE3" }}>
           <span style={{ color: "#6B6F75", fontSize: 12, alignSelf: "center" }}>Total Bayar</span>
-          <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>{rupiah(Math.round(rincian.totalBayar))}</span>
+          <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>{rupiah(Math.max(0, Math.round(rincian.totalBayar) - (poinDipakai >= 5000 ? poinDipakai : 0)))}</span>
         </div>
 
         {belowMinimum && (
@@ -2647,7 +2711,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
         <button
           onClick={onCheckout}
-          disabled={belowMinimum}
+          disabled={belowMinimum || (poinDipakai > 0 && poinDipakai < 5000)}
           style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", background: belowMinimum ? "#E4E1DA" : "#E8A426", color: belowMinimum ? "#9CA0A6" : "#24272B", fontWeight: 700, fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
         >
           Kirim Order {!belowMinimum && <ArrowRight size={13} />}
