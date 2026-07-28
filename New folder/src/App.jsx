@@ -1299,7 +1299,7 @@ export default function OrderApp() {
       )}
 
       {screen === "history" && (
-        <HistoryScreen orders={orders} onBack={() => setScreen("catalog")} />
+        <HistoryScreen orders={orders} onBack={() => setScreen("catalog")} toko={toko} />
       )}
 
       {screen === "akun" && (
@@ -2717,7 +2717,7 @@ function SuccessScreen({ order, onDone, onHistory }) {
 // ============================================================
 // RIWAYAT
 // ============================================================
-function HistoryScreen({ orders, onBack }) {
+function HistoryScreen({ orders, onBack, toko }) {
   const [detailOrder, setDetailOrder] = useState(null);
   return (
     <div style={{ minHeight: "100vh", padding: "0 0 20px" }}>
@@ -2759,7 +2759,7 @@ function HistoryScreen({ orders, onBack }) {
         })
       )}
       </div>
-      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} clientId={toko?.id} />}
     </div>
   );
 }
@@ -2984,7 +2984,7 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
           </div>
         ))
       )}
-      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} />}
+      {detailOrder && <OrderDetailModal order={detailOrder} onClose={() => setDetailOrder(null)} clientId={toko?.id} />}
     </div>
   );
 }
@@ -3153,7 +3153,48 @@ function OrderTrackingTimeline({ status, waktuTahap }) {
   );
 }
 
-function OrderDetailModal({ order, onClose }) {
+function OrderDetailModal({ order, onClose, clientId }) {
+  const [ratingTersimpan, setRatingTersimpan] = useState(null); // null = belum dicek, {} = belum ada, {...} = sudah ada
+  const [showFormRating, setShowFormRating] = useState(false);
+  const [ratingInput, setRatingInput] = useState(0);
+  const [kategoriKomplain, setKategoriKomplain] = useState("");
+  const [catatanInput, setCatatanInput] = useState("");
+  const [mengirimRating, setMengirimRating] = useState(false);
+
+  useEffect(() => {
+    if (order.status !== "Selesai" && order.status !== "Retur Selesai") return;
+    supabaseFetch(`rating_pesanan?select=*&order_id=eq.${order.id}`)
+      .then((rows) => setRatingTersimpan(rows?.[0] || {}))
+      .catch(() => setRatingTersimpan({}));
+  }, [order.id]);
+
+  async function kirimRating() {
+    if (ratingInput === 0) {
+      alert("Pilih dulu bintang ratingnya.");
+      return;
+    }
+    if (ratingInput <= 3 && !kategoriKomplain) {
+      alert("Pilih dulu kategori masalahnya, supaya kami bisa perbaiki.");
+      return;
+    }
+    setMengirimRating(true);
+    try {
+      const [inserted] = await supabaseFetch("rating_pesanan", {
+        method: "POST",
+        body: JSON.stringify({
+          order_id: order.id, client_id: clientId, rating: ratingInput,
+          kategori_komplain: ratingInput <= 3 ? kategoriKomplain : null,
+          catatan: catatanInput.trim() || null,
+        }),
+      });
+      setRatingTersimpan(inserted);
+      setShowFormRating(false);
+    } catch (e) {
+      alert("Gagal kirim rating: " + e.message);
+    }
+    setMengirimRating(false);
+  }
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(36,39,43,0.6)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}>
       <div style={{ background: "#fff", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, maxHeight: "85vh", overflowY: "auto", padding: "20px 20px 28px" }}>
@@ -3200,6 +3241,73 @@ function OrderDetailModal({ order, onClose }) {
         )}
 
         <OrderTrackingTimeline status={order.status} waktuTahap={order.waktuTahap} />
+
+        {(order.status === "Selesai" || order.status === "Retur Selesai") && ratingTersimpan !== null && (
+          <div style={{ background: "#F7F5F1", borderRadius: 12, padding: 14, marginBottom: 18 }}>
+            {ratingTersimpan.id ? (
+              <>
+                <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 6px" }}>Rating Anda</p>
+                <div style={{ display: "flex", gap: 2, marginBottom: ratingTersimpan.catatan ? 8 : 0 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} size={18} fill={n <= ratingTersimpan.rating ? "#E8A426" : "none"} color={n <= ratingTersimpan.rating ? "#E8A426" : "#D8D6D0"} />
+                  ))}
+                </div>
+                {ratingTersimpan.catatan && <p style={{ fontSize: 12.5, color: "#24272B", margin: 0 }}>{ratingTersimpan.catatan}</p>}
+              </>
+            ) : showFormRating ? (
+              <>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: "0 0 10px" }}>Bagaimana pesanan ini?</p>
+                <div style={{ display: "flex", gap: 4, marginBottom: 14 }}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button key={n} onClick={() => setRatingInput(n)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                      <Star size={30} fill={n <= ratingInput ? "#E8A426" : "none"} color={n <= ratingInput ? "#E8A426" : "#D8D6D0"} />
+                    </button>
+                  ))}
+                </div>
+                {ratingInput > 0 && ratingInput <= 3 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#6B6F75", margin: "0 0 8px" }}>Apa masalahnya?</p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {[
+                        { key: "kualitas_barang", label: "Kualitas Barang" },
+                        { key: "salah_kirim", label: "Salah Kirim" },
+                        { key: "kemasan_rusak", label: "Kemasan Rusak" },
+                        { key: "pengiriman_lambat", label: "Pengiriman Lambat" },
+                        { key: "lainnya", label: "Lainnya" },
+                      ].map((k) => (
+                        <button
+                          key={k.key} onClick={() => setKategoriKomplain(k.key)}
+                          style={{ padding: "6px 12px", borderRadius: 999, border: kategoriKomplain === k.key ? "1.5px solid #C0392B" : "1.5px solid #E4E1DA", background: kategoriKomplain === k.key ? "#FBEAEA" : "#fff", color: kategoriKomplain === k.key ? "#C0392B" : "#6B6F75", fontSize: 11.5, fontWeight: 600 }}
+                        >
+                          {k.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  value={catatanInput} onChange={(e) => setCatatanInput(e.target.value)}
+                  placeholder="Catatan tambahan (opsional)..."
+                  rows={2}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E4E1DA", fontSize: 13, resize: "vertical", marginBottom: 12 }}
+                />
+                <button
+                  onClick={kirimRating} disabled={mengirimRating}
+                  style={{ width: "100%", padding: 12, borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5 }}
+                >
+                  {mengirimRating ? "Mengirim..." : "Kirim Rating"}
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setShowFormRating(true)}
+                style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: 12, borderRadius: 10, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontWeight: 700, fontSize: 13.5 }}
+              >
+                <Star size={16} /> Beri Rating & Ulasan
+              </button>
+            )}
+          </div>
+        )}
 
         <p style={{ fontSize: 11.5, fontWeight: 700, color: "#6B6F75", textTransform: "uppercase", margin: "0 0 8px" }}>Barang Dipesan</p>
         {order.items.map((it, i) => (
