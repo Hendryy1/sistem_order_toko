@@ -1305,9 +1305,17 @@ export default function OrderApp() {
           metodeBayar={metodeBayar} setMetodeBayar={setMetodeBayar}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
           addToCart={addToCart} setCartQty={setCartQty}
-          pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
           onBack={() => setScreen("catalog")}
-          onCheckout={submitOrder}
+          onCheckout={() => setScreen("konfirmasi-pembelian")}
+        />
+      )}
+
+      {screen === "konfirmasi-pembelian" && (
+        <KonfirmasiPembelianScreen
+          rincian={cartRincian} metodeBayar={metodeBayar}
+          pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
+          onBack={() => setScreen("cart")}
+          onSubmit={submitOrder}
         />
       )}
 
@@ -2267,7 +2275,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, pointsBalance, poinDipakai, setPoinDipakai, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
   const [editingQtyKode, setEditingQtyKode] = useState(null);
   const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -2614,37 +2622,6 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
       </div>
 
       <div style={{ position: "fixed", bottom: 72, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "10px 20px 12px", zIndex: 50 }}>
-        {pointsBalance >= 5000 && (
-          <div style={{ background: "#FBF0D9", borderRadius: 9, padding: 10, marginBottom: 8, position: "relative", zIndex: 51 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: poinDipakai > 0 ? 6 : 0 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: "#8A6A1A" }}>Gunakan Poin (punya {pointsBalance.toLocaleString("id-ID")} pts)</span>
-              {poinDipakai > 0 && (
-                <button type="button" onClick={() => setPoinDipakai(0)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 11, fontWeight: 700, position: "relative", zIndex: 52, cursor: "pointer" }}>Batal</button>
-              )}
-            </div>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={5000}
-                max={Math.min(pointsBalance, Math.floor(rincian.totalBayar))}
-                value={poinDipakai || ""}
-                onChange={(e) => {
-                  const v = Number(e.target.value) || 0;
-                  const batasAtas = Math.min(pointsBalance, Math.floor(rincian.totalBayar));
-                  setPoinDipakai(Math.min(v, batasAtas));
-                }}
-                placeholder="Minimal 5000"
-                style={{ flex: 1, padding: "8px 10px", borderRadius: 8, border: "1.5px solid #E4C88A", fontSize: 13, position: "relative", zIndex: 52, pointerEvents: "auto" }}
-              />
-              <span style={{ fontSize: 11, color: "#8A6A1A", fontWeight: 600 }}>= {rupiah(poinDipakai)}</span>
-            </div>
-            {poinDipakai > 0 && poinDipakai < 5000 && (
-              <p style={{ fontSize: 10.5, color: "#C0392B", margin: "6px 0 0" }}>Minimal pakai 5000 poin.</p>
-            )}
-          </div>
-        )}
-
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#6B6F75", marginBottom: 3 }}>
           <span>Subtotal</span>
           <span>{rupiah(Math.round(rincian.subtotalSebelum))}</span>
@@ -2655,15 +2632,9 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
             <span>-{rupiah(Math.round(rincian.totalDiskon))}</span>
           </div>
         )}
-        {poinDipakai >= 5000 && (
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: "#8A6A1A", fontWeight: 600, marginBottom: 3 }}>
-            <span>Potongan Poin ({poinDipakai.toLocaleString("id-ID")} pts)</span>
-            <span>-{rupiah(poinDipakai)}</span>
-          </div>
-        )}
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, paddingTop: 5, borderTop: "1px dashed #EDEAE3" }}>
           <span style={{ color: "#6B6F75", fontSize: 12, alignSelf: "center" }}>Total Bayar</span>
-          <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>{rupiah(Math.max(0, Math.round(rincian.totalBayar) - (poinDipakai >= 5000 ? poinDipakai : 0)))}</span>
+          <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>{rupiah(Math.round(rincian.totalBayar))}</span>
         </div>
 
         {belowMinimum && (
@@ -2711,10 +2682,111 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
         <button
           onClick={onCheckout}
-          disabled={belowMinimum || (poinDipakai > 0 && poinDipakai < 5000)}
+          disabled={belowMinimum}
           style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", background: belowMinimum ? "#E4E1DA" : "#E8A426", color: belowMinimum ? "#9CA0A6" : "#24272B", fontWeight: 700, fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
         >
-          Kirim Order {!belowMinimum && <ArrowRight size={13} />}
+          Pembelian {!belowMinimum && <ArrowRight size={13} />}
+        </button>
+        <p style={{ textAlign: "center", fontSize: 10, color: "#9CA0A6", marginTop: 6, marginBottom: 0 }}>Order menunggu persetujuan sebelum diproses</p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// KONFIRMASI PEMBELIAN - review terakhir sebelum kirim order, di sini
+// baru bisa pakai potongan poin
+// ============================================================
+function KonfirmasiPembelianScreen({ rincian, metodeBayar, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
+  const [mengirim, setMengirim] = useState(false);
+  const totalSetelahPoin = Math.max(0, Math.round(rincian.totalBayar) - (poinDipakai >= 5000 ? poinDipakai : 0));
+
+  async function handleSubmit() {
+    setMengirim(true);
+    try {
+      await onSubmit();
+    } finally {
+      setMengirim(false);
+    }
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", padding: "18px 20px 100px" }}>
+      <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, marginBottom: 16 }}>
+        <ChevronLeft size={18} /> Kembali ke Keranjang
+      </button>
+
+      <h1 className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Konfirmasi Pembelian</h1>
+      <p style={{ fontSize: 13, color: "#6B6F75", margin: "0 0 20px" }}>Periksa lagi rincian pesanan sebelum dikirim.</p>
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#6B6F75", marginBottom: 6 }}>
+          <span>Subtotal</span>
+          <span>{rupiah(Math.round(rincian.subtotalSebelum))}</span>
+        </div>
+        {rincian.totalDiskon > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#24272B", fontWeight: 600, marginBottom: 6 }}>
+            <span>Diskon</span>
+            <span>-{rupiah(Math.round(rincian.totalDiskon))}</span>
+          </div>
+        )}
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#6B6F75", marginBottom: 6 }}>
+          <span>Metode Bayar</span>
+          <span style={{ fontWeight: 600, color: "#24272B", textTransform: "uppercase" }}>{metodeBayar}</span>
+        </div>
+      </div>
+
+      {pointsBalance >= 5000 && (
+        <div style={{ background: "#FBF0D9", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: poinDipakai > 0 ? 10 : 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#8A6A1A" }}>Gunakan Poin (punya {pointsBalance.toLocaleString("id-ID")} pts)</span>
+            {poinDipakai > 0 && (
+              <button type="button" onClick={() => setPoinDipakai(0)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Batal</button>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={5000}
+              max={Math.min(pointsBalance, Math.floor(rincian.totalBayar))}
+              value={poinDipakai || ""}
+              onChange={(e) => {
+                const v = Number(e.target.value) || 0;
+                const batasAtas = Math.min(pointsBalance, Math.floor(rincian.totalBayar));
+                setPoinDipakai(Math.min(v, batasAtas));
+              }}
+              placeholder="Minimal 5000"
+              style={{ flex: 1, padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E4C88A", fontSize: 14 }}
+            />
+            <span style={{ fontSize: 12.5, color: "#8A6A1A", fontWeight: 700 }}>= {rupiah(poinDipakai)}</span>
+          </div>
+          {poinDipakai > 0 && poinDipakai < 5000 && (
+            <p style={{ fontSize: 11.5, color: "#C0392B", margin: "8px 0 0" }}>Minimal pakai 5000 poin.</p>
+          )}
+        </div>
+      )}
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: 16 }}>
+        {poinDipakai >= 5000 && (
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#8A6A1A", fontWeight: 600, marginBottom: 8 }}>
+            <span>Potongan Poin ({poinDipakai.toLocaleString("id-ID")} pts)</span>
+            <span>-{rupiah(poinDipakai)}</span>
+          </div>
+        )}
+        <div style={{ display: "flex", justifyContent: "space-between", paddingTop: poinDipakai >= 5000 ? 8 : 0, borderTop: poinDipakai >= 5000 ? "1px dashed #EDEAE3" : "none" }}>
+          <span style={{ color: "#6B6F75", fontSize: 14, alignSelf: "center", fontWeight: 600 }}>Total Bayar</span>
+          <span className="disp" style={{ fontWeight: 700, fontSize: 20, color: "#24272B" }}>{rupiah(totalSetelahPoin)}</span>
+        </div>
+      </div>
+
+      <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "12px 20px calc(12px + env(safe-area-inset-bottom))" }}>
+        <button
+          onClick={handleSubmit}
+          disabled={mengirim || (poinDipakai > 0 && poinDipakai < 5000)}
+          style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+        >
+          {mengirim ? "Mengirim..." : <>Kirim Order <ArrowRight size={14} /></>}
         </button>
         <p style={{ textAlign: "center", fontSize: 10, color: "#9CA0A6", marginTop: 6, marginBottom: 0 }}>Order menunggu persetujuan sebelum diproses</p>
       </div>
