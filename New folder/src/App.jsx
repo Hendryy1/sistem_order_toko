@@ -955,16 +955,6 @@ export default function OrderApp() {
             }))
           ),
         }, authToken);
-        // Dapat 1 tiket Lucky Wheel tiap order - simpan permanen ke database
-        try {
-          await supabaseFetch("spin_tickets", {
-            method: "POST",
-            body: JSON.stringify({ client_id: toko.id, order_id: insertedOrder.id, dipakai: false }),
-          }, authToken);
-          setSpinTickets((prev) => prev + 1);
-        } catch (e) {
-          console.log("Gagal simpan tiket spin:", e.message);
-        }
       } catch (e) {
         console.log("Gagal simpan order ke database asli (mode preview?):", e.message);
       }
@@ -5615,7 +5605,7 @@ function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, 
         </button>
         {spinTickets <= 0 && !spinning && (
           <p style={{ textAlign: "center", fontSize: 11.5, color: "#9CA0A6", marginTop: 8 }}>
-            Belum ada tiket. Kirim order untuk dapat tiket Spin.
+            Belum ada tiket. Selesaikan 1 pesanan untuk dapat tiket Spin.
           </p>
         )}
       </div>
