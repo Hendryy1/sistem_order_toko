@@ -1313,6 +1313,7 @@ export default function OrderApp() {
       {screen === "konfirmasi-pembelian" && (
         <KonfirmasiPembelianScreen
           rincian={cartRincian} metodeBayar={metodeBayar}
+          toko={toko} useAltAddress={useAltAddress} altAddress={altAddress}
           pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
           onBack={() => setScreen("cart")}
           onSubmit={submitOrder}
@@ -2697,9 +2698,19 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 // KONFIRMASI PEMBELIAN - review terakhir sebelum kirim order, di sini
 // baru bisa pakai potongan poin
 // ============================================================
-function KonfirmasiPembelianScreen({ rincian, metodeBayar, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
+function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, altAddress, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
   const [mengirim, setMengirim] = useState(false);
   const totalSetelahPoin = Math.max(0, Math.round(rincian.totalBayar) - (poinDipakai >= 5000 ? poinDipakai : 0));
+
+  const tujuan = useAltAddress
+    ? {
+        nama: altAddress.nama || toko.nama, telp: altAddress.telp,
+        alamat: altAddress.kota
+          ? `${altAddress.alamat}, ${altAddress.kelurahan}, ${altAddress.kecamatan}, ${altAddress.kota}, ${altAddress.provinsi} ${altAddress.kodePos}`
+          : altAddress.alamat,
+        kota: altAddress.kota || toko.kota,
+      }
+    : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat, kota: toko.kota };
 
   async function handleSubmit() {
     setMengirim(true);
@@ -2718,6 +2729,13 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, pointsBalance, poinDi
 
       <h1 className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Konfirmasi Pembelian</h1>
       <p style={{ fontSize: 13, color: "#6B6F75", margin: "0 0 20px" }}>Periksa lagi rincian pesanan sebelum dikirim.</p>
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", margin: "0 0 8px" }}>Dikirim untuk</p>
+        <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{tujuan.nama}</p>
+        {tujuan.telp && <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 4px" }}>{tujuan.telp}</p>}
+        <p style={{ fontSize: 12.5, color: "#6B6F75", margin: 0, lineHeight: 1.5 }}>{tujuan.alamat}</p>
+      </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#6B6F75", marginBottom: 6 }}>
