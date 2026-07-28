@@ -3163,10 +3163,10 @@ function OrderDetailModal({ order, onClose, clientId }) {
 
   useEffect(() => {
     if (order.status !== "Selesai" && order.status !== "Retur Selesai") return;
-    supabaseFetch(`rating_pesanan?select=*&order_id=eq.${order.id}`)
+    supabaseFetch(`rating_pesanan?select=*&order_id=eq.${order.dbId}`)
       .then((rows) => setRatingTersimpan(rows?.[0] || {}))
       .catch(() => setRatingTersimpan({}));
-  }, [order.id]);
+  }, [order.dbId]);
 
   async function kirimRating() {
     if (ratingInput === 0) {
@@ -3182,7 +3182,7 @@ function OrderDetailModal({ order, onClose, clientId }) {
       const [inserted] = await supabaseFetch("rating_pesanan", {
         method: "POST",
         body: JSON.stringify({
-          order_id: order.id, client_id: clientId, rating: ratingInput,
+          order_id: order.dbId, client_id: clientId, rating: ratingInput,
           kategori_komplain: ratingInput <= 3 ? kategoriKomplain : null,
           catatan: catatanInput.trim() || null,
         }),
