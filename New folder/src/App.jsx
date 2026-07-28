@@ -1314,6 +1314,7 @@ export default function OrderApp() {
         <KonfirmasiPembelianScreen
           rincian={cartRincian} metodeBayar={metodeBayar}
           toko={toko} useAltAddress={useAltAddress} altAddress={altAddress}
+          cart={cart} products={products} checkedItems={checkedItems}
           pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
           onBack={() => setScreen("cart")}
           onSubmit={submitOrder}
@@ -2698,9 +2699,18 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 // KONFIRMASI PEMBELIAN - review terakhir sebelum kirim order, di sini
 // baru bisa pakai potongan poin
 // ============================================================
-function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, altAddress, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
+function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, altAddress, cart, products, checkedItems, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
   const [mengirim, setMengirim] = useState(false);
   const totalSetelahPoin = Math.max(0, Math.round(rincian.totalBayar) - (poinDipakai >= 5000 ? poinDipakai : 0));
+
+  const daftarItem = Object.entries(cart)
+    .filter(([kode]) => checkedItems[kode] !== false)
+    .map(([kode, qty]) => {
+      const p = products.find((x) => x.kode === kode);
+      if (!p) return null;
+      return { kode, nama: p.nama, satuan: p.satuan, qty };
+    })
+    .filter(Boolean);
 
   const tujuan = useAltAddress
     ? {
@@ -2735,6 +2745,16 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
         <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{tujuan.nama}</p>
         {tujuan.telp && <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 4px" }}>{tujuan.telp}</p>}
         <p style={{ fontSize: 12.5, color: "#6B6F75", margin: 0, lineHeight: 1.5 }}>{tujuan.alamat}</p>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", margin: "0 0 10px" }}>Barang Dipesan ({daftarItem.length})</p>
+        {daftarItem.map((it) => (
+          <div key={it.kode} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid #F0EDE6" }}>
+            <span style={{ color: "#24272B" }}>{it.nama}</span>
+            <span style={{ fontWeight: 700, color: "#24272B", flexShrink: 0, marginLeft: 10 }}>{it.qty} {it.satuan}</span>
+          </div>
+        ))}
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
