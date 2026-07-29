@@ -4,7 +4,7 @@ import {
   Building2, Hammer, PaintBucket, Milestone, LayoutGrid, Wrench,
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
-  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2,
+  HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2, RefreshCw,
   Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical, Download, FileEdit
 } from "lucide-react";
 
@@ -395,18 +395,44 @@ function compressImage(file, maxDimension = 1280, quality = 0.8) {
 // ============================================================
 function ImgAutoRetry({ src, alt, style, onClick, draggable, className }) {
   const [attempt, setAttempt] = useState(0);
+  const [menyerah, setMenyerah] = useState(false); // true kalau semua percobaan OTOMATIS habis
 
   useEffect(() => {
     setAttempt(0); // gambar baru (src beda) - reset hitungan percobaan
+    setMenyerah(false);
   }, [src]);
 
+  const MAKS_PERCOBAAN_OTOMATIS = 8;
+
   function handleError() {
-    if (attempt < 4) {
-      setTimeout(() => setAttempt((a) => a + 1), 800 * (attempt + 1));
+    if (attempt < MAKS_PERCOBAAN_OTOMATIS) {
+      // Jeda antar percobaan naik bertahap, tapi dibatasi maksimal 5 detik
+      // (supaya kalau jaringan mati lumayan lama, tetap terus dicoba tanpa
+      // jeda yang kelewat panjang).
+      const jeda = Math.min(800 * (attempt + 1), 5000);
+      setTimeout(() => setAttempt((a) => a + 1), jeda);
+    } else {
+      // Percobaan otomatis habis - jangan diam sebagai gambar kosong/rusak,
+      // tampilkan tombol supaya user bisa coba lagi sendiri (misal setelah
+      // jaringan mereka pulih).
+      setMenyerah(true);
     }
   }
 
   if (!src) return null;
+
+  if (menyerah) {
+    return (
+      <button
+        onClick={() => { setMenyerah(false); setAttempt((a) => a + 1); }}
+        style={{ ...style, background: "#F7F5F1", border: "1px dashed #D8D4CB", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, cursor: "pointer", padding: 0 }}
+      >
+        <RefreshCw size={16} color="#9CA0A6" />
+        <span style={{ fontSize: 10.5, color: "#9CA0A6" }}>Gagal muat - tap untuk coba lagi</span>
+      </button>
+    );
+  }
+
   // Percobaan ke-2 dst pakai parameter cache-busting supaya request
   // BENAR-BENAR ulang dari jaringan, bukan pakai cache/SW yang mungkin
   // menyimpan versi gagal/setengah sebelumnya.
