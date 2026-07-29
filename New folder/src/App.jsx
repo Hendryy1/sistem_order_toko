@@ -1990,10 +1990,20 @@ function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLog
         headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({ email: tokoOtp.email, token: otpKode.trim(), type: "email" }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || data.error_description || "Kode salah atau sudah kedaluwarsa.");
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (parseErr) { /* respons kosong/bukan JSON - lanjut cek res.ok saja */ }
+      if (!res.ok) throw new Error(data.msg || data.error_description || `Kode salah atau sudah kedaluwarsa (status ${res.status}).`);
+    } catch (e) {
+      setOtpError("Verifikasi kode gagal: " + (e.message || "terjadi kesalahan tak terduga."));
+      setOtpBusy(false);
+      return;
+    }
 
-      // Kode benar - simpan izin akses berlaku 30 hari ke depan
+    // Kode benar - simpan izin akses berlaku 30 hari ke depan. Dipisah jadi
+    // try-catch SENDIRI supaya kalau gagal di sini, pesannya jelas beda dari
+    // kegagalan verifikasi kode di atas.
+    try {
       const berlakuSampai = new Date();
       berlakuSampai.setDate(berlakuSampai.getDate() + 30);
       await supabaseFetch(`akses_sales_toko?on_conflict=sales_id,client_id`, {
@@ -2006,7 +2016,7 @@ function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLog
       setOtpStep("none");
       onPilih(tokoOtp.id);
     } catch (e) {
-      setOtpError(e.message);
+      setOtpError("Kode benar, tapi gagal simpan izin akses: " + (e.message || "terjadi kesalahan tak terduga."));
     }
     setOtpBusy(false);
   }
