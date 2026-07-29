@@ -987,7 +987,12 @@ export default function OrderApp() {
         const p = products.find((x) => x.kode === kode);
         return { ...p, qty };
       });
-    const tujuan = useAltAddress
+    // Mode Sales - PAKSA pakai alamat toko terdaftar, abaikan alamat
+    // alternatif apapun (jaga2 lapis kedua, walau tombolnya sudah
+    // disembunyikan di UI) - supaya barang tidak bisa "dialihkan" ke
+    // alamat lain pakai identitas toko yang tidak sadar apa-apa.
+    const pakaiAltAddress = useAltAddress && !toko?.dibuatOlehSales;
+    const tujuan = pakaiAltAddress
       ? {
           nama: altAddress.nama || toko.nama, telp: altAddress.telp,
           alamat: altAddress.kota
@@ -996,7 +1001,6 @@ export default function OrderApp() {
           kota: altAddress.kota || toko.kota,
         }
       : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat, kota: toko.kota };
-    console.log("DIAGNOSTIK tujuan:", JSON.stringify(tujuan), "| useAltAddress:", useAltAddress, "| altAddress.kota:", altAddress.kota, "| toko.kota:", toko.kota);
     const itemsWithDropship = items.map((it) => ({
       ...it,
       hargaDropship: isDropship && dropshipPrices[it.kode] ? Number(dropshipPrices[it.kode]) : null,
@@ -1006,7 +1010,9 @@ export default function OrderApp() {
     // kode di bawah cuma dipakai fallback kalau memang toko sedang mode tanpa database.
     let noNota = "NOTA-" + String(1000 + orders.length + 1).slice(1);
 
-    const poinDipakaiValid = poinDipakai >= 5000 ? poinDipakai : 0;
+    // Poin toko TIDAK PERNAH dipakai kalau order ini dibuatkan sales (jaga2
+    // walau UI-nya sudah disembunyikan, ini lapis pengaman tambahan).
+    const poinDipakaiValid = (!toko?.dibuatOlehSales && poinDipakai >= 5000) ? poinDipakai : 0;
 
     if (toko.id) {
       try {
@@ -1025,6 +1031,7 @@ export default function OrderApp() {
             tujuan_alamat: tujuan.alamat,
             tujuan_kota: tujuan.kota,
             metode_bayar: metodeBayar,
+            dibuat_oleh_sales: toko?.dibuatOlehSales || null,
             ...(poinDipakaiValid > 0 ? {
               diskon_tambahan_jenis: "rupiah",
               diskon_tambahan_nilai: poinDipakaiValid,
@@ -2025,9 +2032,11 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
               <button onClick={() => setShowSearch(true)} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Search size={18} color="#fff" />
               </button>
-              <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <MessageCircle size={18} color="#fff" />
-              </button>
+              {!toko?.dibuatOlehSales && (
+                <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <MessageCircle size={18} color="#fff" />
+                </button>
+              )}
               <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
                 <Bell size={18} color="#fff" />
                 {unreadCount > 0 && (
@@ -2473,16 +2482,23 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                 <p style={{ margin: 0 }}>{toko.telp}</p>
                 <p style={{ margin: 0 }}>{toko.alamat}</p>
               </div>
-              <button
-                onClick={() => {
-                  setUseAltAddress(true);
-                  if (savedAddresses.length > 0) setShowPicker(true);
-                  else setEditingAlt(true);
-                }}
-                style={{ marginTop: 10, background: "none", border: "none", color: "#B8860B", fontSize: 12.5, fontWeight: 700, padding: 0 }}
-              >
-                + Kirim ke alamat lain
-              </button>
+              {!toko?.dibuatOlehSales && (
+                <button
+                  onClick={() => {
+                    setUseAltAddress(true);
+                    if (savedAddresses.length > 0) setShowPicker(true);
+                    else setEditingAlt(true);
+                  }}
+                  style={{ marginTop: 10, background: "none", border: "none", color: "#B8860B", fontSize: 12.5, fontWeight: 700, padding: 0 }}
+                >
+                  + Kirim ke alamat lain
+                </button>
+              )}
+              {toko?.dibuatOlehSales && (
+                <p style={{ marginTop: 10, fontSize: 11, color: "#9CA0A6", margin: "10px 0 0" }}>
+                  Mode Sales - pengiriman terkunci ke alamat toko terdaftar.
+                </p>
+              )}
             </>
           )}
 
@@ -2787,7 +2803,14 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 // ============================================================
 function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, altAddress, cart, products, checkedItems, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
   const [mengirim, setMengirim] = useState(false);
-  const totalSetelahPoin = Math.max(0, Math.round(rincian.totalBayar) - (poinDipakai >= 5000 ? poinDipakai : 0));
+  // ---- OTP konfirmasi pemilik toko (WAJIB kalau order ini dibuatkan sales -
+  // supaya order tidak bisa terkirim tanpa toko benar-benar menyetujui) ----
+  const [otpStep, setOtpStep] = useState("none"); // none | sending | input | terverifikasi
+  const [otpKonfirmasi, setOtpKonfirmasi] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+  const poinDipakaiEfektif = toko?.dibuatOlehSales ? 0 : poinDipakai; // jaga-jaga - poin toko TIDAK PERNAH dipakai kalau lagi mode sales
+  const totalSetelahPoin = Math.max(0, Math.round(rincian.totalBayar) - (poinDipakaiEfektif >= 5000 ? poinDipakaiEfektif : 0));
 
   const daftarItem = Object.entries(cart)
     .filter(([kode]) => checkedItems[kode] !== false)
@@ -2808,12 +2831,68 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
       }
     : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat, kota: toko.kota };
 
+  // Kirim kode OTP ke EMAIL TOKO (bukan email sales) - minta toko sebutkan
+  // kodenya ke sales, buat pastikan toko benar2 tahu & setuju order ini.
+  async function kirimOtpKonfirmasi() {
+    setOtpStep("sending");
+    setOtpError("");
+    setOtpBusy(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email, create_user: false }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal kirim kode ke email toko.");
+      setOtpStep("input");
+    } catch (e) {
+      setOtpError(e.message);
+      setOtpStep("none");
+    }
+    setOtpBusy(false);
+  }
+
+  async function verifikasiOtpKonfirmasi() {
+    if (!otpKonfirmasi.trim()) {
+      setOtpError("Minta toko sebutkan kode yang masuk ke email mereka.");
+      return;
+    }
+    setOtpBusy(true);
+    setOtpError("");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: toko.email, token: otpKonfirmasi.trim(), type: "email" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Kode salah atau sudah kedaluwarsa.");
+      setOtpStep("terverifikasi");
+      // Kode benar - baru SEKARANG order beneran dikirim.
+      await handleSubmit();
+    } catch (e) {
+      setOtpError(e.message);
+    }
+    setOtpBusy(false);
+  }
+
   async function handleSubmit() {
     setMengirim(true);
     try {
       await onSubmit();
     } finally {
       setMengirim(false);
+    }
+  }
+
+  // Tombol utama - kalau mode SALES, wajib lewat OTP dulu; toko biasa
+  // langsung kirim seperti biasa.
+  function handleTombolUtama() {
+    if (toko?.dibuatOlehSales) {
+      kirimOtpKonfirmasi();
+    } else {
+      handleSubmit();
     }
   }
 
@@ -2886,7 +2965,7 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
         </div>
       </div>
 
-      {pointsBalance >= 5000 && (
+      {pointsBalance >= 5000 && !toko?.dibuatOlehSales && (
         <div style={{ background: "#FBF0D9", borderRadius: 12, padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: poinDipakai > 0 ? 10 : 0 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#8A6A1A" }}>Gunakan Poin (punya {pointsBalance.toLocaleString("id-ID")} pts)</span>
@@ -2930,14 +3009,39 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
         </div>
       </div>
 
+      {toko?.dibuatOlehSales && otpStep === "input" && (
+        <div style={{ background: "#FBF0D9", borderRadius: 12, padding: 16, marginBottom: 100 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#8A6A1A", margin: "0 0 6px" }}>Konfirmasi Pemilik Toko</p>
+          <p style={{ fontSize: 12, color: "#8A6A1A", margin: "0 0 12px", lineHeight: 1.5 }}>
+            Kode 6-digit sudah dikirim ke email toko ({toko.email}). Minta pemilik toko sebutkan kodenya.
+          </p>
+          <input
+            value={otpKonfirmasi} onChange={(e) => setOtpKonfirmasi(e.target.value)}
+            placeholder="Kode dari email toko" inputMode="numeric"
+            style={{ width: "100%", padding: "12px 14px", borderRadius: 9, border: "1.5px solid #E4C88A", fontSize: 16, textAlign: "center", letterSpacing: 4, marginBottom: 10 }}
+          />
+          {otpError && <p style={{ fontSize: 11.5, color: "#C0392B", margin: "0 0 10px" }}>{otpError}</p>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={kirimOtpKonfirmasi} disabled={otpBusy} style={{ flex: 1, padding: 11, borderRadius: 9, border: "1.5px solid #E4C88A", background: "#fff", color: "#8A6A1A", fontWeight: 700, fontSize: 12.5 }}>
+              Kirim Ulang Kode
+            </button>
+            <button onClick={verifikasiOtpKonfirmasi} disabled={otpBusy || mengirim} style={{ flex: 1, padding: 11, borderRadius: 9, border: "none", background: "#28685D", color: "#fff", fontWeight: 700, fontSize: 12.5 }}>
+              {otpBusy || mengirim ? "Memproses..." : "Verifikasi & Kirim"}
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "12px 20px calc(12px + env(safe-area-inset-bottom))" }}>
-        <button
-          onClick={handleSubmit}
-          disabled={mengirim || (poinDipakai > 0 && poinDipakai < 5000)}
-          style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-        >
-          {mengirim ? "Mengirim..." : <>Kirim Order <ArrowRight size={14} /></>}
-        </button>
+        {!(toko?.dibuatOlehSales && otpStep === "input") && (
+          <button
+            onClick={handleTombolUtama}
+            disabled={mengirim || otpBusy || (poinDipakai > 0 && poinDipakai < 5000)}
+            style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          >
+            {otpStep === "sending" ? "Mengirim kode ke email toko..." : mengirim ? "Mengirim..." : toko?.dibuatOlehSales ? <>Minta Konfirmasi Toko <ArrowRight size={14} /></> : <>Kirim Order <ArrowRight size={14} /></>}
+          </button>
+        )}
         <p style={{ textAlign: "center", fontSize: 10, color: "#9CA0A6", marginTop: 6, marginBottom: 0 }}>Order menunggu persetujuan sebelum diproses</p>
       </div>
     </div>
