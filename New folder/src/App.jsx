@@ -374,9 +374,14 @@ function compressImage(file, maxDimension = 1280, quality = 0.8) {
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, width, height);
+        // Target WebP - ukuran jauh lebih kecil dari JPEG di kualitas yang
+        // sama, didukung luas di browser modern. Kalau browser TIDAK
+        // dukung WebP (jarang, HP/browser sangat lama), canvas otomatis
+        // fallback ke PNG - makanya kita cek blob.type asli hasilnya,
+        // bukan asumsi selalu WebP.
         canvas.toBlob(
           (blob) => resolve(blob || file), // kalau gagal kompres, tetap pakai file asli - jangan sampai upload gagal total
-          "image/jpeg",
+          "image/webp",
           quality
         );
       };
@@ -386,6 +391,19 @@ function compressImage(file, maxDimension = 1280, quality = 0.8) {
     reader.onerror = () => resolve(file);
     reader.readAsDataURL(file);
   });
+}
+
+// Tentukan ekstensi & Content-Type file YANG SEBENARNYA dihasilkan compressImage
+// - biasanya WebP, tapi browser lama bisa fallback ke PNG/JPEG kalau WebP
+// tidak didukung. Jangan asumsikan selalu satu format.
+function infoFileTerkompresi(compressed, fileAsli) {
+  const adalahGambar = fileAsli.type?.startsWith("image/");
+  if (!adalahGambar || compressed === fileAsli) {
+    return { ext: fileAsli.name.split(".").pop(), contentType: fileAsli.type || "application/octet-stream" };
+  }
+  const petaExt = { "image/webp": "webp", "image/jpeg": "jpg", "image/png": "png" };
+  const ext = petaExt[compressed.type] || fileAsli.name.split(".").pop();
+  return { ext, contentType: compressed.type || fileAsli.type };
 }
 
 // ============================================================
@@ -1253,8 +1271,7 @@ export default function OrderApp() {
   async function uploadBuktiTransfer(order, file) {
     if (!order.dbId || !file) return;
     const compressed = await compressImage(file);
-    const isJpeg = compressed.type === "image/jpeg" && file.type?.startsWith("image/");
-    const ext = isJpeg ? "jpg" : file.name.split(".").pop();
+    const { ext, contentType } = infoFileTerkompresi(compressed, file);
     const filePath = `${order.dbId}-${Date.now()}.${ext}`;
     try {
       const res = await fetch(`${SUPABASE_URL}/storage/v1/object/bukti-transfer/${filePath}`, {
@@ -1262,7 +1279,7 @@ export default function OrderApp() {
         headers: {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${authToken || SUPABASE_ANON_KEY}`,
-          "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream"),
+          "Content-Type": contentType,
         },
         body: compressed,
       });
@@ -4447,12 +4464,11 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
     setUploadingImage(true);
     try {
       const compressed = await compressImage(file);
-      const isJpeg = compressed.type === "image/jpeg" && file.type?.startsWith("image/");
-      const ext = isJpeg ? "jpg" : file.name.split(".").pop();
+      const { ext, contentType } = infoFileTerkompresi(compressed, file);
       const filePath = `chat-${activeTab}-${toko.id}-${Date.now()}.${ext}`;
       const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
         method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream") },
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": contentType },
         body: compressed,
       });
       if (!res.ok) throw new Error(await res.text());
@@ -4950,8 +4966,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
       // Foto KTP butuh tetap jelas terbaca (buat verifikasi identitas) -
       // pakai kualitas/dimensi lebih tinggi dibanding foto toko biasa.
       const compressed = jenis === "ktp" ? await compressImage(file, 1600, 0.88) : await compressImage(file);
-      const isJpeg = compressed.type === "image/jpeg" && file.type?.startsWith("image/");
-      const ext = isJpeg ? "jpg" : file.name.split(".").pop();
+      const { ext, contentType } = infoFileTerkompresi(compressed, file);
       const filePath = `verifikasi-${jenis}-${toko.id}-${Date.now()}.${ext}`;
 
       if (jenis === "ktp") {
@@ -4960,7 +4975,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
         // sementara (lihat getSignedKtpUrl).
         const res = await fetch(`${SUPABASE_URL}/storage/v1/object/dokumen-verifikasi/${filePath}`, {
           method: "POST",
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream") },
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": contentType },
           body: compressed,
         });
         if (!res.ok) throw new Error(await res.text());
@@ -4970,7 +4985,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
       } else {
         const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
           method: "POST",
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream") },
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": contentType },
           body: compressed,
         });
         if (!res.ok) throw new Error(await res.text());
