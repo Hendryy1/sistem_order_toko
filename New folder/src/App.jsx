@@ -129,8 +129,18 @@ async function supabaseFetch(path, options = {}, userToken = null) {
       ...(options.headers || {}),
     },
   });
-  if (!res.ok) throw new Error(`Supabase error ${res.status}: ${await res.text()}`);
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Supabase error ${res.status}: ${text}`);
+  // Respons bisa kosong/whitespace saja (misal saat pakai header Prefer
+  // yang tidak minta "return=representation") - jangan paksa parse JSON
+  // kalau begitu, supaya tidak error "Unexpected end of JSON input".
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed);
+  } catch (e) {
+    throw new Error(`Gagal baca respons server: ${e.message}`);
+  }
 }
 
 async function supabaseSignUp(email, password) {
@@ -2008,7 +2018,7 @@ function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLog
       berlakuSampai.setDate(berlakuSampai.getDate() + 30);
       await supabaseFetch(`akses_sales_toko?on_conflict=sales_id,client_id`, {
         method: "POST",
-        headers: { Prefer: "resolution=merge-duplicates" },
+        headers: { Prefer: "resolution=merge-duplicates,return=representation" },
         body: JSON.stringify({ sales_id: salesInfo.id, client_id: tokoOtp.id, berlaku_sampai: berlakuSampai.toISOString() }),
       }, token);
 
