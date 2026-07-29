@@ -557,6 +557,12 @@ export default function OrderApp() {
   const [loginError, setLoginError] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [restoringSession, setRestoringSession] = useState(true);
+  // ---- Mode Sales: sales login pakai email/password sendiri, lalu pilih
+  // toko yang ditanganinya buat dibantu order-kan ----
+  const [salesInfo2, setSalesInfo2] = useState(null); // { id, nama } - null kalau bukan sesi sales
+  const [daftarTokoSales, setDaftarTokoSales] = useState([]);
+  const [showPilihToko, setShowPilihToko] = useState(false);
+  const [salesAuthCache, setSalesAuthCache] = useState(null); // { userId, token, refreshToken, email } - disimpan sementara sebelum toko dipilih
   const [cart, setCart] = useState({}); // { kodeBarang: qty }
   const [cartLoaded, setCartLoaded] = useState(false);
   const [activeCategory, setActiveCategory] = useState("Semua");
@@ -718,9 +724,26 @@ export default function OrderApp() {
 
   // Ambil data toko (dari tabel clients langsung, pakai token sendiri, bukan view publik -
   // toko yang login boleh baca profil lengkap miliknya sendiri) lalu simpan sesi login.
-  async function loadTokoAndEnterApp(userId, token, email, refreshToken) {
-    const rows = await supabaseFetch(`clients?select=*&id=eq.${userId}`, {}, token);
+  async function loadTokoAndEnterApp(userId, token, email, refreshToken, overrideClientId, salesIdPembuat) {
+    const idUntukDicari = overrideClientId || userId;
+    const rows = await supabaseFetch(`clients?select=*&id=eq.${idUntukDicari}`, {}, token);
     if (!rows || rows.length === 0) {
+      // Bukan akun toko - cek apakah ini akun SALES (Dashboard) yang mau
+      // login buat bantu order-kan toko yang ditanganinya.
+      const profilRows = await supabaseFetch(`profiles?select=role,sales_id&id=eq.${userId}`, {}, token);
+      const profil = profilRows?.[0];
+      if (profil?.role === "sales" && profil?.sales_id) {
+        const salesRows = await supabaseFetch(`sales?select=id,nama&id=eq.${profil.sales_id}`, {}, token);
+        const salesData = salesRows?.[0];
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota&sales_id=eq.${profil.sales_id}&status=eq.aktif&order=nama.asc`, {}, token);
+        setSalesInfo2(salesData || { id: profil.sales_id, nama: "Sales" });
+        setDaftarTokoSales(tokoList || []);
+        setSalesAuthCache({ userId, token, refreshToken, email });
+        setShowPilihToko(true);
+        setAuthToken(token);
+        saveSession({ token, userId, email, refreshToken });
+        return true;
+      }
       throw new Error("Akun ditemukan tapi profil toko belum ada. Coba daftar ulang.");
     }
     const r = rows[0];
@@ -741,12 +764,14 @@ export default function OrderApp() {
       namaOwner: r.nama_owner || null, tanggalLahir: r.tanggal_lahir || null,
       jenisUsaha: r.jenis_usaha || null, provinsi: r.provinsi || null,
       status: r.status || null, noHpDiubahTerakhir: r.no_hp_diubah_terakhir || null,
+      dibuatOlehSales: salesIdPembuat || null, namaSalesPembuat: salesIdPembuat ? salesInfo2?.nama : null,
     };
     setToko(tokoData);
     setAuthToken(token);
     setIsGuest(false);
+    setShowPilihToko(false);
     setScreen("catalog");
-    saveSession({ token, userId, email, refreshToken });
+    if (!salesIdPembuat) saveSession({ token, userId, email, refreshToken });
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
     loadSavedAddresses(r.id);
@@ -826,6 +851,36 @@ export default function OrderApp() {
     setIsDropship(false);
     setDropshipPrices({});
     setDropshipSender("");
+    setSalesInfo2(null);
+    setDaftarTokoSales([]);
+    setShowPilihToko(false);
+    setSalesAuthCache(null);
+    setScreen("login");
+  }
+
+  // Sales pilih 1 toko dari daftar yang ditanganinya - masuk ke app SEPERTI
+  // toko itu login sendiri, tapi ditandai "dibuatOlehSales" buat transparansi.
+  async function pilihTokoUntukSales(clientId) {
+    if (!salesAuthCache) return;
+    setLoggingIn(true);
+    try {
+      await loadTokoAndEnterApp(salesAuthCache.userId, salesAuthCache.token, salesAuthCache.email, salesAuthCache.refreshToken, clientId, salesInfo2?.id);
+      // Simpan toko yang dipilih ke sesi - supaya kalau di-refresh, sales
+      // TETAP di toko yang sama, tidak balik ke layar pilih toko lagi.
+      saveSession({ token: salesAuthCache.token, userId: salesAuthCache.userId, email: salesAuthCache.email, refreshToken: salesAuthCache.refreshToken, selectedClientId: clientId, salesIdPembuat: salesInfo2?.id });
+    } catch (e) {
+      setLoginError(e.message);
+    }
+    setLoggingIn(false);
+  }
+
+  // Keluar dari toko yang lagi "dipakaikan" sales - balik ke daftar pilih
+  // toko lagi (bukan logout total, sesi sales tetap aktif).
+  function keluarDariTokoSales() {
+    setToko(null);
+    setCart({});
+    setCheckedItems({});
+    setShowPilihToko(true);
     setScreen("login");
   }
 
@@ -855,12 +910,12 @@ export default function OrderApp() {
     async function restoreWithRefresh(timeoutMs) {
       if (session.refreshToken) {
         const refreshed = await supabaseRefreshToken(session.refreshToken, timeoutMs);
-        await loadTokoAndEnterApp(session.userId, refreshed.access_token, session.email, refreshed.refresh_token);
+        await loadTokoAndEnterApp(session.userId, refreshed.access_token, session.email, refreshed.refresh_token, session.selectedClientId, session.salesIdPembuat);
         return;
       }
       // Sesi lama (sebelum fitur ini ada) belum punya refresh_token - coba
       // pakai access_token yang tersimpan apa adanya, kalau gagal ya harus login ulang
-      await loadTokoAndEnterApp(session.userId, session.token, session.email);
+      await loadTokoAndEnterApp(session.userId, session.token, session.email, undefined, session.selectedClientId, session.salesIdPembuat);
     }
 
     // Coba sampai 3x kalau penyebabnya error jaringan (jeda singkat di
@@ -1312,6 +1367,15 @@ export default function OrderApp() {
         ::selection { background: #E8A426; color: #24272B; }
       `}</style>
 
+      {toko?.dibuatOlehSales && screen !== "login" && screen !== "register" && (
+        <div style={{ position: "sticky", top: 0, zIndex: 200, background: "#24272B", color: "#fff", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 11.5 }}>
+          <span>🎧 Mode Sales - Order untuk <strong>{toko.nama}</strong></span>
+          <button onClick={keluarDariTokoSales} style={{ background: "#E8A426", border: "none", color: "#24272B", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999, flexShrink: 0 }}>
+            Ganti Toko
+          </button>
+        </div>
+      )}
+
       {campaignVisible && campaignBanner?.aktif && campaignBanner?.gambar_url && screen !== "login" && screen !== "register" && screen !== "campaign-detail" && (
         <FloatingCampaignWidget
           imageUrl={campaignBanner.gambar_url}
@@ -1320,12 +1384,20 @@ export default function OrderApp() {
         />
       )}
 
-      {screen === "login" && (
+      {screen === "login" && !showPilihToko && (
         <LoginScreen
           form={loginForm} setForm={setLoginForm}
           loginError={loginError} onLogin={handleLogin} loading={loggingIn}
           onGoRegister={() => setScreen("register")}
           onGuestBrowse={handleGuestBrowse}
+        />
+      )}
+
+      {screen === "login" && showPilihToko && (
+        <PilihTokoScreen
+          salesInfo={salesInfo2} daftarToko={daftarTokoSales}
+          onPilih={pilihTokoUntukSales} loading={loggingIn}
+          onLogout={handleLogout}
         />
       )}
 
@@ -1755,6 +1827,63 @@ function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister
         style={{ width: "100%", padding: "14px", borderRadius: 12, border: "1.5px solid #24272B", background: "none", color: "#fff", fontSize: 14, fontWeight: 600 }}
       >
         Lihat Katalog Dulu (Tanpa Login)
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// PILIH TOKO (khusus akun Sales) - sales pilih toko mana yang mau
+// dibantu order-kan
+// ============================================================
+function PilihTokoScreen({ salesInfo, daftarToko, onPilih, loading, onLogout }) {
+  const [cari, setCari] = useState("");
+  const tokoTampil = daftarToko.filter((t) =>
+    !cari.trim() || t.nama.toLowerCase().includes(cari.toLowerCase()) || t.kode.toLowerCase().includes(cari.toLowerCase())
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F7F5F1", padding: "40px 24px" }}>
+      <div style={{ textAlign: "center", marginBottom: 24 }}>
+        <div style={{ width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg, #E8A426, #D6871A)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+          <Headphones size={26} color="#fff" />
+        </div>
+        <h1 className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Halo, {salesInfo?.nama || "Sales"}</h1>
+        <p style={{ fontSize: 13, color: "#6B6F75", margin: 0 }}>Pilih toko yang mau Anda bantu order-kan</p>
+      </div>
+
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <Search size={16} color="#9CA0A6" style={{ position: "absolute", left: 14, top: 13 }} />
+        <input
+          value={cari} onChange={(e) => setCari(e.target.value)}
+          placeholder="Cari nama/kode toko..."
+          style={{ width: "100%", padding: "11px 14px 11px 38px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5 }}
+        />
+      </div>
+
+      {tokoTampil.length === 0 ? (
+        <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6", padding: "30px 0" }}>
+          {daftarToko.length === 0 ? "Belum ada toko yang ditangani akun Anda." : "Tidak ketemu toko dengan kata kunci itu."}
+        </p>
+      ) : (
+        tokoTampil.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => onPilih(t.id)}
+            disabled={loading}
+            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: 12, border: "1px solid #EDEAE3", background: "#fff", marginBottom: 10, textAlign: "left" }}
+          >
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{t.nama}</p>
+              <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>{t.kode} - {t.kota || "-"}</p>
+            </div>
+            <ChevronRight size={18} color="#9CA0A6" />
+          </button>
+        ))
+      )}
+
+      <button onClick={onLogout} style={{ display: "block", margin: "24px auto 0", background: "none", border: "none", color: "#9CA0A6", fontSize: 12.5, textDecoration: "underline" }}>
+        Keluar dari akun Sales
       </button>
     </div>
   );
