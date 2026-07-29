@@ -2570,7 +2570,15 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
             style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
           >
             {fotoUtama.map((url, i) => (
-              <ImgAutoRetry key={i} src={url} alt={product.nama} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", display: "block" }} />
+              Math.abs(i - activeSlide) <= 1 ? (
+                <ImgAutoRetry key={i} src={url} alt={product.nama} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", display: "block" }} />
+              ) : (
+                // Foto yang MASIH JAUH dari yang sedang dilihat belum dimuat
+                // sama sekali - mengurangi jumlah foto yang diminta BERSAMAAN
+                // ke jaringan (supaya kecil kemungkinan ada yang gagal),
+                // nanti otomatis dimuat begitu digeser mendekat.
+                <div key={i} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start" }} />
+              )
             ))}
           </div>
         ) : (
