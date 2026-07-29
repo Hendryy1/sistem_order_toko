@@ -3651,7 +3651,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
 // HALAMAN DETAIL KAMPANYE
 // ============================================================
 // ============================================================
-// CHAT CUSTOMER SERVICE AI - "INDAH"
+// CHAT CUSTOMER SERVICE - "CLARA"
 // ============================================================
 // ============================================================
 // NOTIFIKASI (status pesanan & balasan chat)
@@ -3729,25 +3729,27 @@ function NotifikasiScreen({ toko, onBack }) {
 }
 
 // ============================================================
-// PILIHAN CHAT: INDAH (AI) ATAU SALES
+// PILIHAN CHAT: CLARA (CS) ATAU SALES
 // ============================================================
 function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart, rincian }) {
-  const [activeTab, setActiveTab] = useState("indah"); // "indah" | "sales"
+  const [activeTab, setActiveTab] = useState("clara"); // "clara" | "sales"
   const [salesInfo, setSalesInfo] = useState(null);
   const [showCaseHistory, setShowCaseHistory] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [caseHistoryList, setCaseHistoryList] = useState([]);
   const [caseHistorySearch, setCaseHistorySearch] = useState("");
   const [loadingCaseHistory, setLoadingCaseHistory] = useState(false);
-  const [historyFilter, setHistoryFilter] = useState("sales"); // "sales" | "indah"
+  const [historyFilter, setHistoryFilter] = useState("sales"); // "sales" | "clara"
 
-  // ---- state chat INDAH (AI) ----
-  const [indahMessages, setIndahMessages] = useState([
-    { role: "assistant", text: `Halo${toko?.nama ? " " + toko.nama : ""}! Saya INDAH, asisten customer service di sini. Ada yang bisa saya bantu seputar produk, cara order, atau status pesanan Anda?` },
-  ]);
-  const [indahInput, setIndahInput] = useState("");
-  const [indahSending, setIndahSending] = useState(false);
-  const indahScrollRef = useRef(null);
+  // ---- state chat CLARA (Customer Service - manusia asli, terhubung ke
+  // Chat Toko, ditangani Admin Transaksi) ----
+  const [claraCaseInfo, setClaraCaseInfo] = useState(null);
+  const [claraMessages, setClaraMessages] = useState([]);
+  const [claraInput, setClaraInput] = useState("");
+  const [claraSending, setClaraSending] = useState(false);
+  const [claraLoading, setClaraLoading] = useState(true);
+  const claraScrollRef = useRef(null);
+  const claraPollRef = useRef(null);
 
   // ---- state chat SALES ----
   const [caseInfo, setCaseInfo] = useState(null);
@@ -3774,15 +3776,43 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
 
   useEffect(() => {
     loadExistingCaseOnly();
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    loadExistingClaraCase();
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (claraPollRef.current) clearInterval(claraPollRef.current);
+    };
   }, []);
+
+  // Cuma AMBIL kasus CLARA yang sudah ada (kalau ada) - sama polanya
+  // seperti sales, tapi kategori='clara'.
+  async function loadExistingClaraCase() {
+    setClaraLoading(true);
+    try {
+      const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&kategori=eq.clara&status=eq.open&order=created_at.desc&limit=1`);
+      if (existing[0]) {
+        setClaraCaseInfo(existing[0]);
+        await loadClaraMessages(existing[0].id);
+        claraPollRef.current = setInterval(() => loadClaraMessages(existing[0].id), 4000);
+      }
+    } catch (e) {
+      console.log("Gagal buka chat Clara:", e.message);
+    }
+    setClaraLoading(false);
+  }
+
+  async function loadClaraMessages(caseId) {
+    try {
+      const rows = await supabaseFetch(`chat_messages?select=*&case_id=eq.${caseId}&order=created_at.asc`);
+      setClaraMessages(rows);
+    } catch (e) { /* diamkan, coba lagi di polling berikutnya */ }
+  }
 
   // Cuma AMBIL kasus yang sudah ada (kalau ada) - TIDAK bikin No Case baru di
   // sini. No Case baru dibuat pas toko benar-benar kirim pesan pertama.
   async function loadExistingCaseOnly() {
     setSalesLoading(true);
     try {
-      const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&status=eq.open&order=created_at.desc&limit=1`);
+      const existing = await supabaseFetch(`chat_cases?select=*&client_id=eq.${toko.id}&kategori=eq.sales&status=eq.open&order=created_at.desc&limit=1`);
       if (existing[0]) {
         setCaseInfo(existing[0]);
         await loadMessages(existing[0].id);
@@ -3802,8 +3832,8 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
   }
 
   useEffect(() => {
-    indahScrollRef.current?.scrollTo({ top: indahScrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [indahMessages, indahSending]);
+    claraScrollRef.current?.scrollTo({ top: claraScrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [claraMessages, claraSending]);
 
   useEffect(() => {
     salesScrollRef.current?.scrollTo({ top: salesScrollRef.current.scrollHeight, behavior: "smooth" });
@@ -3814,7 +3844,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
     setShowCaseHistory(true);
     setLoadingCaseHistory(true);
     try {
-      const rows = await supabaseFetch(`chat_cases?select=id,no_case,status,created_at&client_id=eq.${toko.id}&order=created_at.desc`);
+      const rows = await supabaseFetch(`chat_cases?select=id,no_case,status,created_at,kategori&client_id=eq.${toko.id}&order=created_at.desc`);
       setCaseHistoryList(rows);
     } catch (e) {
       console.log("Gagal muat riwayat case:", e.message);
@@ -3822,70 +3852,54 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
     setLoadingCaseHistory(false);
   }
 
-  // ================= FUNGSI CHAT INDAH (AI) =================
-  async function handleSendIndah() {
-    const text = indahInput.trim();
-    if (!text || indahSending) return;
-    const nextMessages = [...indahMessages, { role: "user", text }];
-    setIndahMessages(nextMessages);
-    setIndahInput("");
-    setIndahSending(true);
-    try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 500,
-          system: `Kamu adalah INDAH, asisten AI customer service untuk toko B2B (distributor bahan bangunan & sparepart) yang melayani pelanggan lewat aplikasi order online ini. Tugasmu membantu pelanggan (pemilik toko yang jadi pelanggan B2B) dengan pertanyaan seputar produk, cara order, status pesanan, cara pembayaran, dan hal umum lain terkait layanan ini. Bersikap ramah, sopan, singkat, dan selalu pakai Bahasa Indonesia. Kalau ditanya hal di luar topik toko/produk/order, arahkan dengan sopan kembali ke seputar layanan ini. Kamu adalah AI, jangan berpura-pura jadi manusia kalau ditanya langsung. Nama toko yang sedang chat: ${toko?.nama || "Tamu"}.`,
-          messages: nextMessages.map((m) => ({ role: m.role, content: m.text })),
-        }),
-      });
-      const data = await response.json();
-      const replyText = data.content?.map((c) => c.text || "").join("") || "Maaf, saya belum bisa jawab itu sekarang.";
-      setIndahMessages((prev) => [...prev, { role: "assistant", text: replyText }]);
-    } catch (e) {
-      setIndahMessages((prev) => [...prev, { role: "assistant", text: "Maaf, sedang ada gangguan koneksi. Coba lagi sebentar ya." }]);
-    }
-    setIndahSending(false);
-  }
-
-  // ================= FUNGSI CHAT SALES =================
-  // Fungsi kirim generik - dipakai buat teks, gambar, referensi produk/pesanan/troli.
+  // ================= FUNGSI CHAT (generik - dipakai baik tab Clara maupun
+  // Sales, tinggal cek activeTab buat tahu case/state mana yang dipakai) =================
   async function sendMessage({ message, image_url, tipe_pesan }) {
-    if (salesSending) return;
-    setSalesSending(true);
+    const isClara = activeTab === "clara";
+    if (isClara ? claraSending : salesSending) return;
+    (isClara ? setClaraSending : setSalesSending)(true);
     try {
-      let activeCase = caseInfo;
+      let activeCase = isClara ? claraCaseInfo : caseInfo;
       if (!activeCase) {
         const [created] = await supabaseFetch("chat_cases", {
           method: "POST",
-          body: JSON.stringify({ client_id: toko.id, sales_id: toko.salesId || null }),
+          body: JSON.stringify(
+            isClara
+              ? { client_id: toko.id, kategori: "clara" }
+              : { client_id: toko.id, sales_id: toko.salesId || null, kategori: "sales" }
+          ),
         });
         activeCase = created;
-        setCaseInfo(created);
-        pollRef.current = setInterval(() => loadMessages(created.id), 4000);
+        if (isClara) {
+          setClaraCaseInfo(created);
+          claraPollRef.current = setInterval(() => loadClaraMessages(created.id), 4000);
+        } else {
+          setCaseInfo(created);
+          pollRef.current = setInterval(() => loadMessages(created.id), 4000);
+        }
       }
       const [inserted] = await supabaseFetch("chat_messages", {
         method: "POST",
         body: JSON.stringify({ case_id: activeCase.id, sender_type: "toko", message: message || "", image_url: image_url || null, tipe_pesan: tipe_pesan || "teks" }),
       });
-      setSalesMessages((prev) => [...prev, inserted]);
+      (isClara ? setClaraMessages : setSalesMessages)((prev) => [...prev, inserted]);
     } catch (e) {
       alert("Gagal kirim pesan: " + e.message);
     }
-    setSalesSending(false);
+    (isClara ? setClaraSending : setSalesSending)(false);
   }
 
   async function handleSendSales() {
-    const text = salesInput.trim();
+    const isClara = activeTab === "clara";
+    const text = (isClara ? claraInput : salesInput).trim();
     if (!text) return;
-    setSalesInput("");
+    (isClara ? setClaraInput : setSalesInput)("");
     await sendMessage({ message: text, tipe_pesan: "teks" });
   }
 
   function insertEmoji(emoji) {
-    setSalesInput((prev) => prev + emoji);
+    if (activeTab === "clara") setClaraInput((prev) => prev + emoji);
+    else setSalesInput((prev) => prev + emoji);
     setShowEmoji(false);
   }
 
@@ -3897,7 +3911,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
     setUploadingImage(true);
     try {
       const ext = file.name.split(".").pop();
-      const filePath = `chat-${toko.id}-${Date.now()}.${ext}`;
+      const filePath = `chat-${activeTab}-${toko.id}-${Date.now()}.${ext}`;
       const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
         method: "POST",
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
@@ -3941,15 +3955,18 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
   }
 
   async function tutupKasus() {
-    if (!caseInfo || caseInfo.status === "closed") return;
+    const isClara = activeTab === "clara";
+    const activeCase = isClara ? claraCaseInfo : caseInfo;
+    if (!activeCase || activeCase.status === "closed") return;
     if (!confirm("Tutup obrolan ini? Kalau nanti chat lagi, akan mulai No. Case baru.")) return;
     try {
-      await supabaseFetch(`chat_cases?id=eq.${caseInfo.id}`, {
+      await supabaseFetch(`chat_cases?id=eq.${activeCase.id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: "closed" }),
       });
-      setCaseInfo((prev) => ({ ...prev, status: "closed" }));
-      if (pollRef.current) clearInterval(pollRef.current);
+      (isClara ? setClaraCaseInfo : setCaseInfo)((prev) => ({ ...prev, status: "closed" }));
+      if (isClara) { if (claraPollRef.current) clearInterval(claraPollRef.current); }
+      else { if (pollRef.current) clearInterval(pollRef.current); }
     } catch (e) {
       alert("Gagal menutup obrolan: " + e.message);
     }
@@ -3983,23 +4000,23 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
         </div>
       </div>
 
-      {/* TAB INDAH | SALES - langsung tampilkan chat, tanpa perlu pindah halaman */}
+      {/* TAB CLARA | SALES - langsung tampilkan chat, tanpa perlu pindah halaman */}
       <div style={{ display: "flex", gap: 8, padding: "12px 20px", background: "#fff", borderBottom: "1px solid #EDEAE3", flexShrink: 0 }}>
         <button
-          onClick={() => setActiveTab("indah")}
-          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, border: activeTab === "indah" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "indah" ? "#FBF0D9" : "#fff" }}
+          onClick={() => setActiveTab("clara")}
+          style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, border: activeTab === "clara" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "clara" ? "#FBF0D9" : "#fff" }}
         >
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#E8A426", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <img
-              src="https://api.dicebear.com/7.x/bottts/svg?seed=INDAH"
-              alt="INDAH"
+              src="https://api.dicebear.com/7.x/personas/svg?seed=CLARA"
+              alt="CLARA"
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               onError={(e) => { e.target.style.display = "none"; }}
             />
           </div>
           <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>INDAH</p>
-            <p style={{ fontSize: 10.5, color: "#9CA0A6", margin: 0 }}>AI Customer Service</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>CLARA</p>
+            <p style={{ fontSize: 10.5, color: "#9CA0A6", margin: 0 }}>Customer Service</p>
           </div>
         </button>
         <button
@@ -4021,76 +4038,41 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
         </button>
       </div>
 
-      {/* ===================== ISI CHAT INDAH ===================== */}
-      {activeTab === "indah" && (
-        <>
-          <div ref={indahScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-            {indahMessages.map((m, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-                <div style={{
-                  maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
-                  background: m.role === "user" ? "#E8A426" : "#fff",
-                  color: "#24272B",
-                  border: m.role === "user" ? "none" : "1px solid #EDEAE3",
-                  fontSize: 13.5, lineHeight: 1.5,
-                  borderBottomRightRadius: m.role === "user" ? 4 : 14,
-                  borderBottomLeftRadius: m.role === "user" ? 14 : 4,
-                }}>
-                  {m.text}
-                </div>
-              </div>
-            ))}
-            {indahSending && (
-              <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
-                <div style={{ padding: "10px 14px", borderRadius: 14, background: "#fff", border: "1px solid #EDEAE3", fontSize: 13, color: "#9CA0A6" }}>
-                  INDAH sedang mengetik...
-                </div>
-              </div>
-            )}
-          </div>
-          <div style={{ padding: "12px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", display: "flex", gap: 10, flexShrink: 0 }}>
-            <input
-              value={indahInput}
-              onChange={(e) => setIndahInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendIndah()}
-              placeholder="Tulis pesan..."
-              enterKeyHint="send"
-              style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5, outline: "none" }}
-            />
-            <button
-              onClick={handleSendIndah}
-              disabled={indahSending || !indahInput.trim()}
-              style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (indahSending || !indahInput.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-            >
-              Kirim
-            </button>
-          </div>
-        </>
-      )}
+      {/* ===================== ISI CHAT (generik - Clara atau Sales) ===================== */}
+      {(activeTab === "clara" || activeTab === "sales") && (() => {
+        const isClaraTab = activeTab === "clara";
+        const activeCaseInfo = isClaraTab ? claraCaseInfo : caseInfo;
+        const activeMessages = isClaraTab ? claraMessages : salesMessages;
+        const activeLoadingChat = isClaraTab ? claraLoading : salesLoading;
+        const activeScrollRef = isClaraTab ? claraScrollRef : salesScrollRef;
+        const activeInputValue = isClaraTab ? claraInput : salesInput;
+        const setActiveInputValue = isClaraTab ? setClaraInput : setSalesInput;
+        const activeSendingChat = isClaraTab ? claraSending : salesSending;
+        const namaLawanBicara = isClaraTab ? "Clara" : "sales";
 
-      {/* ===================== ISI CHAT SALES ===================== */}
-      {activeTab === "sales" && (
-        salesLoading ? (
+        return activeLoadingChat ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <p style={{ color: "#9CA0A6", fontSize: 13 }}>Memuat chat...</p>
           </div>
         ) : (
           <>
             <div style={{ padding: "10px 20px", background: "#fff", borderBottom: "1px solid #EDEAE3", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-              <p style={{ fontSize: 10.5, color: "#B5B2AA", margin: 0 }}>{caseInfo?.no_case ? `No. Case: ${caseInfo.no_case}` : "Belum ada No. Case - kirim pesan dulu"}</p>
-              {caseInfo && caseInfo.status === "open" && (
+              <p style={{ fontSize: 10.5, color: "#B5B2AA", margin: 0 }}>{activeCaseInfo?.no_case ? `No. Case: ${activeCaseInfo.no_case}` : "Belum ada No. Case - kirim pesan dulu"}</p>
+              {activeCaseInfo && activeCaseInfo.status === "open" && (
                 <button onClick={tutupKasus} style={{ padding: "5px 10px", borderRadius: 7, border: "1.5px solid #F0CFC7", background: "#fff", color: "#C0392B", fontSize: 11, fontWeight: 700 }}>
                   Tutup
                 </button>
               )}
             </div>
-            <div ref={salesScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-              {salesMessages.length === 0 && (
+            <div ref={activeScrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+              {activeMessages.length === 0 && (
                 <p style={{ textAlign: "center", fontSize: 12.5, color: "#9CA0A6", padding: "20px 0" }}>
-                  Belum ada pesan. Tulis pertanyaan Anda, sales akan membalas sesegera mungkin.
+                  {isClaraTab
+                    ? `Halo${toko?.nama ? " " + toko.nama : ""}! Saya Clara, Customer Service di sini. Tulis pertanyaan Anda seputar produk, pesanan, atau pembayaran.`
+                    : "Belum ada pesan. Tulis pertanyaan Anda, sales akan membalas sesegera mungkin."}
                 </p>
               )}
-              {salesMessages.map((m) => (
+              {activeMessages.map((m) => (
                 <div key={m.id} style={{ display: "flex", justifyContent: m.sender_type === "toko" ? "flex-end" : "flex-start", marginBottom: 12 }}>
                   {m.tipe_pesan === "gambar" && m.image_url ? (
                     <img src={m.image_url} alt="Lampiran" style={{ maxWidth: "60%", borderRadius: 14, display: "block" }} />
@@ -4115,7 +4097,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
               )}
             </div>
 
-            {caseInfo?.status === "closed" ? (
+            {activeCaseInfo?.status === "closed" ? (
               <div style={{ padding: "14px 20px", background: "#fff", borderTop: "1px solid #EDEAE3", flexShrink: 0, textAlign: "center" }}>
                 <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>Obrolan ini sudah ditutup.</p>
               </div>
@@ -4163,8 +4145,8 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
                     <Plus size={18} color={showAttachMenu ? "#24272B" : "#6B6F75"} />
                   </button>
                   <input
-                    value={salesInput}
-                    onChange={(e) => setSalesInput(e.target.value)}
+                    value={activeInputValue}
+                    onChange={(e) => setActiveInputValue(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendSales()}
                     onFocus={() => { setShowAttachMenu(false); setShowEmoji(false); }}
                     placeholder="Tulis pesan..."
@@ -4173,8 +4155,8 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
                   />
                   <button
                     onClick={handleSendSales}
-                    disabled={salesSending || !salesInput.trim()}
-                    style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (salesSending || !salesInput.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    disabled={activeSendingChat || !activeInputValue.trim()}
+                    style={{ padding: "0 18px", height: 44, borderRadius: 10, border: "none", background: (activeSendingChat || !activeInputValue.trim()) ? "#E4E1DA" : "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     Kirim
                   </button>
@@ -4182,8 +4164,8 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
               </div>
             )}
           </>
-        )
-      )}
+        );
+      })()}
 
       {/* Modal riwayat kasus - cuma daftar, tidak bisa lihat isi percakapan lama */}
       {showCaseHistory && (
@@ -4204,10 +4186,10 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
             </div>
             <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
               <button
-                onClick={() => setHistoryFilter("indah")}
-                style={{ flex: 1, padding: "9px", borderRadius: 9, border: historyFilter === "indah" ? "1.5px solid #E8A426" : "1.5px solid #E4E1DA", background: historyFilter === "indah" ? "#FBF0D9" : "#fff", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}
+                onClick={() => setHistoryFilter("clara")}
+                style={{ flex: 1, padding: "9px", borderRadius: 9, border: historyFilter === "clara" ? "1.5px solid #E8A426" : "1.5px solid #E4E1DA", background: historyFilter === "clara" ? "#FBF0D9" : "#fff", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}
               >
-                INDAH
+                CLARA
               </button>
               <button
                 onClick={() => setHistoryFilter("sales")}
@@ -4216,12 +4198,11 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
                 Salesman
               </button>
             </div>
-            {historyFilter === "indah" ? (
-              <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Riwayat chat dengan INDAH belum tersimpan.</p>
-            ) : loadingCaseHistory ? (
+            {loadingCaseHistory ? (
               <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Memuat...</p>
             ) : (
               caseHistoryList
+                .filter((c) => c.kategori === historyFilter)
                 .filter((c) => c.no_case?.toLowerCase().includes(caseHistorySearch.toLowerCase()))
                 .map((c) => (
                   <div key={c.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 4px", borderBottom: "1px solid #F0EDE6" }}>
@@ -4235,7 +4216,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
                   </div>
                 ))
             )}
-            {historyFilter === "sales" && !loadingCaseHistory && caseHistoryList.length === 0 && (
+            {!loadingCaseHistory && caseHistoryList.filter((c) => c.kategori === historyFilter).length === 0 && (
               <p style={{ fontSize: 12.5, color: "#9CA0A6", textAlign: "center", padding: "20px 0" }}>Belum ada riwayat kasus.</p>
             )}
           </div>
