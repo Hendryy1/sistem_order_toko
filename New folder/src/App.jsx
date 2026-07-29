@@ -343,6 +343,52 @@ function sensorNoHp(hp) {
 }
 
 // ============================================================
+// KOMPRESI GAMBAR - kecilkan ukuran file foto sebelum diupload (resize +
+// re-encode jadi JPEG kualitas wajar), supaya lebih cepat & hemat kuota,
+// tapi masih enak dilihat. Dipakai di SEMUA tempat upload foto.
+// ============================================================
+function compressImage(file, maxDimension = 1280, quality = 0.8) {
+  return new Promise((resolve) => {
+    // Kalau bukan file gambar (misal PDF dokumen), lewati kompresi -
+    // kembalikan file aslinya apa adanya.
+    if (!file.type || !file.type.startsWith("image/")) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height / width) * maxDimension);
+            width = maxDimension;
+          } else {
+            width = Math.round((width / height) * maxDimension);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => resolve(blob || file), // kalau gagal kompres, tetap pakai file asli - jangan sampai upload gagal total
+          "image/jpeg",
+          quality
+        );
+      };
+      img.onerror = () => resolve(file); // gagal baca gambar - pakai file asli saja
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
 // GAMBAR AUTO-RETRY - kalau gambar gagal termuat penuh (koneksi putus
 // tengah jalan), otomatis coba ulang beberapa kali dengan cache-busting,
 // tanpa perlu user refresh halaman manual.
@@ -1098,7 +1144,9 @@ export default function OrderApp() {
   // Upload file bukti transfer ke Supabase Storage, lalu simpan link-nya ke order tsb.
   async function uploadBuktiTransfer(order, file) {
     if (!order.dbId || !file) return;
-    const ext = file.name.split(".").pop();
+    const compressed = await compressImage(file);
+    const isJpeg = compressed.type === "image/jpeg" && file.type?.startsWith("image/");
+    const ext = isJpeg ? "jpg" : file.name.split(".").pop();
     const filePath = `${order.dbId}-${Date.now()}.${ext}`;
     try {
       const res = await fetch(`${SUPABASE_URL}/storage/v1/object/bukti-transfer/${filePath}`, {
@@ -1106,9 +1154,9 @@ export default function OrderApp() {
         headers: {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${authToken || SUPABASE_ANON_KEY}`,
-          "Content-Type": file.type || "application/octet-stream",
+          "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream"),
         },
-        body: file,
+        body: compressed,
       });
       if (!res.ok) throw new Error(await res.text());
       const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/bukti-transfer/${filePath}`;
@@ -3948,12 +3996,14 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
     setShowAttachMenu(false);
     setUploadingImage(true);
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const isJpeg = compressed.type === "image/jpeg" && file.type?.startsWith("image/");
+      const ext = isJpeg ? "jpg" : file.name.split(".").pop();
       const filePath = `chat-${activeTab}-${toko.id}-${Date.now()}.${ext}`;
       const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
         method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
-        body: file,
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream") },
+        body: compressed,
       });
       if (!res.ok) throw new Error(await res.text());
       const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
@@ -4447,7 +4497,11 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
     const setUrl = jenis === "toko" ? setFotoToko : setFotoKtp;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop();
+      // Foto KTP butuh tetap jelas terbaca (buat verifikasi identitas) -
+      // pakai kualitas/dimensi lebih tinggi dibanding foto toko biasa.
+      const compressed = jenis === "ktp" ? await compressImage(file, 1600, 0.88) : await compressImage(file);
+      const isJpeg = compressed.type === "image/jpeg" && file.type?.startsWith("image/");
+      const ext = isJpeg ? "jpg" : file.name.split(".").pop();
       const filePath = `verifikasi-${jenis}-${toko.id}-${Date.now()}.${ext}`;
 
       if (jenis === "ktp") {
@@ -4456,8 +4510,8 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
         // sementara (lihat getSignedKtpUrl).
         const res = await fetch(`${SUPABASE_URL}/storage/v1/object/dokumen-verifikasi/${filePath}`, {
           method: "POST",
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
-          body: file,
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream") },
+          body: compressed,
         });
         if (!res.ok) throw new Error(await res.text());
         setUrl(filePath);
@@ -4466,8 +4520,8 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
       } else {
         const res = await fetch(`${SUPABASE_URL}/storage/v1/object/produk-gambar/${filePath}`, {
           method: "POST",
-          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type || "application/octet-stream" },
-          body: file,
+          headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": isJpeg ? "image/jpeg" : (file.type || "application/octet-stream") },
+          body: compressed,
         });
         if (!res.ok) throw new Error(await res.text());
         const url = `${SUPABASE_URL}/storage/v1/object/public/produk-gambar/${filePath}`;
