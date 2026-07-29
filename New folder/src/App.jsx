@@ -2188,7 +2188,9 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
             style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
           >
             {fotoUtama.map((url, i) => (
-              <ImgAutoRetry key={i} src={url} alt={product.nama} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", display: "block" }} />
+              <div key={i} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", aspectRatio: "1.4", background: meta.bg }}>
+                <ImgAutoRetry src={url} alt={product.nama} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              </div>
             ))}
           </div>
         ) : (
