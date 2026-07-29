@@ -2708,7 +2708,7 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
     .map(([kode, qty]) => {
       const p = products.find((x) => x.kode === kode);
       if (!p) return null;
-      return { kode, nama: p.nama, satuan: p.satuan, qty };
+      return { ...p, qty };
     })
     .filter(Boolean);
 
@@ -2748,13 +2748,39 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", margin: "0 0 10px" }}>Barang Dipesan ({daftarItem.length})</p>
-        {daftarItem.map((it) => (
-          <div key={it.kode} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid #F0EDE6" }}>
-            <span style={{ color: "#24272B" }}>{it.nama}</span>
-            <span style={{ fontWeight: 700, color: "#24272B", flexShrink: 0, marginLeft: 10 }}>{it.qty} {it.satuan}</span>
-          </div>
-        ))}
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", margin: "0 0 4px" }}>Barang Dipesan ({daftarItem.length})</p>
+        {daftarItem.map((p) => {
+          const meta = CATEGORY_META[p.kategori] || DEFAULT_CATEGORY_META;
+          const Icon = meta.icon;
+          const r = hitungRincianItem(p, p.qty);
+          return (
+            <div key={p.kode} style={{ display: "flex", gap: 10, padding: "12px 0", borderBottom: "1px solid #EDEAE3" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 11, background: p.gambarUrl ? `url(${p.gambarUrl}) center/cover` : meta.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {!p.gambarUrl && <Icon size={21} color={meta.fg} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B", margin: "0 0 4px" }}>{p.nama}</p>
+                {r.kenaKoli ? (
+                  <p style={{ fontSize: 12.5, margin: 0 }}>
+                    <span style={{ color: "#B5B2AA", textDecoration: "line-through" }}>{rupiah(p.harga)}</span>{" "}
+                    <span style={{ color: "#C0392B", fontWeight: 700 }}>{rupiah(Math.round(r.hargaSetelahKoli))}</span>{" "}
+                    <span style={{ color: "#9CA0A6" }}>/ {p.satuan}</span>
+                  </p>
+                ) : (
+                  <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: 0 }}>{rupiah(p.harga)} / {p.satuan}</p>
+                )}
+                {r.totalDiskon > 0 && (
+                  <p style={{ fontSize: 11, color: "#24272B", fontWeight: 600, margin: "4px 0 0" }}>
+                    Hemat {rupiah(Math.round(r.totalDiskon))} {r.kenaKoli && "(termasuk bonus koli)"}
+                  </p>
+                )}
+              </div>
+              <div style={{ flexShrink: 0, alignSelf: "center", background: "#F7F5F1", borderRadius: 8, padding: "5px 10px" }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: "#24272B" }}>{p.qty} {p.satuan}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ background: "#fff", borderRadius: 12, padding: 16, marginBottom: 16 }}>
