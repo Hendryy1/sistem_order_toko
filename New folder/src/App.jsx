@@ -343,6 +343,44 @@ function sensorNoHp(hp) {
 }
 
 // ============================================================
+// GAMBAR AUTO-RETRY - kalau gambar gagal termuat penuh (koneksi putus
+// tengah jalan), otomatis coba ulang beberapa kali dengan cache-busting,
+// tanpa perlu user refresh halaman manual.
+// ============================================================
+function ImgAutoRetry({ src, alt, style, onClick, draggable, className }) {
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    setAttempt(0); // gambar baru (src beda) - reset hitungan percobaan
+  }, [src]);
+
+  function handleError() {
+    if (attempt < 4) {
+      setTimeout(() => setAttempt((a) => a + 1), 800 * (attempt + 1));
+    }
+  }
+
+  if (!src) return null;
+  // Percobaan ke-2 dst pakai parameter cache-busting supaya request
+  // BENAR-BENAR ulang dari jaringan, bukan pakai cache/SW yang mungkin
+  // menyimpan versi gagal/setengah sebelumnya.
+  const finalSrc = attempt === 0 ? src : `${src}${src.includes("?") ? "&" : "?"}_retry=${attempt}`;
+
+  return (
+    <img
+      key={finalSrc}
+      src={finalSrc}
+      alt={alt}
+      style={style}
+      onClick={onClick}
+      draggable={draggable}
+      className={className}
+      onError={handleError}
+    />
+  );
+}
+
+// ============================================================
 // KOMPONEN UTAMA
 // ============================================================
 export default function OrderApp() {
@@ -2150,7 +2188,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
             style={{ display: "flex", overflowX: "auto", scrollSnapType: "x mandatory", WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
           >
             {fotoUtama.map((url, i) => (
-              <img key={i} src={url} alt={product.nama} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", display: "block" }} />
+              <ImgAutoRetry key={i} src={url} alt={product.nama} style={{ width: "100%", flexShrink: 0, scrollSnapAlign: "start", display: "block" }} />
             ))}
           </div>
         ) : (
@@ -2236,7 +2274,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
         {galeriDeskripsi.length > 0 && (
           <div>
             {galeriDeskripsi.map((img) => (
-              <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block" }} />
+              <ImgAutoRetry key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block" }} />
             ))}
           </div>
         )}
@@ -3628,7 +3666,7 @@ function FloatingCampaignWidget({ imageUrl, onClose, onOpenDetail }) {
             animation: isShaking ? "campaignShake 0.4s ease" : "none",
           }}
         >
-          <img src={imageUrl} alt="Kampanye" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} draggable={false} />
+          <ImgAutoRetry src={imageUrl} alt="Kampanye" style={{ width: "100%", height: "100%", objectFit: "cover", pointerEvents: "none" }} draggable={false} />
         </div>
 
         {/* Tombol close - DI LUAR badan widget (area khusus di atasnya) */}
@@ -4070,7 +4108,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
               {activeMessages.map((m) => (
                 <div key={m.id} style={{ display: "flex", justifyContent: m.sender_type === "toko" ? "flex-end" : "flex-start", marginBottom: 12 }}>
                   {m.tipe_pesan === "gambar" && m.image_url ? (
-                    <img src={m.image_url} alt="Lampiran" style={{ maxWidth: "60%", borderRadius: 14, display: "block" }} />
+                    <ImgAutoRetry src={m.image_url} alt="Lampiran" style={{ maxWidth: "60%", borderRadius: 14, display: "block" }} />
                   ) : (
                     <div style={{
                       maxWidth: "78%", padding: "10px 14px", borderRadius: 14,
@@ -4301,7 +4339,7 @@ function CampaignDetailScreen({ onBack, cartCount, onGoToCart, judul, deskripsi 
       {galeri.length > 0 && (
         <div>
           {galeri.map((img) => (
-            <img key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block" }} />
+            <ImgAutoRetry key={img.id} src={img.url} alt="" style={{ width: "100%", display: "block" }} />
           ))}
         </div>
       )}
@@ -4522,11 +4560,11 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
               <div>
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO TOKO</p>
-                <img src={fotoToko} alt="Foto Toko" onClick={() => setLightboxUrl(fotoToko)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
+                <ImgAutoRetry src={fotoToko} alt="Foto Toko" onClick={() => setLightboxUrl(fotoToko)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
               </div>
               <div>
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 6px", fontWeight: 700 }}>FOTO KTP</p>
-                <img src={fotoKtpDisplayUrl} alt="Foto KTP" onClick={() => setLightboxUrl(fotoKtpDisplayUrl)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
+                <ImgAutoRetry src={fotoKtpDisplayUrl} alt="Foto KTP" onClick={() => setLightboxUrl(fotoKtpDisplayUrl)} style={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 10, cursor: "pointer" }} />
               </div>
             </div>
             <button
@@ -4604,7 +4642,7 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           onClick={() => setLightboxUrl(null)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.9)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
         >
-          <img src={lightboxUrl} alt="Full" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, objectFit: "contain" }} />
+          <ImgAutoRetry src={lightboxUrl} alt="Full" style={{ maxWidth: "100%", maxHeight: "100%", borderRadius: 8, objectFit: "contain" }} />
           <button
             onClick={() => setLightboxUrl(null)}
             style={{ position: "absolute", top: 20, right: 20, width: 40, height: 40, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.15)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}
