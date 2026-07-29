@@ -735,7 +735,7 @@ export default function OrderApp() {
       if (profil?.role === "sales" && profil?.sales_id) {
         const salesRows = await supabaseFetch(`sales?select=id,nama&id=eq.${profil.sales_id}`, {}, token);
         const salesData = salesRows?.[0];
-        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota&sales_id=eq.${profil.sales_id}&status=eq.aktif&order=nama.asc`, {}, token);
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${profil.sales_id}&status=eq.aktif&order=nama.asc`, {}, token);
         setSalesInfo2(salesData || { id: profil.sales_id, nama: "Sales" });
         setDaftarTokoSales(tokoList || []);
         setSalesAuthCache({ userId, token, refreshToken, email });
@@ -775,7 +775,7 @@ export default function OrderApp() {
       try {
         const salesRows = await supabaseFetch(`sales?select=id,nama&id=eq.${salesIdPembuat}`, {}, token);
         setSalesInfo2(salesRows?.[0] || { id: salesIdPembuat, nama: "Sales" });
-        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota&sales_id=eq.${salesIdPembuat}&status=eq.aktif&order=nama.asc`, {}, token);
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${salesIdPembuat}&status=eq.aktif&order=nama.asc`, {}, token);
         setDaftarTokoSales(tokoList || []);
       } catch (e) { /* diamkan - kalau gagal, nanti dicoba lagi pas klik Ganti Toko */ }
     }
@@ -899,7 +899,7 @@ export default function OrderApp() {
     // sebelumnya gagal), coba ambil ulang di sini sebelum tampil ke user.
     if (daftarTokoSales.length === 0 && salesAuthCache) {
       try {
-        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota&sales_id=eq.${salesInfo2?.id}&status=eq.aktif&order=nama.asc`, {}, salesAuthCache.token);
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${salesInfo2?.id}&status=eq.aktif&order=nama.asc`, {}, salesAuthCache.token);
         setDaftarTokoSales(tokoList || []);
       } catch (e) { /* diamkan */ }
     }
@@ -1417,6 +1417,7 @@ export default function OrderApp() {
       {screen === "login" && showPilihToko && (
         <PilihTokoScreen
           salesInfo={salesInfo2} daftarToko={daftarTokoSales}
+          token={salesAuthCache?.token}
           onPilih={pilihTokoUntukSales} loading={loggingIn}
           onLogout={handleLogout}
         />
@@ -1857,11 +1858,116 @@ function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister
 // PILIH TOKO (khusus akun Sales) - sales pilih toko mana yang mau
 // dibantu order-kan
 // ============================================================
-function PilihTokoScreen({ salesInfo, daftarToko, onPilih, loading, onLogout }) {
+function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLogout }) {
   const [cari, setCari] = useState("");
+  const [daftarAkses, setDaftarAkses] = useState([]); // [{ client_id, berlaku_sampai }]
+  const [loadingAkses, setLoadingAkses] = useState(true);
+  // ---- Alur OTP kalau toko yang dipilih belum/sudah tidak punya akses ----
+  const [tokoOtp, setTokoOtp] = useState(null); // toko yang lagi diminta izin OTP-nya
+  const [otpStep, setOtpStep] = useState("none"); // none | sending | input
+  const [otpKode, setOtpKode] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+
   const tokoTampil = daftarToko.filter((t) =>
     !cari.trim() || t.nama.toLowerCase().includes(cari.toLowerCase()) || t.kode.toLowerCase().includes(cari.toLowerCase())
   );
+
+  async function muatAkses() {
+    setLoadingAkses(true);
+    try {
+      const rows = await supabaseFetch(`akses_sales_toko?select=client_id,berlaku_sampai&sales_id=eq.${salesInfo.id}`, {}, token);
+      setDaftarAkses(rows || []);
+    } catch (e) { /* diamkan - anggap belum ada akses kalau gagal muat */ }
+    setLoadingAkses(false);
+  }
+  useEffect(() => { if (salesInfo?.id && token) muatAkses(); }, [salesInfo?.id, token]);
+
+  function aksesMasihBerlaku(clientId) {
+    const akses = daftarAkses.find((a) => a.client_id === clientId);
+    if (!akses) return false;
+    return new Date(akses.berlaku_sampai) > new Date();
+  }
+
+  function tanggalBerlaku(clientId) {
+    const akses = daftarAkses.find((a) => a.client_id === clientId);
+    if (!akses) return null;
+    return new Date(akses.berlaku_sampai);
+  }
+
+  // Klik toko - kalau akses masih berlaku, langsung masuk. Kalau belum
+  // pernah/kadaluarsa, minta OTP dulu ke email toko itu.
+  function klikToko(t) {
+    if (aksesMasihBerlaku(t.id)) {
+      onPilih(t.id);
+    } else {
+      setTokoOtp(t);
+      setOtpKode("");
+      setOtpError("");
+      kirimOtpAkses(t);
+    }
+  }
+
+  async function kirimOtpAkses(t) {
+    if (!t.email) {
+      setOtpError("Toko ini belum punya email terdaftar - tidak bisa kirim kode izin akses. Hubungi Owner untuk lengkapi data toko ini dulu.");
+      setOtpStep("none");
+      return;
+    }
+    setOtpStep("sending");
+    setOtpError("");
+    setOtpBusy(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: t.email, create_user: false }),
+      });
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (e) {}
+      if (!res.ok) throw new Error(data.msg || data.error_description || `Gagal kirim kode (status ${res.status}).`);
+      setOtpStep("input");
+    } catch (e) {
+      setOtpError("Gagal kirim kode: " + (e.message || "terjadi kesalahan tak terduga."));
+      setOtpStep("none");
+    }
+    setOtpBusy(false);
+  }
+
+  async function verifikasiOtpAkses() {
+    if (!otpKode.trim()) {
+      setOtpError("Minta toko sebutkan kode yang masuk ke email mereka.");
+      return;
+    }
+    setOtpBusy(true);
+    setOtpError("");
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: tokoOtp.email, token: otpKode.trim(), type: "email" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Kode salah atau sudah kedaluwarsa.");
+
+      // Kode benar - simpan izin akses berlaku 30 hari ke depan
+      const berlakuSampai = new Date();
+      berlakuSampai.setDate(berlakuSampai.getDate() + 30);
+      await supabaseFetch(`akses_sales_toko?on_conflict=sales_id,client_id`, {
+        method: "POST",
+        headers: { Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify({ sales_id: salesInfo.id, client_id: tokoOtp.id, berlaku_sampai: berlakuSampai.toISOString() }),
+      }, token);
+
+      setTokoOtp(null);
+      setOtpStep("none");
+      onPilih(tokoOtp.id);
+    } catch (e) {
+      setOtpError(e.message);
+    }
+    setOtpBusy(false);
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#F7F5F1", padding: "40px 24px" }}>
@@ -1873,34 +1979,78 @@ function PilihTokoScreen({ salesInfo, daftarToko, onPilih, loading, onLogout }) 
         <p style={{ fontSize: 13, color: "#6B6F75", margin: 0 }}>Pilih toko yang mau Anda bantu order-kan</p>
       </div>
 
-      <div style={{ position: "relative", marginBottom: 16 }}>
-        <Search size={16} color="#9CA0A6" style={{ position: "absolute", left: 14, top: 13 }} />
-        <input
-          value={cari} onChange={(e) => setCari(e.target.value)}
-          placeholder="Cari nama/kode toko..."
-          style={{ width: "100%", padding: "11px 14px 11px 38px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5 }}
-        />
-      </div>
-
-      {tokoTampil.length === 0 ? (
-        <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6", padding: "30px 0" }}>
-          {daftarToko.length === 0 ? "Belum ada toko yang ditangani akun Anda." : "Tidak ketemu toko dengan kata kunci itu."}
-        </p>
-      ) : (
-        tokoTampil.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => onPilih(t.id)}
-            disabled={loading}
-            style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: 12, border: "1px solid #EDEAE3", background: "#fff", marginBottom: 10, textAlign: "left" }}
-          >
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{t.nama}</p>
-              <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>{t.kode} - {t.kota || "-"}</p>
-            </div>
-            <ChevronRight size={18} color="#9CA0A6" />
+      {tokoOtp ? (
+        <div style={{ background: "#fff", borderRadius: 14, padding: 18 }}>
+          <button onClick={() => { setTokoOtp(null); setOtpStep("none"); }} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 13, marginBottom: 14, padding: 0 }}>
+            <ChevronLeft size={16} /> Batal, kembali ke daftar
           </button>
-        ))
+          <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: "0 0 4px" }}>Minta Izin Akses - {tokoOtp.nama}</p>
+          <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "0 0 16px", lineHeight: 1.5 }}>
+            Belum ada izin aktif (atau sudah lewat 30 hari) untuk toko ini. Kode konfirmasi sudah dikirim ke email toko ({tokoOtp.email || "-"}) - minta pemilik toko sebutkan kodenya.
+          </p>
+          {otpStep === "sending" && <p style={{ fontSize: 12.5, color: "#9CA0A6" }}>Mengirim kode...</p>}
+          {(otpStep === "input" || (otpStep === "none" && otpError)) && (
+            <>
+              <input
+                value={otpKode} onChange={(e) => setOtpKode(e.target.value)}
+                placeholder="Kode dari email toko" inputMode="numeric"
+                style={{ width: "100%", padding: "12px 14px", borderRadius: 9, border: "1.5px solid #E4E1DA", fontSize: 16, textAlign: "center", letterSpacing: 4, marginBottom: 10 }}
+              />
+              {otpError && <p style={{ fontSize: 11.5, color: "#C0392B", margin: "0 0 10px" }}>{otpError}</p>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => kirimOtpAkses(tokoOtp)} disabled={otpBusy} style={{ flex: 1, padding: 11, borderRadius: 9, border: "1.5px solid #E4E1DA", background: "#fff", color: "#6B6F75", fontWeight: 700, fontSize: 12.5 }}>
+                  Kirim Ulang Kode
+                </button>
+                <button onClick={verifikasiOtpAkses} disabled={otpBusy} style={{ flex: 1, padding: 11, borderRadius: 9, border: "none", background: "#28685D", color: "#fff", fontWeight: 700, fontSize: 12.5 }}>
+                  {otpBusy ? "Memproses..." : "Verifikasi"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <div style={{ position: "relative", marginBottom: 16 }}>
+            <Search size={16} color="#9CA0A6" style={{ position: "absolute", left: 14, top: 13 }} />
+            <input
+              value={cari} onChange={(e) => setCari(e.target.value)}
+              placeholder="Cari nama/kode toko..."
+              style={{ width: "100%", padding: "11px 14px 11px 38px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 13.5 }}
+            />
+          </div>
+
+          {loadingAkses ? (
+            <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6", padding: "30px 0" }}>Memuat...</p>
+          ) : tokoTampil.length === 0 ? (
+            <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6", padding: "30px 0" }}>
+              {daftarToko.length === 0 ? "Belum ada toko yang ditangani akun Anda." : "Tidak ketemu toko dengan kata kunci itu."}
+            </p>
+          ) : (
+            tokoTampil.map((t) => {
+              const aktif = aksesMasihBerlaku(t.id);
+              const tglBerlaku = tanggalBerlaku(t.id);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => klikToko(t)}
+                  disabled={loading}
+                  style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderRadius: 12, border: "1px solid #EDEAE3", background: "#fff", marginBottom: 10, textAlign: "left" }}
+                >
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{t.nama}</p>
+                    <p style={{ fontSize: 12, color: "#9CA0A6", margin: 0 }}>{t.kode} - {t.kota || "-"}</p>
+                    {aktif ? (
+                      <p style={{ fontSize: 10.5, color: "#28685D", fontWeight: 700, margin: "4px 0 0" }}>Akses aktif sampai {tglBerlaku.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    ) : (
+                      <p style={{ fontSize: 10.5, color: "#B8860B", fontWeight: 700, margin: "4px 0 0" }}>Perlu izin OTP dulu</p>
+                    )}
+                  </div>
+                  <ChevronRight size={18} color="#9CA0A6" />
+                </button>
+              );
+            })
+          )}
+        </>
       )}
 
       <button onClick={onLogout} style={{ display: "block", margin: "24px auto 0", background: "none", border: "none", color: "#9CA0A6", fontSize: 12.5, textDecoration: "underline" }}>
