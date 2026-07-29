@@ -440,7 +440,6 @@ function ImgAutoRetry({ src, alt, style, onClick, draggable, className }) {
 
   return (
     <img
-      key={finalSrc}
       src={finalSrc}
       alt={alt}
       style={style}
