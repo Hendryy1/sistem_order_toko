@@ -3769,7 +3769,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
 
   useEffect(() => {
     if (!toko?.salesId) return;
-    supabaseFetch(`sales?select=nama,kode&id=eq.${toko.salesId}`)
+    supabaseFetch(`sales?select=nama,kode,foto_url&id=eq.${toko.salesId}`)
       .then((rows) => setSalesInfo(rows[0] || null))
       .catch(() => setSalesInfo(null));
   }, [toko?.salesId]);
@@ -4006,13 +4006,8 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
           onClick={() => setActiveTab("clara")}
           style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, border: activeTab === "clara" ? "1.5px solid #E8A426" : "1.5px solid #EDEAE3", background: activeTab === "clara" ? "#FBF0D9" : "#fff" }}
         >
-          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#E8A426", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <img
-              src="https://api.dicebear.com/7.x/personas/svg?seed=CLARA"
-              alt="CLARA"
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              onError={(e) => { e.target.style.display = "none"; }}
-            />
+          <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg, #E8A426, #D6871A)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Headphones size={22} color="#fff" />
           </div>
           <div style={{ textAlign: "center" }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>CLARA</p>
@@ -4025,7 +4020,7 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
         >
           <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#D8E9E6", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <img
-              src={`https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(salesInfo?.nama || "Sales")}`}
+              src={salesInfo?.foto_url || `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(salesInfo?.nama || "Sales")}`}
               alt={salesInfo?.nama || "Sales"}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               onError={(e) => { e.target.style.display = "none"; }}
