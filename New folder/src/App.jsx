@@ -766,6 +766,19 @@ export default function OrderApp() {
       status: r.status || null, noHpDiubahTerakhir: r.no_hp_diubah_terakhir || null,
       dibuatOlehSales: salesIdPembuat || null, namaSalesPembuat: salesIdPembuat ? salesInfo2?.nama : null,
     };
+    // Kalau ini mode SALES (termasuk hasil restore refresh yang langsung
+    // "lompat" ke toko terakhir) - pastikan daftar toko & cache sales TETAP
+    // terisi, supaya nanti kalau klik "Ganti Toko" datanya sudah siap,
+    // tidak kosong.
+    if (salesIdPembuat && (!salesAuthCache || daftarTokoSales.length === 0)) {
+      setSalesAuthCache({ userId, token, refreshToken, email });
+      try {
+        const salesRows = await supabaseFetch(`sales?select=id,nama&id=eq.${salesIdPembuat}`, {}, token);
+        setSalesInfo2(salesRows?.[0] || { id: salesIdPembuat, nama: "Sales" });
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota&sales_id=eq.${salesIdPembuat}&status=eq.aktif&order=nama.asc`, {}, token);
+        setDaftarTokoSales(tokoList || []);
+      } catch (e) { /* diamkan - kalau gagal, nanti dicoba lagi pas klik Ganti Toko */ }
+    }
     setToko(tokoData);
     setAuthToken(token);
     setIsGuest(false);
@@ -876,12 +889,20 @@ export default function OrderApp() {
 
   // Keluar dari toko yang lagi "dipakaikan" sales - balik ke daftar pilih
   // toko lagi (bukan logout total, sesi sales tetap aktif).
-  function keluarDariTokoSales() {
+  async function keluarDariTokoSales() {
     setToko(null);
     setCart({});
     setCheckedItems({});
     setShowPilihToko(true);
     setScreen("login");
+    // Jaga2 - kalau karena suatu sebab daftar toko masih kosong (misal fetch
+    // sebelumnya gagal), coba ambil ulang di sini sebelum tampil ke user.
+    if (daftarTokoSales.length === 0 && salesAuthCache) {
+      try {
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota&sales_id=eq.${salesInfo2?.id}&status=eq.aktif&order=nama.asc`, {}, salesAuthCache.token);
+        setDaftarTokoSales(tokoList || []);
+      } catch (e) { /* diamkan */ }
+    }
   }
 
   // Begitu app dibuka, cek dulu apakah ada sesi login tersimpan (supaya tidak
