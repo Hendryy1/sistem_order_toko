@@ -757,7 +757,7 @@ export default function OrderApp() {
     }
     const tokoData = {
       id: r.id, kode: r.kode, nama: r.nama, alamat: r.alamat, telp: r.telp, kota: r.kota,
-      jenisBayar: r.jenis_pembayaran, email, salesId: r.sales_id || null,
+      jenisBayar: r.jenis_pembayaran, email: salesIdPembuat ? r.email : email, salesId: r.sales_id || null,
       statusVerifikasi: r.status_verifikasi || "belum_upload",
       fotoTokoUrl: r.foto_toko_url || null, fotoKtpUrl: r.foto_ktp_url || null,
       alasanVerifikasiDitolak: r.alasan_verifikasi_ditolak || null,
