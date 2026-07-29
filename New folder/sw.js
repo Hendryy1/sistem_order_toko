@@ -5,7 +5,7 @@
 // project Vite Anda (bukan di dalam src/), supaya ter-deploy persis di
 // /sw.js (bukan di-bundle seperti file JS biasa).
 
-const CACHE_NAME = "app-shell-v2";
+const CACHE_NAME = "app-shell-v3";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting(); // langsung aktifkan versi baru begitu ter-install
@@ -48,23 +48,24 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Aset lain (JS/CSS/gambar) - tetap stale-while-revalidate seperti
-  // sebelumnya, karena nama filenya biasanya sudah unik per-versi (ada
-  // hash), jadi aman dipakai cache-first buat kecepatan.
+  // Aset lain (JS/CSS/gambar) - NETWORK-FIRST juga (bukan lagi
+  // stale-while-revalidate). Kenapa diubah: stale-while-revalidate selalu
+  // tampilkan versi CACHE dulu di percobaan pertama (baru update di
+  // percobaan berikutnya) - ini bikin refresh sekali belum cukup buat
+  // lihat kode terbaru, harus refresh 2x atau tutup-buka tab baru.
+  // Sekarang SELALU coba jaringan dulu; cache cuma dipakai kalau jaringan
+  // benar-benar gagal (offline). Konsekuensinya loading sedikit lebih
+  // lambat, tapi update kode langsung kelihatan begitu di-refresh.
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          if (networkResponse && networkResponse.ok) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          }
-          return networkResponse;
-        })
-        .catch(() => cachedResponse); // jaringan gagal total - pakai cache kalau ada
-
-      return cachedResponse || fetchPromise;
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.ok) {
+          const copy = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request)) // jaringan gagal total - pakai cache kalau ada
   );
 });
 
