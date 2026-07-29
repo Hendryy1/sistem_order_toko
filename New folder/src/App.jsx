@@ -788,7 +788,7 @@ export default function OrderApp() {
       if (profil?.role === "sales" && profil?.sales_id) {
         const salesRows = await supabaseFetch(`sales?select=id,nama&id=eq.${profil.sales_id}`, {}, token);
         const salesData = salesRows?.[0];
-        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${profil.sales_id}&status=eq.aktif&order=nama.asc`, {}, token);
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${profil.sales_id}&status=eq.aktif&mode_sales_aktif=eq.true&order=nama.asc`, {}, token);
         setSalesInfo2(salesData || { id: profil.sales_id, nama: "Sales" });
         setDaftarTokoSales(tokoList || []);
         setSalesAuthCache({ userId, token, refreshToken, email });
@@ -828,7 +828,7 @@ export default function OrderApp() {
       try {
         const salesRows = await supabaseFetch(`sales?select=id,nama&id=eq.${salesIdPembuat}`, {}, token);
         setSalesInfo2(salesRows?.[0] || { id: salesIdPembuat, nama: "Sales" });
-        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${salesIdPembuat}&status=eq.aktif&order=nama.asc`, {}, token);
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${salesIdPembuat}&status=eq.aktif&mode_sales_aktif=eq.true&order=nama.asc`, {}, token);
         setDaftarTokoSales(tokoList || []);
       } catch (e) { /* diamkan - kalau gagal, nanti dicoba lagi pas klik Ganti Toko */ }
     }
@@ -952,7 +952,7 @@ export default function OrderApp() {
     // sebelumnya gagal), coba ambil ulang di sini sebelum tampil ke user.
     if (daftarTokoSales.length === 0 && salesAuthCache) {
       try {
-        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${salesInfo2?.id}&status=eq.aktif&order=nama.asc`, {}, salesAuthCache.token);
+        const tokoList = await supabaseFetch(`clients?select=id,nama,kode,kota,email&sales_id=eq.${salesInfo2?.id}&status=eq.aktif&mode_sales_aktif=eq.true&order=nama.asc`, {}, salesAuthCache.token);
         setDaftarTokoSales(tokoList || []);
       } catch (e) { /* diamkan */ }
     }
@@ -2085,7 +2085,7 @@ function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLog
             <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6", padding: "30px 0" }}>Memuat...</p>
           ) : tokoTampil.length === 0 ? (
             <p style={{ textAlign: "center", fontSize: 13, color: "#9CA0A6", padding: "30px 0" }}>
-              {daftarToko.length === 0 ? "Belum ada toko yang ditangani akun Anda." : "Tidak ketemu toko dengan kata kunci itu."}
+              {daftarToko.length === 0 ? "Belum ada toko yang bisa dibantu order. Minta Owner aktifkan dulu toko yang bersangkutan." : "Tidak ketemu toko dengan kata kunci itu."}
             </p>
           ) : (
             tokoTampil.map((t) => {
