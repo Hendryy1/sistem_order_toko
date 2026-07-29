@@ -2963,6 +2963,11 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
   // Kirim kode OTP ke EMAIL TOKO (bukan email sales) - minta toko sebutkan
   // kodenya ke sales, buat pastikan toko benar2 tahu & setuju order ini.
   async function kirimOtpKonfirmasi() {
+    if (!toko?.email) {
+      setOtpError("Toko ini belum punya email terdaftar - tidak bisa kirim kode konfirmasi. Hubungi Owner untuk lengkapi data toko ini dulu.");
+      setOtpStep("none");
+      return;
+    }
     setOtpStep("sending");
     setOtpError("");
     setOtpBusy(true);
@@ -2972,11 +2977,13 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
         headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
         body: JSON.stringify({ email: toko.email, create_user: false }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.msg || data.error_description || "Gagal kirim kode ke email toko.");
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (parseErr) { /* respons kosong/bukan JSON - anggap saja kalau res.ok tetap sukses */ }
+      if (!res.ok) throw new Error(data.msg || data.error_description || `Gagal kirim kode ke email toko (status ${res.status}).`);
       setOtpStep("input");
     } catch (e) {
-      setOtpError(e.message);
+      setOtpError("Gagal kirim kode: " + (e.message || "terjadi kesalahan tak terduga.") + " Coba lagi.");
       setOtpStep("none");
     }
     setOtpBusy(false);
@@ -3137,6 +3144,12 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
           <span className="disp" style={{ fontWeight: 700, fontSize: 20, color: "#24272B" }}>{rupiah(totalSetelahPoin)}</span>
         </div>
       </div>
+
+      {toko?.dibuatOlehSales && otpStep === "none" && otpError && (
+        <div style={{ background: "#FBEAEA", borderRadius: 12, padding: 14, marginBottom: 100 }}>
+          <p style={{ fontSize: 12.5, color: "#C0392B", margin: 0, lineHeight: 1.5 }}>{otpError}</p>
+        </div>
+      )}
 
       {toko?.dibuatOlehSales && otpStep === "input" && (
         <div style={{ background: "#FBF0D9", borderRadius: 12, padding: 16, marginBottom: 100 }}>
