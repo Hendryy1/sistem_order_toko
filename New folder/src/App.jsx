@@ -1902,6 +1902,14 @@ function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister
       >
         Lihat Katalog Dulu (Tanpa Login)
       </button>
+
+      <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid #33363B" }}>
+        <p style={{ color: "#6B6F75", fontSize: 11, fontWeight: 700, textTransform: "uppercase", margin: "0 0 8px" }}>PT Indo Garuda Abadi</p>
+        <p style={{ color: "#9CA0A6", fontSize: 11.5, margin: "0 0 4px" }}>pt.indogarudaabadi@gmail.com &middot; +62 823-8875-9949</p>
+        <p style={{ color: "#9CA0A6", fontSize: 11.5, margin: 0, lineHeight: 1.5 }}>
+          Jl. Hangtuah Ujung No.279C, Bencah Lesung, Tenayan Raya, Kota Pekanbaru, Riau 28131
+        </p>
+      </div>
     </div>
   );
 }
@@ -5549,6 +5557,24 @@ function TentangScreen({ toko, onBack }) {
         <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6, marginBottom: 20 }}>
           Aplikasi order online untuk pelanggan distributor Indo Garuda Abadi. Dibuat untuk mempermudah proses pemesanan, pembayaran, dan pengecekan status pesanan secara online.
         </p>
+
+        <div style={sectionStyle}>
+          <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Kontak Kami</p>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+            <MessageCircle size={15} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
+            <p style={{ fontSize: 12.5, color: "#24272B", margin: 0 }}>pt.indogarudaabadi@gmail.com</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 8 }}>
+            <Phone size={15} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
+            <p style={{ fontSize: 12.5, color: "#24272B", margin: 0 }}>+62 823-8875-9949</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <MapPin size={15} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
+            <p style={{ fontSize: 12.5, color: "#24272B", margin: 0, lineHeight: 1.5 }}>
+              Jl. Hangtuah Ujung No.279C, Bencah Lesung, Tenayan Raya, Kota Pekanbaru, Riau 28131
+            </p>
+          </div>
+        </div>
 
         <div style={sectionStyle}>
           <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Perangkat</p>
