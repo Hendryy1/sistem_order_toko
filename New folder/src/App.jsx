@@ -895,11 +895,25 @@ export default function OrderApp() {
     setLoggingIn(false);
   }
 
-  function handleGuestBrowse() {
-    setToko(null);
-    setIsGuest(true);
+  // SEMENTARA - buat verifikasi Xendit saja. Pengunjung tanpa login
+  // otomatis "masuk" sebagai akun demo (bukan cuma browse read-only),
+  // supaya bisa coba alur order & pembayaran sungguhan tanpa perlu
+  // daftar dulu. HAPUS/KEMBALIKAN fungsi ini ke versi semula (yang cuma
+  // setIsGuest(true) tanpa auto-login) setelah verifikasi Xendit selesai.
+  async function handleGuestBrowse() {
     setLoginError("");
-    setScreen("catalog");
+    setLoggingIn(true);
+    try {
+      const auth = await supabaseSignIn("demo@indogarudaabadi.com", "DemoXendit2026!");
+      const ok = await loadTokoAndEnterApp(auth.user.id, auth.access_token, auth.user.email, auth.refresh_token);
+      if (!ok) clearSession();
+    } catch (e) {
+      // Kalau akun demo belum siap/gagal - tetap fallback ke mode browse biasa
+      setToko(null);
+      setIsGuest(true);
+      setScreen("catalog");
+    }
+    setLoggingIn(false);
   }
 
   function handleLogout() {
@@ -2534,6 +2548,28 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
             Barang tidak ketemu. Coba kata kunci lain.
           </div>
         )}
+      </div>
+
+      <div style={{ margin: "0 20px 24px", padding: 18, background: "#fff", borderRadius: 16, border: "1px solid #EDEAE3" }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: "#24272B", textTransform: "uppercase", margin: "0 0 8px" }}>Informasi</p>
+        <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6, margin: "0 0 14px" }}>
+          Saat ini kami baru menjual <strong>2 produk</strong> di katalog ini. Ke depannya jumlah produk akan terus bertambah seiring perkembangan bisnis kami.
+        </p>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", margin: "0 0 8px" }}>Kontak Kami</p>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+          <MessageCircle size={14} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
+          <p style={{ fontSize: 12, color: "#24272B", margin: 0 }}>pt.indogarudaabadi@gmail.com</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
+          <Phone size={14} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
+          <p style={{ fontSize: 12, color: "#24272B", margin: 0 }}>+62 823-8875-9949</p>
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <MapPin size={14} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
+          <p style={{ fontSize: 12, color: "#24272B", margin: 0, lineHeight: 1.5 }}>
+            Jl. Hangtuah Ujung No.279C, Bencah Lesung, Tenayan Raya, Kota Pekanbaru, Riau 28131
+          </p>
+        </div>
       </div>
     </div>
   );
