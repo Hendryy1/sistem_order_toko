@@ -984,7 +984,15 @@ export default function OrderApp() {
     if (window.location.hash.includes("type=recovery") || window.location.hash.includes("error=")) { setRestoringSession(false); return; }
 
     const session = loadSession();
-    if (!session) { setRestoringSession(false); return; }
+    if (!session) {
+      // SEMENTARA - buat verifikasi Xendit. Tidak ada sesi tersimpan sama
+      // sekali (pertama kali buka / sudah logout) - langsung auto-masuk
+      // ke akun demo, tanpa perlu klik apapun dulu. Kembalikan ke
+      // "setRestoringSession(false); return;" biasa (tanpa auto-login)
+      // setelah verifikasi Xendit selesai.
+      handleGuestBrowse().finally(() => setRestoringSession(false));
+      return;
+    }
 
     // Bedakan error KONEKSI/JARINGAN (misal pas pindah WiFi ke 4G, sinyal
     // sempat putus sesaat) dari error OTENTIKASI ASLI (refresh_token memang
