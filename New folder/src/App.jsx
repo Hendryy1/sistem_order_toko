@@ -209,6 +209,7 @@ function mapSupabaseProduct(row) {
     isiPerKoli: row.isi_per_koli || 0,
     diskonKoliPct: row.diskon_koli_pct !== undefined && row.diskon_koli_pct !== null ? Number(row.diskon_koli_pct) : 0.05,
     minimalOrder: row.minimal_order || 1,
+    kelipatanOrder: row.kelipatan_order || 1,
     stock: row.stock_akhir !== undefined ? Number(row.stock_akhir) : (row.stock_awal ?? 0),
     gambarUrl: row.gambar_url || null,
     deskripsi: row.deskripsi || null,
@@ -578,7 +579,7 @@ export default function OrderApp() {
   }, []);
 
   useEffect(() => {
-    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,minimal_order,gambar_url,deskripsi")
+    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,minimal_order,kelipatan_order,gambar_url,deskripsi")
       .then(async (rows) => {
         let stockMap = {};
         try {
@@ -733,7 +734,10 @@ export default function OrderApp() {
     .filter(([kode]) => checkedItems[kode] !== false)
     .map(([kode, qty]) => {
       const p = productsHargaProvinsi.find((pr) => pr.kode === kode);
-      return p && p.minimalOrder > 1 && qty < p.minimalOrder ? { ...p, qty } : null;
+      if (!p) return null;
+      const belumMinimal = p.minimalOrder > 1 && qty < p.minimalOrder;
+      const belumKelipatan = p.kelipatanOrder > 1 && qty % p.kelipatanOrder !== 0;
+      return (belumMinimal || belumKelipatan) ? { ...p, qty, belumMinimal, belumKelipatan } : null;
     })
     .filter(Boolean);
   const belowMinimum = cartTotal > 0 && itemBelumMinimalOrder.length > 0;
@@ -3124,11 +3128,13 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
           <div style={{ background: "#FBEAEA", color: "#C0392B", padding: "9px 10px", borderRadius: 9, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
               <AlertCircle size={14} style={{ flexShrink: 0 }} />
-              Minimal order per barang belum terpenuhi:
+              Ada barang belum sesuai aturan order:
             </div>
             {itemBelumMinimalOrder.map((p) => (
               <p key={p.kode} style={{ margin: "2px 0 0 20px" }}>
-                {p.nama}: {p.qty}/{p.minimalOrder} {p.satuan}
+                {p.nama}: {p.qty} {p.satuan}
+                {p.belumMinimal && ` (minimal ${p.minimalOrder})`}
+                {p.belumKelipatan && ` (harus kelipatan ${p.kelipatanOrder})`}
               </p>
             ))}
           </div>
