@@ -846,6 +846,8 @@ export default function OrderApp() {
       jenisBayar: r.jenis_pembayaran, email: salesIdPembuat ? r.email : email, salesId: r.sales_id || null,
       statusVerifikasi: r.status_verifikasi || "belum_upload",
       fotoTokoUrl: r.foto_toko_url || null, fotoKtpUrl: r.foto_ktp_url || null,
+      statusPerubahanVerifikasi: r.status_perubahan_verifikasi || null,
+      alasanPerubahanDitolak: r.alasan_perubahan_ditolak || null,
       alasanVerifikasiDitolak: r.alasan_verifikasi_ditolak || null,
       namaOwner: r.nama_owner || null, tanggalLahir: r.tanggal_lahir || null,
       jenisUsaha: r.jenis_usaha || null, provinsi: r.provinsi || null,
@@ -1731,6 +1733,7 @@ export default function OrderApp() {
       {screen === "akun-verifikasi" && (
         <VerifikasiTokoScreen
           toko={toko}
+          authToken={authToken}
           onBack={() => setScreen("akun")}
           onUpdated={(updates) => setToko((prev) => ({ ...prev, ...updates }))}
         />
@@ -5021,7 +5024,7 @@ function MenuRow({ icon: Icon, label, onClick, badge }) {
 // ============================================================
 // FOTO TOKO - upload foto toko & KTP untuk verifikasi (wajib sebelum order)
 // ============================================================
-function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
+function VerifikasiTokoScreen({ toko, authToken, onBack, onUpdated }) {
   const [fotoToko, setFotoToko] = useState(toko.fotoTokoUrl);
   const [fotoKtp, setFotoKtp] = useState(toko.fotoKtpUrl);
   const [uploadingToko, setUploadingToko] = useState(false);
@@ -5153,14 +5156,22 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
     }
     setSubmitting(true);
     try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/submit-verifikasi-toko`, {
-        method: "POST",
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ client_id: toko.id, foto_toko_url: fotoToko, foto_ktp_url: fotoKtp }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal kirim verifikasi.");
-      onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
+      const sudahTerverifikasi = toko.statusVerifikasi === "terverifikasi";
+      // Kalau toko SUDAH terverifikasi sebelumnya - simpan foto baru sebagai
+      // PENGAJUAN PERUBAHAN terpisah (kolom _pending), JANGAN timpa foto
+      // lama yang sudah terverifikasi. Foto lama tetap valid/dipakai sampai
+      // pengajuan baru ini disetujui Owner.
+      const body = sudahTerverifikasi
+        ? { foto_toko_url_pending: fotoToko, foto_ktp_url_pending: fotoKtp, status_perubahan_verifikasi: "menunggu_review", alasan_perubahan_ditolak: null }
+        : { foto_toko_url: fotoToko, foto_ktp_url: fotoKtp, status_verifikasi: "menunggu_review", alasan_verifikasi_ditolak: null };
+
+      await supabaseFetch(`clients?id=eq.${toko.id}`, { method: "PATCH", body: JSON.stringify(body) }, authToken);
+
+      if (sudahTerverifikasi) {
+        onUpdated({ statusPerubahanVerifikasi: "menunggu_review" }); // foto & status utama TIDAK berubah
+      } else {
+        onUpdated({ fotoTokoUrl: fotoToko, fotoKtpUrl: fotoKtp, statusVerifikasi: "menunggu_review", alasanVerifikasiDitolak: null });
+      }
       setEditMode(false);
     } catch (e) {
       alert("Gagal kirim verifikasi: " + e.message);
@@ -5203,6 +5214,20 @@ function VerifikasiTokoScreen({ toko, onBack, onUpdated }) {
           <div style={{ background: "#fff", border: "1px solid #F0CFC7", borderRadius: 12, padding: 14, marginBottom: 20 }}>
             <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700 }}>ALASAN DITOLAK</p>
             <p style={{ fontSize: 13, color: "#C0392B", margin: 0 }}>{toko.alasanVerifikasiDitolak}</p>
+          </div>
+        )}
+
+        {toko.statusPerubahanVerifikasi === "menunggu_review" && (
+          <div style={{ background: "#FBF0D9", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+            <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5, fontWeight: 600 }}>
+              Anda mengajukan perubahan foto - sedang menunggu review Owner. Foto yang sudah terverifikasi sebelumnya tetap berlaku sampai pengajuan ini disetujui.
+            </p>
+          </div>
+        )}
+        {toko.statusPerubahanVerifikasi === "ditolak" && toko.alasanPerubahanDitolak && (
+          <div style={{ background: "#fff", border: "1px solid #F0CFC7", borderRadius: 12, padding: 14, marginBottom: 20 }}>
+            <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 4px", fontWeight: 700 }}>PENGAJUAN PERUBAHAN DITOLAK</p>
+            <p style={{ fontSize: 13, color: "#C0392B", margin: 0 }}>{toko.alasanPerubahanDitolak}</p>
           </div>
         )}
 
