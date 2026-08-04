@@ -685,7 +685,7 @@ export default function OrderApp() {
   // DAN kirim ke alamat lain, pakai provinsi TUJUAN (bukan provinsi toko
   // sendiri), karena ongkirnya beda. Kalau bukan dropship, tetap pakai
   // provinsi toko sendiri seperti biasa.
-  const provinsiUntukHarga = (isDropship && useAltAddress && altAddress.provinsi) ? altAddress.provinsi : (toko?.provinsi || "");
+  const provinsiUntukHarga = (useAltAddress && altAddress.provinsi) ? altAddress.provinsi : (toko?.provinsi || "");
 
   // Produk dengan harga yang SUDAH disesuaikan otomatis sesuai provinsi
   // aktif - kalau ada harga khusus provinsi itu, dipakai; kalau tidak,
