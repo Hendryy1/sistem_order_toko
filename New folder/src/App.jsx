@@ -736,7 +736,9 @@ export default function OrderApp() {
       const p = productsHargaProvinsi.find((pr) => pr.kode === kode);
       if (!p) return null;
       const belumMinimal = p.minimalOrder > 1 && qty < p.minimalOrder;
-      const belumKelipatan = p.kelipatanOrder > 1 && qty % p.kelipatanOrder !== 0;
+      // Kelipatan CUMA berlaku untuk toko luar Pekanbaru - Pekanbaru cukup
+      // penuhi minimal order saja, tidak perlu kelipatan.
+      const belumKelipatan = isLuarPekanbaru && p.kelipatanOrder > 1 && qty % p.kelipatanOrder !== 0;
       return (belumMinimal || belumKelipatan) ? { ...p, qty, belumMinimal, belumKelipatan } : null;
     })
     .filter(Boolean);
@@ -1088,7 +1090,22 @@ export default function OrderApp() {
     setCart((prev) => {
       const next = { ...prev };
       const cur = next[kode] || 0;
-      const updated = Math.max(0, cur + delta);
+      const p = productsHargaProvinsi.find((pr) => pr.kode === kode);
+      let increment = delta;
+
+      if (p && p.kelipatanOrder > 1) {
+        if (isLuarPekanbaru) {
+          // Luar Pekanbaru: SETIAP klik +/- selalu loncat sebesar kelipatan,
+          // supaya qty selalu tetap dalam kelipatan yang valid.
+          increment = delta > 0 ? p.kelipatanOrder : -p.kelipatanOrder;
+        } else if (delta > 0 && cur === 0) {
+          // Pekanbaru: klik PERTAMA (dari kosong) langsung loncat ke
+          // kelipatan sekali saja - abis itu tambah/kurang normal 1-1.
+          increment = p.kelipatanOrder;
+        }
+      }
+
+      const updated = Math.max(0, cur + increment);
       if (updated === 0) delete next[kode];
       else next[kode] = updated;
       return next;
