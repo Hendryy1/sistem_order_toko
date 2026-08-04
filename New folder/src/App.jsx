@@ -575,6 +575,22 @@ export default function OrderApp() {
   const [products, setProducts] = useState([]); // kosong dulu, diisi data asli setelah selesai dimuat
   const [productsLoading, setProductsLoading] = useState(true);
   const [dbError, setDbError] = useState("");
+  const [hargaProvinsiMap, setHargaProvinsiMap] = useState({}); // { kodeProduk: { provinsi: harga } }
+
+  useEffect(() => {
+    supabaseFetch("harga_produk_provinsi?select=provinsi,harga,products(kode)")
+      .then((rows) => {
+        const map = {};
+        rows.forEach((r) => {
+          const kode = r.products?.kode;
+          if (!kode) return;
+          if (!map[kode]) map[kode] = {};
+          map[kode][r.provinsi] = r.harga;
+        });
+        setHargaProvinsiMap(map);
+      })
+      .catch(() => {}); // biarkan kosong (semua pakai harga default) kalau gagal muat
+  }, []);
 
   useEffect(() => {
     supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,gambar_url,deskripsi")
@@ -663,8 +679,24 @@ export default function OrderApp() {
   });
   const [isDropship, setIsDropship] = useState(false);
   const [metodeBayar, setMetodeBayar] = useState("transfer"); // "transfer" | "cod"
-  const [dropshipPrices, setDropshipPrices] = useState({}); // { kodeBarang: hargaDropshipPerUnit }
   const [savedAddresses, setSavedAddresses] = useState([]); // [{ id, nama, telp, alamat, provinsi, kota, kecamatan, kelurahan, kodePos }]
+
+  // Provinsi yang dipakai buat tentukan harga produk - kalau order dropship
+  // DAN kirim ke alamat lain, pakai provinsi TUJUAN (bukan provinsi toko
+  // sendiri), karena ongkirnya beda. Kalau bukan dropship, tetap pakai
+  // provinsi toko sendiri seperti biasa.
+  const provinsiUntukHarga = (isDropship && useAltAddress && altAddress.provinsi) ? altAddress.provinsi : (toko?.provinsi || "");
+
+  // Produk dengan harga yang SUDAH disesuaikan otomatis sesuai provinsi
+  // aktif - kalau ada harga khusus provinsi itu, dipakai; kalau tidak,
+  // tetap pakai harga default produk apa adanya.
+  const productsHargaProvinsi = useMemo(() => {
+    if (!provinsiUntukHarga) return products;
+    return products.map((p) => {
+      const hargaKhusus = hargaProvinsiMap[p.kode]?.[provinsiUntukHarga];
+      return hargaKhusus !== undefined ? { ...p, harga: hargaKhusus } : p;
+    });
+  }, [products, hargaProvinsiMap, provinsiUntukHarga]);
 
   // Alamat tersimpan sekarang disimpan PERMANEN di database (bukan cuma
   // localStorage HP lagi - itu bisa hilang, terutama di Safari/iPhone yang
@@ -1154,7 +1186,9 @@ export default function OrderApp() {
       : { nama: toko.nama, telp: toko.telp, alamat: toko.alamat, kota: toko.kota };
     const itemsWithDropship = items.map((it) => ({
       ...it,
-      hargaDropship: isDropship && dropshipPrices[it.kode] ? Number(dropshipPrices[it.kode]) : null,
+      // Harga dropship SEKARANG OTOMATIS dari harga per provinsi (sudah
+      // ikut di it.harga/harga_satuan) - tidak perlu override manual lagi.
+      hargaDropship: null,
     }));
 
     // Nomor Nota SELALU diambil dari database (supaya tidak bentrok antar toko) -
@@ -1429,7 +1463,7 @@ export default function OrderApp() {
     setRegLoading(false);
   }
 
-  const filteredProducts = products.filter((p) => {
+  const filteredProducts = productsHargaProvinsi.filter((p) => {
     const matchCategory = activeCategory === "Semua" || p.kategori === activeCategory;
     const matchSearch = p.nama.toLowerCase().includes(searchQuery.toLowerCase());
     return matchCategory && matchSearch;
@@ -1534,7 +1568,7 @@ export default function OrderApp() {
           toko={toko}
           onBack={() => setScreen("catalog")}
           onContactCS={() => { setCsReturnScreen("cs-chat-choice"); setScreen("akun-cs"); }}
-          products={products} orders={orders} cart={cart} rincian={cartRincian}
+          products={productsHargaProvinsi} orders={orders} cart={cart} rincian={cartRincian}
         />
       )}
 
@@ -1559,9 +1593,8 @@ export default function OrderApp() {
           altAddress={altAddress} setAltAddress={setAltAddress}
           savedAddresses={savedAddresses} onSaveAddress={saveCurrentAddress} onPickAddress={pickSavedAddress}
           isDropship={isDropship} setIsDropship={handleToggleDropship}
-          dropshipPrices={dropshipPrices} setDropshipPrices={setDropshipPrices}
           dropshipSender={dropshipSender} setDropshipSender={setDropshipSender} savedSenderNames={savedSenderNames}
-          cart={cart} products={products} rincian={cartRincian} belowMinimum={belowMinimum}
+          cart={cart} products={productsHargaProvinsi} rincian={cartRincian} belowMinimum={belowMinimum}
           isLuarPekanbaru={isLuarPekanbaru} itemBelumSatuKoli={itemBelumSatuKoli}
           metodeBayar={metodeBayar} setMetodeBayar={setMetodeBayar}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
@@ -1575,7 +1608,7 @@ export default function OrderApp() {
         <KonfirmasiPembelianScreen
           rincian={cartRincian} metodeBayar={metodeBayar}
           toko={toko} useAltAddress={useAltAddress} altAddress={altAddress}
-          cart={cart} products={products} checkedItems={checkedItems}
+          cart={cart} products={productsHargaProvinsi} checkedItems={checkedItems}
           pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
           onBack={() => setScreen("cart")}
           onSubmit={submitOrder}
@@ -2794,7 +2827,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipPrices, setDropshipPrices, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
   const [editingQtyKode, setEditingQtyKode] = useState(null);
   const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -3037,7 +3070,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                   style={{ width: 17, height: 17, accentColor: "#E8A426" }}
                 />
                 <span style={{ fontSize: 12.5, fontWeight: 600, color: "#24272B" }}>
-                  Ini pesanan dropship — saya atur sendiri harga untuk penerima
+                  Ini pesanan dropship — harga otomatis menyesuaikan provinsi tujuan
                 </span>
               </label>
 
@@ -3105,23 +3138,6 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                   <p style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600, margin: "4px 0 0" }}>
                     Tambah {p.isiPerKoli - p.qty} {p.satuan} lagi (jadi {p.isiPerKoli} = 1 koli) untuk diskon tambahan {Math.round((p.diskonKoliPct ?? 0.05) * 100)}%
                   </p>
-                )}
-                {isDropship && (
-                  <div style={{ marginTop: 8 }}>
-                    <label style={{ fontSize: 10.5, color: "#9CA0A6", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em", display: "block", marginBottom: 4 }}>
-                      Harga untuk dropship
-                    </label>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span style={{ fontSize: 13, color: "#6B6F75" }}>Rp</span>
-                      <input
-                        type="number"
-                        value={dropshipPrices[p.kode] ?? ""}
-                        onChange={(e) => setDropshipPrices({ ...dropshipPrices, [p.kode]: e.target.value })}
-                        placeholder={String(Math.round(r.kenaKoli ? r.hargaSetelahKoli : p.harga))}
-                        style={{ width: 100, padding: "6px 8px", borderRadius: 8, border: "1.5px solid #E4E1DA", fontSize: 13, fontWeight: 600, outline: "none" }}
-                      />
-                    </div>
-                  </div>
                 )}
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
