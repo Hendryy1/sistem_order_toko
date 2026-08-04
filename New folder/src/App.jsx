@@ -706,7 +706,7 @@ export default function OrderApp() {
   const cartRincian = useMemo(() => {
     return Object.entries(cart).reduce((acc, [kode, qty]) => {
       if (checkedItems[kode] === false) return acc; // dilewati kalau centangnya dihilangkan
-      const p = products.find((x) => x.kode === kode);
+      const p = productsHargaProvinsi.find((x) => x.kode === kode);
       if (!p) return acc;
       const r = hitungRincianItem(p, qty);
       acc.subtotalSebelum += r.subtotalSebelum;
@@ -714,7 +714,7 @@ export default function OrderApp() {
       acc.totalBayar += r.totalSetelahDiskon;
       return acc;
     }, { subtotalSebelum: 0, totalDiskon: 0, totalBayar: 0 });
-  }, [cart, checkedItems, products]);
+  }, [cart, checkedItems, productsHargaProvinsi]);
   const cartTotal = cartRincian.totalBayar;
   // Minimal order per produk BERLAKU UNTUK SEMUA KOTA/PROVINSI (bukan cuma
   // luar Pekanbaru lagi) - Owner atur sendiri per produk di Dashboard.
@@ -732,7 +732,7 @@ export default function OrderApp() {
   const itemBelumMinimalOrder = Object.entries(cart)
     .filter(([kode]) => checkedItems[kode] !== false)
     .map(([kode, qty]) => {
-      const p = products.find((pr) => pr.kode === kode);
+      const p = productsHargaProvinsi.find((pr) => pr.kode === kode);
       return p && p.minimalOrder > 1 && qty < p.minimalOrder ? { ...p, qty } : null;
     })
     .filter(Boolean);
@@ -1149,7 +1149,7 @@ export default function OrderApp() {
     const items = Object.entries(cart)
       .filter(([kode]) => checkedItems[kode] !== false)
       .map(([kode, qty]) => {
-        const p = products.find((x) => x.kode === kode);
+        const p = productsHargaProvinsi.find((x) => x.kode === kode);
         return { ...p, qty };
       });
     // Mode Sales - PAKSA pakai alamat toko terdaftar, abaikan alamat
