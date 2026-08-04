@@ -665,6 +665,9 @@ export default function OrderApp() {
   const [regSubmitted, setRegSubmitted] = useState(false);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
+  const [regStep, setRegStep] = useState("form"); // "form" | "otp"
+  const [regOtpKode, setRegOtpKode] = useState("");
+  const [regAuthSementara, setRegAuthSementara] = useState(null); // simpan hasil signUp sementara sambil tunggu verifikasi OTP
   const [useAltAddress, setUseAltAddress] = useState(false);
   const [editingAlt, setEditingAlt] = useState(false);
   const [altAddress, setAltAddress] = useState({
@@ -1445,11 +1448,53 @@ export default function OrderApp() {
     }
   }
 
+  // TAHAP 1 - buat akun auth, kirim kode OTP ke email untuk verifikasi
+  // dulu, BELUM insert ke tabel clients (belum masuk antrian approval Owner).
   async function submitRegistration() {
     setRegError("");
     setRegLoading(true);
     try {
       const auth = await supabaseSignUp(regForm.email.trim(), regForm.password);
+      setRegAuthSementara(auth);
+
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: regForm.email.trim(), create_user: false }),
+      });
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (e) {}
+      if (!res.ok) throw new Error(data.msg || data.error_description || `Gagal kirim kode verifikasi (status ${res.status}).`);
+
+      setRegStep("otp");
+    } catch (e) {
+      setRegError(e.message || "Gagal daftar. Coba lagi.");
+    }
+    setRegLoading(false);
+  }
+
+  // TAHAP 2 - verifikasi kode OTP yang dimasukkan, kalau BENAR baru insert
+  // ke tabel clients (status pending, masuk ke Owner buat di-approve).
+  async function verifikasiOtpRegistrasi() {
+    if (!regOtpKode.trim()) {
+      setRegError("Masukkan dulu kode yang dikirim ke email Anda.");
+      return;
+    }
+    setRegError("");
+    setRegLoading(true);
+    try {
+      const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+        method: "POST",
+        headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: regForm.email.trim(), token: regOtpKode.trim(), type: "email" }),
+      });
+      const text = await res.text();
+      let data = {};
+      try { data = text ? JSON.parse(text) : {}; } catch (e) {}
+      if (!res.ok) throw new Error(data.msg || data.error_description || "Kode salah atau sudah kedaluwarsa.");
+
+      const auth = regAuthSementara;
       await supabaseFetch("clients", {
         method: "POST",
         body: JSON.stringify({
@@ -1470,7 +1515,7 @@ export default function OrderApp() {
       }, auth.access_token);
       setRegSubmitted(true);
     } catch (e) {
-      setRegError(e.message || "Gagal daftar. Coba lagi.");
+      setRegError(e.message || "Gagal verifikasi. Coba lagi.");
     }
     setRegLoading(false);
   }
@@ -1548,7 +1593,9 @@ export default function OrderApp() {
           regForm={regForm} setRegForm={setRegForm}
           submitted={regSubmitted} onSubmit={submitRegistration}
           error={regError} loading={regLoading}
-          onBack={() => { setScreen("login"); setRegSubmitted(false); setRegError(""); setRegForm({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
+          regStep={regStep} regOtpKode={regOtpKode} setRegOtpKode={setRegOtpKode}
+          onVerifikasiOtp={verifikasiOtpRegistrasi}
+          onBack={() => { setScreen("login"); setRegSubmitted(false); setRegError(""); setRegStep("form"); setRegOtpKode(""); setRegForm({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
         />
       )}
 
@@ -2201,7 +2248,7 @@ function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLog
 // ============================================================
 // REGISTRASI TOKO BARU
 // ============================================================
-function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, error, loading }) {
+function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, error, loading, regStep, regOtpKode, setRegOtpKode, onVerifikasiOtp }) {
   const [provinces, setProvinces] = useState([]);
   const [regencies, setRegencies] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -2244,6 +2291,35 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
       .then((data) => setVillages(data.map((d) => ({ id: d.id, name: titleCase(d.name) }))))
       .catch(() => setVillages(FALLBACK_WILAYAH.villages[regForm.kecamatanId] || []));
   }, [regForm.kecamatanId]);
+
+  if (regStep === "otp" && !submitted) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
+        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#D8E9E6", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+          <MessageCircle size={34} color="#24272B" />
+        </div>
+        <h2 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "0 0 10px" }}>Verifikasi Email</h2>
+        <p style={{ color: "#6B6F75", fontSize: 13.5, lineHeight: 1.6, maxWidth: 300, marginBottom: 20 }}>
+          Kode verifikasi sudah dikirim ke <strong>{regForm.email}</strong>. Masukkan kodenya di bawah ini.
+        </p>
+        <input
+          value={regOtpKode} onChange={(e) => setRegOtpKode(e.target.value)}
+          placeholder="Kode dari email" inputMode="numeric"
+          style={{ width: "100%", maxWidth: 280, padding: "13px 16px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 18, textAlign: "center", letterSpacing: 4, marginBottom: 12 }}
+        />
+        {error && <p style={{ fontSize: 12, color: "#C0392B", margin: "0 0 12px", maxWidth: 300 }}>{error}</p>}
+        <button
+          onClick={onVerifikasiOtp} disabled={loading}
+          style={{ width: "100%", maxWidth: 280, padding: "14px", borderRadius: 12, border: "none", background: "#24272B", color: "#fff", fontWeight: 600, fontSize: 14, marginBottom: 10 }}
+        >
+          {loading ? "Memverifikasi..." : "Verifikasi"}
+        </button>
+        <button onClick={onSubmit} disabled={loading} style={{ background: "none", border: "none", color: "#6B6F75", fontSize: 12.5, textDecoration: "underline" }}>
+          Kirim Ulang Kode
+        </button>
+      </div>
+    );
+  }
 
   if (submitted) {
     return (
