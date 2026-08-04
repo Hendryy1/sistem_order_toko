@@ -5857,9 +5857,11 @@ function SaldoScreen({ toko, onBack }) {
   const [loading, setLoading] = useState(true);
   const [saldo, setSaldo] = useState(0);
   const [va, setVa] = useState([]);
+  const [rekeningPerusahaan, setRekeningPerusahaan] = useState([]);
   const [riwayat, setRiwayat] = useState([]);
   const [totalKurangBayar, setTotalKurangBayar] = useState(0);
   const [orderKurangBayar, setOrderKurangBayar] = useState([]);
+  const isAkunDemo = toko?.email === "demo@indogarudaabadi.com";
 
   useEffect(() => {
     load();
@@ -5868,13 +5870,15 @@ function SaldoScreen({ toko, onBack }) {
   async function load() {
     setLoading(true);
     try {
-      const [saldoRows, vaRows, ledgerRows] = await Promise.all([
+      const [saldoRows, vaRows, ledgerRows, rekeningRows] = await Promise.all([
         supabaseFetch(`v_saldo_toko?select=saldo&client_id=eq.${toko.id}`),
-        supabaseFetch(`virtual_accounts?select=*&client_id=eq.${toko.id}`),
+        isAkunDemo ? supabaseFetch(`virtual_accounts?select=*&client_id=eq.${toko.id}`) : Promise.resolve([]),
         supabaseFetch(`saldo_ledger?select=*&client_id=eq.${toko.id}&order=created_at.desc&limit=30`),
+        isAkunDemo ? Promise.resolve([]) : supabaseFetch(`rekening_bank_perusahaan?select=nama_bank,no_rekening,atas_nama&aktif=eq.true&order=urutan.asc`),
       ]);
       setSaldo(Number(saldoRows[0]?.saldo || 0));
       setVa(vaRows || []);
+      setRekeningPerusahaan(rekeningRows || []);
       setRiwayat(ledgerRows);
 
       // Cari order yang PERNAH kepotong saldo ("pakai_bayar_order") tapi
@@ -5930,27 +5934,51 @@ function SaldoScreen({ toko, onBack }) {
             <p className="disp" style={{ fontSize: 30, fontWeight: 700, color: "#fff", margin: 0 }}>{rupiah(saldo)}</p>
           </div>
 
-          {va.length > 0 ? (
-            <div style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
-              {va.map((v) => (
-                <div key={v.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{v.bank_code}</p>
-                    <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{v.va_number}</p>
+          {isAkunDemo ? (
+            va.length > 0 ? (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
+                {va.map((v) => (
+                  <div key={v.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{v.bank_code}</p>
+                      <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{v.va_number}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-              <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
-                Transfer ke salah satu nomor VA di atas kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
-              </p>
-            </div>
+                ))}
+                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
+                  Transfer ke salah satu nomor VA di atas kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
+                </p>
+              </div>
+            ) : (
+              <div style={{ background: "#FBF0D9", borderRadius: 14, padding: 16, marginBottom: 20 }}>
+                <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
+                  Anda belum punya nomor Virtual Account. Hubungi Sales/CS untuk dibuatkan.
+                </p>
+              </div>
+            )
           ) : (
-            <div style={{ background: "#FBF0D9", borderRadius: 14, padding: 16, marginBottom: 20 }}>
-              <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
-                Anda belum punya nomor Virtual Account. Hubungi Sales/CS untuk dibuatkan.
-              </p>
-            </div>
+            rekeningPerusahaan.length > 0 ? (
+              <div style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Rekening Bank Perusahaan</p>
+                {rekeningPerusahaan.map((r, i) => (
+                  <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10 }}>
+                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
+                    <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
+                    <p style={{ fontSize: 11.5, color: "#6B6F75", margin: "4px 0 0" }}>a.n. {r.atas_nama}</p>
+                  </div>
+                ))}
+                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
+                  Transfer ke salah satu rekening di atas untuk pembayaran pesanan Anda.
+                </p>
+              </div>
+            ) : (
+              <div style={{ background: "#FBF0D9", borderRadius: 14, padding: 16, marginBottom: 20 }}>
+                <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
+                  Rekening pembayaran belum tersedia. Hubungi Sales/CS.
+                </p>
+              </div>
+            )
           )}
 
           {totalKurangBayar > 0 && (
@@ -5993,15 +6021,27 @@ function SaldoScreen({ toko, onBack }) {
 function RekeningScreen({ toko, onBack }) {
   const [copiedIdx, setCopiedIdx] = useState(null);
   const [vaList, setVaList] = useState([]);
+  const [rekeningPerusahaan, setRekeningPerusahaan] = useState([]);
   const [loadingVa, setLoadingVa] = useState(true);
+  const isAkunDemo = toko?.email === "demo@indogarudaabadi.com";
 
   useEffect(() => {
     if (!toko?.id) { setLoadingVa(false); return; }
-    supabaseFetch(`virtual_accounts?select=bank_code,va_number&client_id=eq.${toko.id}`)
-      .then(setVaList)
-      .catch(() => setVaList([]))
-      .finally(() => setLoadingVa(false));
-  }, [toko?.id]);
+    if (isAkunDemo) {
+      // Akun demo Xendit - tetap pakai VA seperti biasa
+      supabaseFetch(`virtual_accounts?select=bank_code,va_number&client_id=eq.${toko.id}`)
+        .then(setVaList)
+        .catch(() => setVaList([]))
+        .finally(() => setLoadingVa(false));
+    } else {
+      // Akun toko ASLI - tampilkan rekening perusahaan manual (Xendit
+      // belum selesai verifikasi), bukan VA.
+      supabaseFetch(`rekening_bank_perusahaan?select=nama_bank,no_rekening,atas_nama&aktif=eq.true&order=urutan.asc`)
+        .then(setRekeningPerusahaan)
+        .catch(() => setRekeningPerusahaan([]))
+        .finally(() => setLoadingVa(false));
+    }
+  }, [toko?.id, isAkunDemo]);
 
   function copyNumber(nomor, idx) {
     if (navigator.clipboard) navigator.clipboard.writeText(nomor).catch(() => {});
@@ -6017,32 +6057,66 @@ function RekeningScreen({ toko, onBack }) {
       </div>
       <h1 className="disp" style={{ fontSize: 24, fontWeight: 700, color: "#24272B", margin: "4px 0 16px" }}>Pembayaran & Rekening Bank</h1>
 
-      <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Virtual Account Toko Anda</p>
-      <p style={{ fontSize: 12, color: "#6B6F75", marginBottom: 14, lineHeight: 1.5 }}>
-        Transfer ke nomor VA di bawah ini untuk isi saldo toko Anda - saldo bisa langsung dipakai bayar pesanan.
-      </p>
-
-      {loadingVa ? (
-        <p style={{ fontSize: 12.5, color: "#9CA0A6" }}>Memuat...</p>
-      ) : vaList.length === 0 ? (
-        <div style={{ background: "#FFFBF0", border: "1px solid #E8A426", borderRadius: 14, padding: 16 }}>
-          <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
-            Toko Anda belum punya nomor VA. Hubungi Owner/Admin lewat menu Customer Service untuk dibuatkan.
+      {isAkunDemo ? (
+        <>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Virtual Account Toko Anda</p>
+          <p style={{ fontSize: 12, color: "#6B6F75", marginBottom: 14, lineHeight: 1.5 }}>
+            Transfer ke nomor VA di bawah ini untuk isi saldo toko Anda - saldo bisa langsung dipakai bayar pesanan.
           </p>
-        </div>
-      ) : (
-        vaList.map((r, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-            <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.bank_code}</p>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.va_number}</p>
-              <button onClick={() => copyNumber(r.va_number, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
-                <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
-              </button>
+
+          {loadingVa ? (
+            <p style={{ fontSize: 12.5, color: "#9CA0A6" }}>Memuat...</p>
+          ) : vaList.length === 0 ? (
+            <div style={{ background: "#FFFBF0", border: "1px solid #E8A426", borderRadius: 14, padding: 16 }}>
+              <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
+                Toko Anda belum punya nomor VA. Hubungi Owner/Admin lewat menu Customer Service untuk dibuatkan.
+              </p>
             </div>
-            <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {toko?.nama}</p>
-          </div>
-        ))
+          ) : (
+            vaList.map((r, i) => (
+              <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.bank_code}</p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.va_number}</p>
+                  <button onClick={() => copyNumber(r.va_number, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
+                    <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
+                  </button>
+                </div>
+                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {toko?.nama}</p>
+              </div>
+            ))
+          )}
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 10 }}>Rekening Bank Perusahaan</p>
+          <p style={{ fontSize: 12, color: "#6B6F75", marginBottom: 14, lineHeight: 1.5 }}>
+            Transfer ke salah satu rekening di bawah ini untuk pembayaran pesanan Anda.
+          </p>
+
+          {loadingVa ? (
+            <p style={{ fontSize: 12.5, color: "#9CA0A6" }}>Memuat...</p>
+          ) : rekeningPerusahaan.length === 0 ? (
+            <div style={{ background: "#FFFBF0", border: "1px solid #E8A426", borderRadius: 14, padding: 16 }}>
+              <p style={{ fontSize: 12.5, color: "#8A6A1A", margin: 0, lineHeight: 1.5 }}>
+                Rekening pembayaran belum tersedia. Hubungi Owner/Admin lewat menu Customer Service.
+              </p>
+            </div>
+          ) : (
+            rekeningPerusahaan.map((r, i) => (
+              <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.nama_bank}</p>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
+                  <button onClick={() => copyNumber(r.no_rekening, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
+                    <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
+                  </button>
+                </div>
+                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {r.atas_nama}</p>
+              </div>
+            ))
+          )}
+        </>
       )}
 
       <p style={{ fontSize: 12, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", letterSpacing: "0.04em", margin: "16px 0 10px" }}>Ketentuan Pembayaran</p>
