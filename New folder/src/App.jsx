@@ -3521,7 +3521,7 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
         </div>
       </div>
 
-      {pointsBalance >= 5000 && !toko?.dibuatOlehSales && (
+      {!toko?.dibuatOlehSales && (
         <div style={{ background: "#FBF0D9", borderRadius: 12, padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: poinDipakai > 0 ? 10 : 0 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#8A6A1A" }}>Gunakan Poin (punya {pointsBalance.toLocaleString("id-ID")} pts)</span>
@@ -3529,25 +3529,40 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
               <button type="button" onClick={() => setPoinDipakai(0)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Batal</button>
             )}
           </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={5000}
-              max={Math.min(pointsBalance, Math.floor(rincian.totalBayar))}
-              value={poinDipakai || ""}
-              onChange={(e) => {
-                const v = Number(e.target.value) || 0;
-                const batasAtas = Math.min(pointsBalance, Math.floor(rincian.totalBayar));
-                setPoinDipakai(Math.min(v, batasAtas));
-              }}
-              placeholder="Minimal 5000"
-              style={{ flex: 1, padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E4C88A", fontSize: 14 }}
-            />
-            <span style={{ fontSize: 12.5, color: "#8A6A1A", fontWeight: 700 }}>= {rupiah(poinDipakai)}</span>
-          </div>
-          {poinDipakai > 0 && poinDipakai < 5000 && (
-            <p style={{ fontSize: 11.5, color: "#C0392B", margin: "8px 0 0" }}>Minimal pakai 5000 poin.</p>
+          {pointsBalance >= 5000 ? (
+            <>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={5000}
+                  max={Math.min(pointsBalance, Math.floor(rincian.totalBayar))}
+                  value={poinDipakai || ""}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    const batasAtas = Math.min(pointsBalance, Math.floor(rincian.totalBayar));
+                    setPoinDipakai(Math.min(v, batasAtas));
+                  }}
+                  placeholder="Minimal 5000"
+                  style={{ flex: 1, padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E4C88A", fontSize: 14 }}
+                />
+                <span style={{ fontSize: 12.5, color: "#8A6A1A", fontWeight: 700 }}>= {rupiah(poinDipakai)}</span>
+              </div>
+              {poinDipakai > 0 && poinDipakai < 5000 && (
+                <p style={{ fontSize: 11.5, color: "#C0392B", margin: "8px 0 0" }}>Minimal pakai 5000 poin.</p>
+              )}
+            </>
+          ) : (
+            <>
+              <input
+                disabled
+                placeholder="Minimal 5000 poin"
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 9, border: "1.5px solid #E4C88A", fontSize: 14, background: "#F7F0DE", color: "#B5A16A" }}
+              />
+              <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "8px 0 0" }}>
+                Kumpulkan {(5000 - pointsBalance).toLocaleString("id-ID")} poin lagi untuk bisa dipakai sebagai potongan.
+              </p>
+            </>
           )}
         </div>
       )}
