@@ -46,6 +46,10 @@ const MIN_CHECKOUT = 500000;
 
 // ---------- Koneksi Supabase (database asli, pengganti data contoh) ----------
 const SUPABASE_URL = "https://bzlktpveupyxtcuhrmgg.supabase.co";
+// Daftar akun DEMO/UJI COBA - akun ini tetap pakai VA Xendit (bukan
+// rekening manual perusahaan) dan tetap tampilkan pesan "Informasi" di
+// katalog. Tambahkan email baru ke sini kalau ada akun demo tambahan.
+const DAFTAR_EMAIL_DEMO = ["demo@indogarudaabadi.com", "hendrysky12@gmail.com"];
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bGt0cHZldXB5eHRjdWhybWdnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMTIwNjQsImV4cCI6MjA5OTc4ODA2NH0.DKvaQ-_Gdi5nj5DFkhu-8IttPCztYuKCoMoXxcIUdEI";
 const VAPID_PUBLIC_KEY = "BIsMEruRFmmq-ybQepJ1Vpr8vCQTDhp-5W403C_icGEh4b5jSaCX9H4106Eysboa6cNzIQ83Bp6yDGJUXiFWc8k";
 
@@ -2602,7 +2606,7 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, dbError, onRe
       </div>
 
       <div style={{ margin: "0 20px 24px", padding: 18, background: "#fff", borderRadius: 16, border: "1px solid #EDEAE3" }}>
-        {toko?.email === "demo@indogarudaabadi.com" && (
+        {DAFTAR_EMAIL_DEMO.includes(toko?.email) && (
           <>
             <p style={{ fontSize: 12, fontWeight: 700, color: "#24272B", textTransform: "uppercase", margin: "0 0 8px" }}>Informasi</p>
             <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6, margin: "0 0 14px" }}>
@@ -5861,7 +5865,7 @@ function SaldoScreen({ toko, onBack }) {
   const [riwayat, setRiwayat] = useState([]);
   const [totalKurangBayar, setTotalKurangBayar] = useState(0);
   const [orderKurangBayar, setOrderKurangBayar] = useState([]);
-  const isAkunDemo = toko?.email === "demo@indogarudaabadi.com";
+  const isAkunDemo = DAFTAR_EMAIL_DEMO.includes(toko?.email);
 
   useEffect(() => {
     load();
@@ -6023,7 +6027,7 @@ function RekeningScreen({ toko, onBack }) {
   const [vaList, setVaList] = useState([]);
   const [rekeningPerusahaan, setRekeningPerusahaan] = useState([]);
   const [loadingVa, setLoadingVa] = useState(true);
-  const isAkunDemo = toko?.email === "demo@indogarudaabadi.com";
+  const isAkunDemo = DAFTAR_EMAIL_DEMO.includes(toko?.email);
 
   useEffect(() => {
     if (!toko?.id) { setLoadingVa(false); return; }
