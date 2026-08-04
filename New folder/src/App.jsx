@@ -578,7 +578,9 @@ export default function OrderApp() {
       .catch(() => {}); // biarkan kosong (semua pakai harga default) kalau gagal muat
   }, []);
 
-  useEffect(() => {
+  function loadProducts() {
+    setProductsLoading(true);
+    setDbError("");
     supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,minimal_order,kelipatan_order,gambar_url,deskripsi")
       .then(async (rows) => {
         let stockMap = {};
@@ -591,13 +593,16 @@ export default function OrderApp() {
         setProductsLoading(false);
       })
       .catch(() => {
-        // Cuma di sini (BENAR-BENAR gagal konek) baru pakai data contoh, supaya
-        // tidak salah kelihatan produk contoh nongol dulu padahal database aslinya baik-baik saja.
-        setProducts(SAMPLE_PRODUCTS);
+        // JANGAN tampilkan data contoh/palsu di sini - kalau jaringan/koneksi
+        // benar-benar gagal, lebih baik tampilkan pesan error + tombol coba
+        // lagi, supaya toko tidak salah kira produk contoh (Semen/Besi) itu
+        // barang asli yang bisa dipesan.
+        setProducts([]);
         setProductsLoading(false);
-        setDbError("Tidak bisa akses database asli (mode preview) - sementara pakai data contoh.");
+        setDbError("Gagal memuat produk - kemungkinan koneksi internet Anda sedang bermasalah.");
       });
-  }, []);
+  }
+  useEffect(() => { loadProducts(); }, []);
 
   const [isGuest, setIsGuest] = useState(true);
   const [pointsBalance, setPointsBalance] = useState(0);
@@ -1548,6 +1553,7 @@ export default function OrderApp() {
           toko={toko} isGuest={isGuest}
           products={filteredProducts}
           productsLoading={productsLoading}
+          dbError={dbError} onRetry={loadProducts}
           availableCategories={availableCategories}
           activeCategory={activeCategory} setActiveCategory={setActiveCategory}
           searchQuery={searchQuery} setSearchQuery={setSearchQuery}
@@ -2411,7 +2417,7 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, productsLoading, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi, showInstallButton, isIOS, onInstallClick }) {
+function CatalogScreen({ toko, isGuest, products, productsLoading, dbError, onRetry, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi, showInstallButton, isIOS, onInstallClick }) {
   const [showIosTip, setShowIosTip] = useState(false);
   const categories = availableCategories || ["Semua"];
   const [unreadCount, setUnreadCount] = useState(0);
@@ -2576,7 +2582,19 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
             Memuat produk...
           </div>
         )}
-        {products.length === 0 && !productsLoading && (
+        {dbError && products.length === 0 && !productsLoading && (
+          <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 20px" }}>
+            <AlertCircle size={32} color="#C0392B" style={{ marginBottom: 10 }} />
+            <p style={{ color: "#C0392B", fontSize: 13, fontWeight: 600, margin: "0 0 14px" }}>{dbError}</p>
+            <button
+              onClick={onRetry}
+              style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: "#24272B", color: "#fff", fontWeight: 700, fontSize: 13 }}
+            >
+              Coba Lagi
+            </button>
+          </div>
+        )}
+        {!dbError && products.length === 0 && !productsLoading && (
           <div style={{ gridColumn: "1 / -1", textAlign: "center", padding: "40px 0", color: "#9CA0A6" }}>
             Barang tidak ketemu. Coba kata kunci lain.
           </div>
@@ -2584,10 +2602,14 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
       </div>
 
       <div style={{ margin: "0 20px 24px", padding: 18, background: "#fff", borderRadius: 16, border: "1px solid #EDEAE3" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, color: "#24272B", textTransform: "uppercase", margin: "0 0 8px" }}>Informasi</p>
-        <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6, margin: "0 0 14px" }}>
-          Saat ini kami baru menjual <strong>2 produk</strong> di katalog ini. Ke depannya jumlah produk akan terus bertambah seiring perkembangan bisnis kami.
-        </p>
+        {toko?.email === "demo@indogarudaabadi.com" && (
+          <>
+            <p style={{ fontSize: 12, fontWeight: 700, color: "#24272B", textTransform: "uppercase", margin: "0 0 8px" }}>Informasi</p>
+            <p style={{ fontSize: 12.5, color: "#6B6F75", lineHeight: 1.6, margin: "0 0 14px" }}>
+              Saat ini kami baru menjual <strong>2 produk</strong> di katalog ini. Ke depannya jumlah produk akan terus bertambah seiring perkembangan bisnis kami.
+            </p>
+          </>
+        )}
         <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA0A6", textTransform: "uppercase", margin: "0 0 8px" }}>Kontak Kami</p>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6 }}>
           <MessageCircle size={14} color="#9CA0A6" style={{ marginTop: 1, flexShrink: 0 }} />
