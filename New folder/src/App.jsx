@@ -944,7 +944,6 @@ export default function OrderApp() {
     setEditingAlt(false);
     setAltAddress({ nama: "", telp: "", alamat: "" });
     setIsDropship(false);
-    setDropshipPrices({});
     setDropshipSender("");
     setSalesInfo2(null);
     setDaftarTokoSales([]);
