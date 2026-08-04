@@ -208,6 +208,7 @@ function mapSupabaseProduct(row) {
     hargaAsli: row.harga_asli ? Number(row.harga_asli) : null,
     isiPerKoli: row.isi_per_koli || 0,
     diskonKoliPct: row.diskon_koli_pct !== undefined && row.diskon_koli_pct !== null ? Number(row.diskon_koli_pct) : 0.05,
+    minimalOrder: row.minimal_order || 1,
     stock: row.stock_akhir !== undefined ? Number(row.stock_akhir) : (row.stock_awal ?? 0),
     gambarUrl: row.gambar_url || null,
     deskripsi: row.deskripsi || null,
@@ -301,32 +302,16 @@ const FALLBACK_WILAYAH = buildFallbackWilayah(FALLBACK_WILAYAH_NAMES);
 
 // Hitung rincian harga 1 baris barang.
 // "harga" = harga net saat ini (sudah termasuk diskon standar, misal 20% dari hargaAsli).
-// Diskon tambahan 5% kalau qty mencapai isiPerKoli bersifat ADITIF terhadap diskon
-// standar (20%+5%=25% dari hargaAsli), BUKAN dihitung bertingkat/majemuk.
+// Diskon tambahan per-koli DIHAPUS/DINONAKTIFKAN - fungsi ini sekarang
+// SELALU mengembalikan harga apa adanya tanpa diskon tambahan koli.
 function hitungRincianItem(product, qty) {
   const subtotalSebelum = product.harga * qty;
-  const kenaKoli = product.isiPerKoli > 0 && qty >= product.isiPerKoli;
-  let totalSetelahDiskon = subtotalSebelum;
-  let hargaSetelahKoli = product.harga;
-
-  if (kenaKoli) {
-    const diskonTambahanPct = product.diskonKoliPct !== undefined && product.diskonKoliPct !== null ? product.diskonKoliPct : 0.05;
-    if (product.hargaAsli) {
-      const diskonStandarPct = (product.hargaAsli - product.harga) / product.hargaAsli;
-      const totalDiskonPct = diskonStandarPct + diskonTambahanPct; // aditif, misal 20% + 5% = 25%
-      hargaSetelahKoli = product.hargaAsli * (1 - totalDiskonPct);
-    } else {
-      hargaSetelahKoli = product.harga * (1 - diskonTambahanPct);
-    }
-    totalSetelahDiskon = hargaSetelahKoli * qty;
-  }
-
   return {
     subtotalSebelum,
-    totalDiskon: subtotalSebelum - totalSetelahDiskon,
-    totalSetelahDiskon,
-    kenaKoli,
-    hargaSetelahKoli,
+    totalDiskon: 0,
+    totalSetelahDiskon: subtotalSebelum,
+    kenaKoli: false,
+    hargaSetelahKoli: product.harga,
   };
 }
 
@@ -593,7 +578,7 @@ export default function OrderApp() {
   }, []);
 
   useEffect(() => {
-    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,gambar_url,deskripsi")
+    supabaseFetch("v_katalog_publik?select=id,kode,nama,kategori,satuan,harga_jual,harga_asli,isi_per_koli,diskon_koli_pct,minimal_order,gambar_url,deskripsi")
       .then(async (rows) => {
         let stockMap = {};
         try {
@@ -731,9 +716,11 @@ export default function OrderApp() {
     }, { subtotalSebelum: 0, totalDiskon: 0, totalBayar: 0 });
   }, [cart, checkedItems, products]);
   const cartTotal = cartRincian.totalBayar;
-  // Toko di LUAR Pekanbaru: tidak berlaku minimal Rp500rb, tapi tiap barang
-  // yang mau di-checkout WAJIB minimal 1 koli (sesuai isiPerKoli produknya).
-  // Barang tanpa aturan koli (isiPerKoli 0/kosong) tidak kena aturan ini.
+  // Minimal order per produk BERLAKU UNTUK SEMUA KOTA/PROVINSI (bukan cuma
+  // luar Pekanbaru lagi) - Owner atur sendiri per produk di Dashboard.
+  // Toko Pekanbaru TETAP ada aturan tambahan minimal total belanja Rp500rb;
+  // toko luar Pekanbaru tidak kena aturan total belanja itu (tapi tetap
+  // kena aturan minimal order per produk seperti semua toko lain).
   const kotaTujuan = useAltAddress && altAddress.kota ? altAddress.kota : toko?.kota;
   const isLuarPekanbaru = !!(kotaTujuan && kotaTujuan.trim().toLowerCase() !== "pekanbaru");
 
@@ -742,18 +729,14 @@ export default function OrderApp() {
   useEffect(() => {
     if (isLuarPekanbaru && metodeBayar === "cod") setMetodeBayar("transfer");
   }, [isLuarPekanbaru]);
-  const itemBelumSatuKoli = isLuarPekanbaru
-    ? Object.entries(cart)
-        .filter(([kode]) => checkedItems[kode] !== false)
-        .map(([kode, qty]) => {
-          const p = products.find((pr) => pr.kode === kode);
-          return p && p.isiPerKoli > 0 && qty < p.isiPerKoli ? { ...p, qty } : null;
-        })
-        .filter(Boolean)
-    : [];
-  const belowMinimum = isLuarPekanbaru
-    ? (cartTotal > 0 && itemBelumSatuKoli.length > 0)
-    : (cartTotal > 0 && cartTotal < MIN_CHECKOUT);
+  const itemBelumMinimalOrder = Object.entries(cart)
+    .filter(([kode]) => checkedItems[kode] !== false)
+    .map(([kode, qty]) => {
+      const p = products.find((pr) => pr.kode === kode);
+      return p && p.minimalOrder > 1 && qty < p.minimalOrder ? { ...p, qty } : null;
+    })
+    .filter(Boolean);
+  const belowMinimum = cartTotal > 0 && itemBelumMinimalOrder.length > 0;
 
   // Tarik ulang riwayat order milik toko ini dari database (supaya tidak hilang
   // kalau refresh/login ulang di device lain - sebelumnya cuma tersimpan di HP saja).
@@ -1233,7 +1216,7 @@ export default function OrderApp() {
               product_id: it.id,
               qty: it.qty,
               harga_satuan: it.harga,
-              kena_diskon_koli: it.qty >= (it.isiPerKoli || Infinity),
+              kena_diskon_koli: false, // diskon koli sudah dinonaktifkan sepenuhnya
               subtotal_setelah_diskon: hitungRincianItem(it, it.qty).totalSetelahDiskon,
               harga_dropship: it.hargaDropship,
             }))
@@ -1595,7 +1578,7 @@ export default function OrderApp() {
           isDropship={isDropship} setIsDropship={handleToggleDropship}
           dropshipSender={dropshipSender} setDropshipSender={setDropshipSender} savedSenderNames={savedSenderNames}
           cart={cart} products={productsHargaProvinsi} rincian={cartRincian} belowMinimum={belowMinimum}
-          isLuarPekanbaru={isLuarPekanbaru} itemBelumSatuKoli={itemBelumSatuKoli}
+          isLuarPekanbaru={isLuarPekanbaru} itemBelumMinimalOrder={itemBelumMinimalOrder}
           metodeBayar={metodeBayar} setMetodeBayar={setMetodeBayar}
           checkedItems={checkedItems} setCheckedItems={setCheckedItems}
           addToCart={addToCart} setCartQty={setCartQty}
@@ -2546,17 +2529,6 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, availableCate
                       <p style={{ fontSize: 11.5, color: "#B5B2AA", textDecoration: "line-through", margin: "0 0 1px" }}>{rupiah(p.hargaAsli)}</p>
                     )}
                     <p className="disp" style={{ fontSize: 19, fontWeight: 700, color: p.hargaAsli ? "#C0392B" : "#24272B", margin: 0 }}>{rupiah(p.harga)}</p>
-                    {p.isiPerKoli > 0 && (
-                      qty >= p.isiPerKoli ? (
-                        <p style={{ fontSize: 10, color: "#24272B", fontWeight: 700, margin: "4px 0 0", lineHeight: 1.3, display: "flex", alignItems: "center", gap: 3 }}>
-                          <Check size={11} /> Diskon tambahan {Math.round((p.diskonKoliPct ?? 0.05) * 100)}% aktif (1 koli)
-                        </p>
-                      ) : (
-                        <p style={{ fontSize: 10, color: "#B8860B", fontWeight: 600, margin: "4px 0 0", lineHeight: 1.3 }}>
-                          Tambah {p.isiPerKoli - qty} {p.satuan} lagi untuk diskon {Math.round((p.diskonKoliPct ?? 0.05) * 100)}% (1 koli = {p.isiPerKoli} {p.satuan})
-                        </p>
-                      )
-                    )}
                   </>
                 )}
               </button>
@@ -2753,17 +2725,6 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
             )}
             <p className="disp" style={{ fontSize: 24, fontWeight: 700, color: product.hargaAsli ? "#C0392B" : "#24272B", margin: "0 0 4px" }}>{rupiah(product.harga)} <span style={{ fontSize: 14, color: "#9CA0A6", fontWeight: 500 }}>/ {product.satuan}</span></p>
             <p style={{ fontSize: 13, color: "#9CA0A6", marginBottom: 16 }}>Stok tersedia: {product.stock} {product.satuan}</p>
-            {product.isiPerKoli > 0 && (
-              qty >= product.isiPerKoli ? (
-                <div style={{ background: "#D8E9E6", color: "#24272B", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 700, marginBottom: 20, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Check size={15} /> Diskon tambahan {Math.round((product.diskonKoliPct ?? 0.05) * 100)}% aktif — sudah 1 koli ({product.isiPerKoli} {product.satuan})
-                </div>
-              ) : (
-                <div style={{ background: "#FBF0D9", color: "#B8860B", padding: "10px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, marginBottom: 20 }}>
-                  🎉 Tambah {product.isiPerKoli - qty} {product.satuan} lagi untuk diskon tambahan {Math.round((product.diskonKoliPct ?? 0.05) * 100)}% (1 koli = {product.isiPerKoli} {product.satuan})
-                </div>
-              )
-            )}
           </>
         )}
       </div>
@@ -2827,7 +2788,7 @@ function ProductScreen({ product, qty, isGuest, cartCount, onChangeQty, onSetQty
 // ============================================================
 // KERANJANG
 // ============================================================
-function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumSatuKoli, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
+function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEditingAlt, altAddress, setAltAddress, savedAddresses, onSaveAddress, onPickAddress, isDropship, setIsDropship, dropshipSender, setDropshipSender, savedSenderNames, cart, products, rincian, belowMinimum, isLuarPekanbaru, itemBelumMinimalOrder, metodeBayar, setMetodeBayar, checkedItems, setCheckedItems, addToCart, setCartQty, onBack, onCheckout }) {
   const [editingQtyKode, setEditingQtyKode] = useState(null);
   const [qtyInput, setQtyInput] = useState("");
   const [showPicker, setShowPicker] = useState(false);
@@ -2900,7 +2861,6 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
     );
   }
 
-  const kurang = MIN_CHECKOUT - rincian.totalBayar;
   const setAlt = (k) => (e) => setAltAddress({ ...altAddress, [k]: e.target.value });
   const canSaveAlt = altAddress.telp.trim() && altAddress.alamat.trim() && altAddress.provinsi && altAddress.kota && altAddress.kecamatan && altAddress.kelurahan;
 
@@ -3120,25 +3080,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 600, color: "#24272B", margin: "0 0 4px" }}>{p.nama}</p>
-                {r.kenaKoli ? (
-                  <p style={{ fontSize: 13, margin: 0 }}>
-                    <span style={{ color: "#B5B2AA", textDecoration: "line-through" }}>{rupiah(p.harga)}</span>{" "}
-                    <span style={{ color: "#C0392B", fontWeight: 700 }}>{rupiah(Math.round(r.hargaSetelahKoli))}</span>{" "}
-                    <span style={{ color: "#9CA0A6" }}>/ {p.satuan}</span>
-                  </p>
-                ) : (
-                  <p style={{ fontSize: 13, color: "#9CA0A6", margin: 0 }}>{rupiah(p.harga)} / {p.satuan}</p>
-                )}
-                {r.totalDiskon > 0 && (
-                  <p style={{ fontSize: 11.5, color: "#24272B", fontWeight: 600, margin: "4px 0 0" }}>
-                    Hemat {rupiah(Math.round(r.totalDiskon))} {r.kenaKoli && "(termasuk bonus koli)"}
-                  </p>
-                )}
-                {!r.kenaKoli && p.isiPerKoli > 0 && (
-                  <p style={{ fontSize: 11.5, color: "#B8860B", fontWeight: 600, margin: "4px 0 0" }}>
-                    Tambah {p.isiPerKoli - p.qty} {p.satuan} lagi (jadi {p.isiPerKoli} = 1 koli) untuk diskon tambahan {Math.round((p.diskonKoliPct ?? 0.05) * 100)}%
-                  </p>
-                )}
+                <p style={{ fontSize: 13, color: "#9CA0A6", margin: 0 }}>{rupiah(p.harga)} / {p.satuan}</p>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10 }}>
                 <button aria-label={`Hapus ${p.nama}`} onClick={() => addToCart(p.kode, -p.qty)} style={{ background: "none", border: "none", color: "#C0392B" }}><X size={16} /></button>
@@ -3181,24 +3123,15 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
         {belowMinimum && (
           <div style={{ background: "#FBEAEA", color: "#C0392B", padding: "9px 10px", borderRadius: 9, fontSize: 11, fontWeight: 600, marginBottom: 8 }}>
-            {isLuarPekanbaru ? (
-              <>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: itemBelumSatuKoli.length > 0 ? 4 : 0 }}>
-                  <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                  Toko di luar Pekanbaru wajib order minimal 1 koli per barang:
-                </div>
-                {itemBelumSatuKoli.map((p) => (
-                  <p key={p.kode} style={{ margin: "2px 0 0 20px" }}>
-                    {p.nama}: {p.qty}/{p.isiPerKoli} {p.satuan}
-                  </p>
-                ))}
-              </>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                Minimal order {rupiah(MIN_CHECKOUT)}. Tambah belanja {rupiah(Math.round(kurang))} lagi.
-              </div>
-            )}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+              Minimal order per barang belum terpenuhi:
+            </div>
+            {itemBelumMinimalOrder.map((p) => (
+              <p key={p.kode} style={{ margin: "2px 0 0 20px" }}>
+                {p.nama}: {p.qty}/{p.minimalOrder} {p.satuan}
+              </p>
+            ))}
           </div>
         )}
 
@@ -3370,20 +3303,7 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: 13.5, fontWeight: 600, color: "#24272B", margin: "0 0 4px" }}>{p.nama}</p>
-                {r.kenaKoli ? (
-                  <p style={{ fontSize: 12.5, margin: 0 }}>
-                    <span style={{ color: "#B5B2AA", textDecoration: "line-through" }}>{rupiah(p.harga)}</span>{" "}
-                    <span style={{ color: "#C0392B", fontWeight: 700 }}>{rupiah(Math.round(r.hargaSetelahKoli))}</span>{" "}
-                    <span style={{ color: "#9CA0A6" }}>/ {p.satuan}</span>
-                  </p>
-                ) : (
-                  <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: 0 }}>{rupiah(p.harga)} / {p.satuan}</p>
-                )}
-                {r.totalDiskon > 0 && (
-                  <p style={{ fontSize: 11, color: "#24272B", fontWeight: 600, margin: "4px 0 0" }}>
-                    Hemat {rupiah(Math.round(r.totalDiskon))} {r.kenaKoli && "(termasuk bonus koli)"}
-                  </p>
-                )}
+                <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: 0 }}>{rupiah(p.harga)} / {p.satuan}</p>
               </div>
               <div style={{ flexShrink: 0, alignSelf: "center", background: "#F7F5F1", borderRadius: 8, padding: "5px 10px" }}>
                 <span style={{ fontWeight: 700, fontSize: 13, color: "#24272B" }}>{p.qty} {p.satuan}</span>
