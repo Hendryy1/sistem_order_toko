@@ -522,7 +522,44 @@ export default function OrderApp() {
   useEffect(() => {
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {});
+
+      // Deteksi kalau ada VERSI BARU kode yang sudah aktif mengambil alih
+      // (controllerchange) - kode JS yang SEDANG dijalankan di tab ini
+      // tetap versi LAMA sampai halaman di-refresh manual, jadi kasih
+      // TAHU pengguna lewat banner supaya mereka tahu perlu refresh -
+      // bukan auto-refresh paksa yang bisa hilangkan isian form mereka.
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        setUpdateTersedia(true);
+      });
     }
+  }, []);
+
+  const [updateTersedia, setUpdateTersedia] = useState(false);
+  const [maintenanceInfo, setMaintenanceInfo] = useState(null); // { aktif, pesan } | null
+
+  // Cek status Mode Maintenance secara BERKALA (tiap 10 detik) - kalau
+  // Owner aktifkan, tampilkan info maintenance (blokir interaksi). Begitu
+  // Owner MATIKAN lagi (dari aktif jadi nonaktif), otomatis REFRESH PAKSA
+  // halaman ini tanpa perlu klik apapun dari toko - supaya langsung dapat
+  // kode/data terbaru.
+  useEffect(() => {
+    let sudahPernahAktif = false;
+    async function cekMaintenance() {
+      try {
+        const rows = await supabaseFetch("pengaturan_maintenance?select=aktif,pesan&id=eq.1");
+        const row = rows?.[0];
+        if (!row) return;
+        if (row.aktif) {
+          sudahPernahAktif = true;
+          setMaintenanceInfo({ aktif: true, pesan: row.pesan });
+        } else if (sudahPernahAktif) {
+          window.location.reload();
+        }
+      } catch (e) { /* diamkan - kalau gagal cek, anggap saja tidak maintenance */ }
+    }
+    cekMaintenance();
+    const interval = setInterval(cekMaintenance, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   const [campaignBanner, setCampaignBanner] = useState(null);
@@ -1536,6 +1573,20 @@ export default function OrderApp() {
     return <ResetPasswordFormScreen recoveryToken={recoveryToken} recoveryLinkError={recoveryLinkError} onDone={() => { window.location.hash = ""; setScreen("login"); }} />;
   }
 
+  if (maintenanceInfo?.aktif) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#24272B", padding: 32, textAlign: "center" }}>
+        <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#FBF0D9", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 24 }}>
+          <RefreshCw size={30} color="#8A6A1A" />
+        </div>
+        <h2 className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: "0 0 10px" }}>Sedang Maintenance</h2>
+        <p style={{ color: "#9CA0A6", fontSize: 13.5, lineHeight: 1.6, maxWidth: 320 }}>
+          {maintenanceInfo.pesan || "Sistem sedang dalam pemeliharaan. Mohon tunggu sebentar, halaman akan otomatis refresh setelah selesai."}
+        </p>
+      </div>
+    );
+  }
+
   if (restoringSession) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#24272B" }}>
@@ -1554,6 +1605,19 @@ export default function OrderApp() {
         input, select { font-family: inherit; }
         ::selection { background: #E8A426; color: #24272B; }
       `}</style>
+
+      {updateTersedia && (
+        <div style={{ position: "fixed", bottom: 16, left: 16, right: 16, maxWidth: 448, margin: "0 auto", zIndex: 300, background: "#24272B", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 4px 16px rgba(0,0,0,0.25)" }}>
+          <RefreshCw size={18} color="#E8A426" style={{ flexShrink: 0 }} />
+          <p style={{ flex: 1, fontSize: 12.5, color: "#fff", margin: 0, lineHeight: 1.4 }}>Ada update terbaru tersedia.</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ padding: "8px 14px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12, fontWeight: 700, flexShrink: 0 }}
+          >
+            Refresh
+          </button>
+        </div>
+      )}
 
       {toko?.dibuatOlehSales && screen !== "login" && screen !== "register" && (
         <div style={{ position: "sticky", top: 0, zIndex: 200, background: "#24272B", color: "#fff", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 11.5 }}>
