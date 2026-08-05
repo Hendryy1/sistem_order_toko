@@ -6074,7 +6074,7 @@ function SaldoScreen({ toko, onBack }) {
         supabaseFetch(`v_saldo_toko?select=saldo&client_id=eq.${toko.id}`),
         isAkunDemo ? supabaseFetch(`virtual_accounts?select=*&client_id=eq.${toko.id}`) : Promise.resolve([]),
         supabaseFetch(`saldo_ledger?select=*&client_id=eq.${toko.id}&order=created_at.desc&limit=30`),
-        isAkunDemo ? Promise.resolve([]) : supabaseFetch(`rekening_bank_perusahaan?select=nama_bank,no_rekening,atas_nama&aktif=eq.true&order=urutan.asc`),
+        supabaseFetch(`rekening_bank_perusahaan?select=nama_bank,no_rekening,atas_nama&aktif=eq.true&order=urutan.asc`),
       ]);
       setSaldo(Number(saldoRows[0]?.saldo || 0));
       setVa(vaRows || []);
@@ -6151,6 +6151,17 @@ function SaldoScreen({ toko, onBack }) {
                 <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
                   Transfer ke salah satu nomor VA di atas kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
                 </p>
+
+                {rekeningPerusahaan.filter((r) => r.nama_bank?.toUpperCase().includes("BCA")).map((r, i) => (
+                  <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginTop: 14 }}>
+                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
+                    <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{r.no_rekening}</p>
+                    <p style={{ fontSize: 12, color: "#6B6F75", margin: 0 }}>a.n. {r.atas_nama}</p>
+                    <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "8px 0 0", lineHeight: 1.5 }}>
+                      Transfer via Bank BCA mohon upload bukti pembayaran.
+                    </p>
+                  </div>
+                ))}
               </div>
             ) : (
               <div style={{ background: "#FBF0D9", borderRadius: 14, padding: 16, marginBottom: 20 }}>
