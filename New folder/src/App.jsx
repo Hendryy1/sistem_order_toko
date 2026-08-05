@@ -3899,7 +3899,7 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
                 <Check size={13} /> Penerimaan dikonfirmasi, menunggu review Owner
               </div>
             )}
-            {!o.sudahBayar && filterKey === "bayar" && (
+            {!o.sudahBayar && (filterKey === "bayar" || filterKey === "pesanan") && (
               toko?.jenisBayar === "Transfer" ? (
                 o.buktiTransferUrl ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>
