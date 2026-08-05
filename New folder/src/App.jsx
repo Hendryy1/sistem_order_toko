@@ -1337,7 +1337,6 @@ export default function OrderApp() {
     setEditingAlt(false);
     setAltAddress({ nama: "", telp: "", alamat: "" });
     setIsDropship(false);
-    setDropshipPrices({});
     setMetodeBayar("transfer");
     setScreen("success");
   }
@@ -3211,7 +3210,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
                   Ganti alamat
                 </button>
                 <button
-                  onClick={() => { setUseAltAddress(false); setEditingAlt(false); setAltAddress({ nama: "", telp: "", alamat: "" }); setIsDropship(false); setDropshipPrices({}); }}
+                  onClick={() => { setUseAltAddress(false); setEditingAlt(false); setAltAddress({ nama: "", telp: "", alamat: "" }); setIsDropship(false); }}
                   style={{ background: "none", border: "none", color: "#9CA0A6", fontSize: 12.5, fontWeight: 600, padding: 0 }}
                 >
                   Pakai alamat toko terdaftar
