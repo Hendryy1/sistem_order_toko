@@ -6089,7 +6089,7 @@ function SaldoScreen({ toko, onBack }) {
       // - dialokasikan FIFO (order terlama duluan), sama seperti cara
       // trigger auto-bayar bekerja di database.
       const ordersMenunggu = await supabaseFetch(
-        `orders?select=no_nota,created_at,order_items(subtotal_setelah_diskon)&client_id=eq.${toko.id}&status=eq.menunggu_pembayaran&metode_bayar=eq.transfer&order=created_at.asc`
+        `orders?select=no_nota,status,created_at,order_items(subtotal_setelah_diskon)&client_id=eq.${toko.id}&status=in.(menunggu_persetujuan,menunggu_pembayaran)&metode_bayar=eq.transfer&order=created_at.asc`
       );
       let sisaSaldo = Number(saldoRows[0]?.saldo || 0);
       const daftarKurang = ordersMenunggu.map((o) => {
@@ -6101,7 +6101,7 @@ function SaldoScreen({ toko, onBack }) {
         // order ini sudah "habis" jatah saldonya (kurang > 0, artinya
         // semua sisa saldo sudah "terserap" ke order ini duluan).
         sisaSaldo = Math.max(0, sisaSaldo - totalOrder);
-        return { no_nota: o.no_nota, kurang };
+        return { no_nota: o.no_nota, status: o.status, kurang };
       }).filter((o) => o.kurang > 0);
       setOrderKurangBayar(daftarKurang);
       setTotalKurangBayar(daftarKurang.reduce((sum, o) => sum + o.kurang, 0));
@@ -6188,11 +6188,11 @@ function SaldoScreen({ toko, onBack }) {
               <p style={{ fontSize: 11.5, color: "#C0392B", margin: "0 0 6px", fontWeight: 700, textTransform: "uppercase" }}>Total Perlu Dibayarkan</p>
               <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#C0392B", margin: "0 0 8px" }}>{rupiah(totalKurangBayar)}</p>
               <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "0 0 8px", lineHeight: 1.5 }}>
-                Saldo Anda sempat dipakai membayar pesanan di bawah ini, tapi tidak cukup untuk melunasi semuanya. Sisa kekurangan ini perlu melakukan pembayaran ke salah satu VA bank di atas supaya pesanan bisa lanjut diproses.
+                Ini termasuk pesanan yang masih menunggu persetujuan Admin - segera isi saldo lewat VA di atas supaya begitu disetujui, pesanan bisa langsung lanjut diproses tanpa perlu transfer manual lagi.
               </p>
               {orderKurangBayar.map((o, i) => (
                 <p key={i} style={{ fontSize: 12, color: "#6B6F75", margin: "2px 0" }}>
-                  {o.no_nota}: <strong style={{ color: "#C0392B" }}>{rupiah(o.kurang)}</strong>
+                  {o.no_nota}{o.status === "menunggu_persetujuan" ? " (Menunggu Persetujuan)" : ""}: <strong style={{ color: "#C0392B" }}>{rupiah(o.kurang)}</strong>
                 </p>
               ))}
             </div>
