@@ -6170,7 +6170,6 @@ function SaldoScreen({ toko, onBack }) {
                   <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginTop: 14 }}>
                     <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
                     <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{r.no_rekening}</p>
-                    <p style={{ fontSize: 12, color: "#6B6F75", margin: 0 }}>a.n. {r.atas_nama}</p>
                     <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "8px 0 0", lineHeight: 1.5 }}>
                       Transfer via Bank BCA mohon upload bukti pembayaran.
                     </p>
@@ -6192,7 +6191,6 @@ function SaldoScreen({ toko, onBack }) {
                   <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10 }}>
                     <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
                     <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
-                    <p style={{ fontSize: 11.5, color: "#6B6F75", margin: "4px 0 0" }}>a.n. {r.atas_nama}</p>
                   </div>
                 ))}
                 <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
@@ -6312,7 +6310,6 @@ function RekeningScreen({ toko, onBack }) {
                     <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
                   </button>
                 </div>
-                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {toko?.nama}</p>
               </div>
             ))
           )}
@@ -6342,7 +6339,6 @@ function RekeningScreen({ toko, onBack }) {
                     <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
                   </button>
                 </div>
-                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>a.n. {r.atas_nama}</p>
               </div>
             ))
           )}
