@@ -3780,20 +3780,22 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
         })}
       </div>
 
-      <div style={{ padding: "0 20px 4px" }}>
-        <button onClick={onOpenPoin} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "#24272B", borderRadius: 16, padding: 16, border: "none" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Star size={19} color="#24272B" />
+      {!toko?.dibuatOlehSales && (
+        <div style={{ padding: "0 20px 4px" }}>
+          <button onClick={onOpenPoin} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "#24272B", borderRadius: 16, padding: 16, border: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#E8A426", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Star size={19} color="#24272B" />
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <p style={{ color: "#9CA0A6", fontSize: 11, margin: 0 }}>Poin Saya</p>
+                <p className="disp" style={{ color: "#fff", fontSize: 20, fontWeight: 700, margin: "1px 0 0" }}>{pointsBalance.toLocaleString("id-ID")} pts</p>
+              </div>
             </div>
-            <div style={{ textAlign: "left" }}>
-              <p style={{ color: "#9CA0A6", fontSize: 11, margin: 0 }}>Poin Saya</p>
-              <p className="disp" style={{ color: "#fff", fontSize: 20, fontWeight: 700, margin: "1px 0 0" }}>{pointsBalance.toLocaleString("id-ID")} pts</p>
-            </div>
-          </div>
-          <ChevronRight size={18} color="#6B6F75" />
-        </button>
-      </div>
+            <ChevronRight size={18} color="#6B6F75" />
+          </button>
+        </div>
+      )}
 
       <div style={{ padding: "8px 20px 4px" }}>
         <MenuRow icon={Wallet} label="Saldo Saya" onClick={onOpenSaldo} />
@@ -3809,7 +3811,7 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
         />
         <MenuRow icon={Bell} label="Aktifkan Notifikasi" onClick={() => subscribeToPush(toko.id)} />
         <MenuRow icon={RotateCcw} label="Order Ulang" onClick={onOpenOrderUlang} />
-        <MenuRow icon={Star} label="Poin Saya" onClick={onOpenPoin} />
+        {!toko?.dibuatOlehSales && <MenuRow icon={Star} label="Poin Saya" onClick={onOpenPoin} />}
         <MenuRow icon={CreditCard} label="Ketentuan Pembayaran & Rekening Bank" onClick={onOpenRekening} />
         <MenuRow icon={Headphones} label="Service Centre" onClick={onOpenCS} />
         <MenuRow icon={HelpCircle} label="Bantuan" onClick={onOpenBantuan} />
@@ -5283,7 +5285,7 @@ function VerifikasiTokoScreen({ toko, authToken, onBack, onUpdated }) {
           <button onClick={onBack} style={{ background: "none", border: "none", display: "flex", alignItems: "center", gap: 4, color: "#6B6F75", fontSize: 14, padding: 0 }}>
             <ChevronLeft size={18} /> Kembali
           </button>
-          {toko.statusVerifikasi === "terverifikasi" && !editMode && (
+          {toko.statusVerifikasi === "terverifikasi" && !editMode && !toko?.dibuatOlehSales && (
             <button
               onClick={mulaiVerifikasiEmail}
               style={{ padding: "8px 16px", borderRadius: 9, border: "none", background: "#fff", color: "#24272B", fontSize: 13, fontWeight: 700 }}
@@ -5606,16 +5608,20 @@ function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpda
             <p style={labelStyle}>No. HP</p>
             <p style={valueStyle}>{sensorNoHp(toko.telp)}</p>
           </div>
-          <button onClick={() => { setShowEditHp(true); setHpStep("konfirmasi"); }} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <FileEdit size={15} color="#24272B" />
-          </button>
+          {!toko?.dibuatOlehSales && (
+            <button onClick={() => { setShowEditHp(true); setHpStep("konfirmasi"); }} style={{ width: 34, height: 34, borderRadius: "50%", border: "none", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <FileEdit size={15} color="#24272B" />
+            </button>
+          )}
         </div>
 
-        <div style={rowStyle}>
-          <button onClick={resetPassword} disabled={resettingPw} style={{ background: "none", border: "none", padding: 0, color: "#B8860B", fontSize: 13.5, fontWeight: 700 }}>
-            {resettingPw ? "Mengirim..." : "Reset Password"}
-          </button>
-        </div>
+        {!toko?.dibuatOlehSales && (
+          <div style={rowStyle}>
+            <button onClick={resetPassword} disabled={resettingPw} style={{ background: "none", border: "none", padding: 0, color: "#B8860B", fontSize: 13.5, fontWeight: 700 }}>
+              {resettingPw ? "Mengirim..." : "Reset Password"}
+            </button>
+          </div>
+        )}
 
         <div style={rowStyle}>
           <p style={labelStyle}>Jenis Usaha</p>
@@ -5632,10 +5638,12 @@ function InformasiAkunScreen({ toko, onBack, onOpenAlamat, onOpenTentang, onUpda
           <p style={valueStyle}>{toko.provinsi || "-"}</p>
         </div>
 
-        <button onClick={onOpenAlamat} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid #EDEAE3", background: "none", border: "none", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "#EDEAE3" }}>
-          <span style={{ fontSize: 14, fontWeight: 600, color: "#24272B" }}>Daftar Alamat</span>
-          <ChevronRight size={17} color="#B5B2AA" />
-        </button>
+        {!toko?.dibuatOlehSales && (
+          <button onClick={onOpenAlamat} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid #EDEAE3", background: "none", border: "none", borderBottomWidth: 1, borderBottomStyle: "solid", borderBottomColor: "#EDEAE3" }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "#24272B" }}>Daftar Alamat</span>
+            <ChevronRight size={17} color="#B5B2AA" />
+          </button>
+        )}
 
         <button onClick={onOpenTentang} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", background: "none", border: "none" }}>
           <span style={{ fontSize: 14, fontWeight: 600, color: "#24272B" }}>Tentang</span>
@@ -5836,19 +5844,21 @@ function TentangScreen({ toko, onBack }) {
           <p style={{ fontSize: 12.5, color: "#24272B", margin: 0 }}>1.0</p>
         </div>
 
-        <div style={{ padding: "20px 0 0" }}>
-          {sudahDiajukan ? (
-            <div style={{ background: "#D8E9E6", borderRadius: 12, padding: 14 }}>
-              <p style={{ fontSize: 12.5, color: "#28685D", margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
-                Permintaan penghapusan akun Anda sudah diterima dan sedang diproses tim kami.
-              </p>
-            </div>
-          ) : (
-            <button onClick={() => setShowHapusAkun(true)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 13, fontWeight: 700, padding: 0 }}>
+        {!toko?.dibuatOlehSales && (
+          <div style={{ padding: "20px 0 0" }}>
+            {sudahDiajukan ? (
+              <div style={{ background: "#D8E9E6", borderRadius: 12, padding: 14 }}>
+                <p style={{ fontSize: 12.5, color: "#28685D", margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
+                  Permintaan penghapusan akun Anda sudah diterima dan sedang diproses tim kami.
+                </p>
+              </div>
+            ) : (
+              <button onClick={() => setShowHapusAkun(true)} style={{ background: "none", border: "none", color: "#C0392B", fontSize: 13, fontWeight: 700, padding: 0 }}>
               Ajukan Penghapusan Akun
             </button>
           )}
-        </div>
+          </div>
+        )}
       </div>
 
       {showHapusAkun && (
