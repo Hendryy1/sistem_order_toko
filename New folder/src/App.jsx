@@ -6077,28 +6077,18 @@ function SaldoScreen({ toko, onBack }) {
       setRekeningPerusahaan(rekeningRows || []);
       setRiwayat(ledgerRows);
 
-      // Cari order yang PERNAH kepotong saldo ("pakai_bayar_order") tapi
-      // saldo-nya TIDAK CUKUP buat melunasi semua (masih belum_lunas) -
-      // sisa kekurangannya itu yang perlu dibayarkan sendiri oleh toko.
-      const potonganRows = await supabaseFetch(
-        `saldo_ledger?select=order_id,jumlah&client_id=eq.${toko.id}&jenis=eq.pakai_bayar_order`
+      // Order yang statusnya "menunggu_pembayaran" (transfer) - saldo toko
+      // TIDAK cukup saat di-approve, jadi belum otomatis kepotong sama
+      // sekali. Toko perlu bayar penuh manual (transfer/upload bukti).
+      const ordersMenunggu = await supabaseFetch(
+        `orders?select=no_nota,order_items(subtotal_setelah_diskon)&client_id=eq.${toko.id}&status=eq.menunggu_pembayaran&metode_bayar=eq.transfer`
       );
-      const orderIdsKepotong = [...new Set(potonganRows.map((r) => r.order_id).filter(Boolean))];
-      if (orderIdsKepotong.length > 0) {
-        // Kecualikan COD total - saldo cuma dipakai buat order Transfer,
-        // COD dibayar tunai saat barang sampai jadi tidak boleh dihitung
-        // sebagai "kekurangan bayar dari saldo" di sini.
-        const ordersBelumLunas = await supabaseFetch(
-          `orders?select=id,no_nota,status_bayar,metode_bayar,order_items(subtotal_setelah_diskon)&id=in.(${orderIdsKepotong.join(",")})&status_bayar=eq.belum_lunas&metode_bayar=eq.transfer`
-        );
-        const daftarKurang = ordersBelumLunas.map((o) => {
-          const totalOrder = (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0);
-          const sudahDipotong = potonganRows.filter((r) => r.order_id === o.id).reduce((sum, r) => sum + Math.abs(Number(r.jumlah || 0)), 0);
-          return { no_nota: o.no_nota, kurang: Math.max(0, totalOrder - sudahDipotong) };
-        }).filter((o) => o.kurang > 0);
-        setOrderKurangBayar(daftarKurang);
-        setTotalKurangBayar(daftarKurang.reduce((sum, o) => sum + o.kurang, 0));
-      }
+      const daftarKurang = ordersMenunggu.map((o) => ({
+        no_nota: o.no_nota,
+        kurang: (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0),
+      })).filter((o) => o.kurang > 0);
+      setOrderKurangBayar(daftarKurang);
+      setTotalKurangBayar(daftarKurang.reduce((sum, o) => sum + o.kurang, 0));
     } catch (e) {
       console.log("Gagal muat saldo:", e.message);
     }
