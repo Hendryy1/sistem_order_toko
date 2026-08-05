@@ -772,7 +772,7 @@ export default function OrderApp() {
   // toko luar Pekanbaru tidak kena aturan total belanja itu (tapi tetap
   // kena aturan minimal order per produk seperti semua toko lain).
   const kotaTujuan = useAltAddress && altAddress.kota ? altAddress.kota : toko?.kota;
-  const isLuarPekanbaru = !!(kotaTujuan && kotaTujuan.trim().toLowerCase() !== "pekanbaru");
+  const isLuarPekanbaru = !!(kotaTujuan && !kotaTujuan.trim().toLowerCase().includes("pekanbaru"));
 
   // COD cuma boleh dipilih kalau tujuan pengiriman di Pekanbaru - kalau
   // alamat berubah jadi luar kota, otomatis balik ke transfer
@@ -3169,10 +3169,10 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
               <Field label="Kode Pos">
                 <input value={altAddress.kodePos} onChange={setAlt("kodePos")} placeholder="Isi manual, misal 28292" style={inputStyle} inputMode="numeric" maxLength={5} />
               </Field>
-              {altAddress.kota && altAddress.kota.trim().toLowerCase() !== "pekanbaru" && (
+              {altAddress.kota && !altAddress.kota.trim().toLowerCase().includes("pekanbaru") && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#FFFBF0", color: "#8A6A1A", padding: "9px 12px", borderRadius: 9, fontSize: 11.5, fontWeight: 600, marginBottom: 14 }}>
                   <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                  Kota ini di luar Pekanbaru - berlaku minimal order 1 koli per barang, bukan minimal Rp500rb.
+                  Kota ini di luar Pekanbaru - metode pembayaran otomatis Transfer (COD tidak tersedia).
                 </div>
               )}
               <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
