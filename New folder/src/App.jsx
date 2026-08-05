@@ -3742,7 +3742,7 @@ function AccountScreen({ toko, orders, onMarkPaid, pointsBalance, onOpenRekening
   const tiles = [
     { key: "pesanan", label: "Pesanan", icon: ClipboardList, count: counts.pesanan, matchStatus: "Menunggu Persetujuan" },
     { key: "kirim", label: "Menunggu Pengiriman", icon: Truck, count: counts.kirim, matchStatus: null },
-    { key: "konfirmasi", label: "Konfirmasi Penerimaan", icon: PackageCheck, count: counts.konfirmasi, matchStatus: "Dikirim" },
+    { key: "konfirmasi", label: "Dikirim", icon: PackageCheck, count: counts.konfirmasi, matchStatus: "Dikirim" },
     { key: "bayar", label: "Belum Bayar", icon: Wallet, count: counts.bayar, matchStatus: null },
   ];
 
@@ -3859,7 +3859,7 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
   const [detailOrder, setDetailOrder] = useState(null);
 
   const TITLE_MAP = {
-    pesanan: "Pesanan", kirim: "Menunggu Pengiriman", konfirmasi: "Konfirmasi Penerimaan", bayar: "Belum Bayar",
+    pesanan: "Pesanan", kirim: "Menunggu Pengiriman", konfirmasi: "Dikirim", bayar: "Belum Bayar",
   };
   const MATCH_STATUS = {
     pesanan: ["Menunggu Persetujuan"], kirim: ["Sedang Diproses", "Siap Dikirim"], konfirmasi: ["Dikirim"],
