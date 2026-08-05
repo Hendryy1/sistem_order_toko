@@ -828,6 +828,7 @@ export default function OrderApp() {
           selesai: o.selesai_at,
         },
         sudahBayar: o.status_bayar === "lunas",
+        metodeBayar: o.metode_bayar,
         dikonfirmasiToko: !!o.dikonfirmasi_toko_at,
         buktiTransferUrl: o.bukti_transfer_url || null,
         isDropship: o.is_dropship,
@@ -3876,7 +3877,12 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
         filteredOrders.map((o) => (
           <div key={o.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-              <span className="disp" style={{ fontWeight: 700, fontSize: 14 }}>{o.id}</span>
+              <span className="disp" style={{ fontWeight: 700, fontSize: 14 }}>
+                {o.id}
+                {o.metodeBayar === "cod" && (
+                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#FBF0D9", color: "#8A6A1A", verticalAlign: "middle" }}>COD</span>
+                )}
+              </span>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#24272B" }}>{rupiah(o.total)}</span>
             </div>
             <button onClick={() => setDetailOrder(o)} style={{ background: "none", border: "1px solid #E4E1DA", borderRadius: 8, padding: "6px 12px", color: "#24272B", fontSize: 11.5, fontWeight: 600, marginBottom: 8 }}>
@@ -4186,6 +4192,9 @@ function OrderDetailModal({ order, onClose, clientId }) {
           </span>
           {order.isDropship && (
             <span style={{ fontSize: 11, fontWeight: 700, color: "#B8860B", background: "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>Dropship</span>
+          )}
+          {order.metodeBayar === "cod" && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#8A6A1A", background: "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>COD</span>
           )}
         </div>
 
