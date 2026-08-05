@@ -3692,7 +3692,12 @@ function HistoryScreen({ orders, onBack, toko }) {
           return (
           <div key={o.id} style={{ background: "#fff", borderRadius: 14, padding: 16, marginBottom: 12, border: "1px solid #EDEAE3" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>{o.id}</span>
+              <span className="disp" style={{ fontWeight: 700, fontSize: 16, color: "#24272B" }}>
+                {o.id}
+                {o.metodeBayar === "cod" && (
+                  <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: "#FBF0D9", color: "#8A6A1A", verticalAlign: "middle" }}>COD</span>
+                )}
+              </span>
               <span style={{ fontSize: 11, fontWeight: 700, color: isCancelled ? "#C0392B" : "#B8860B", background: isCancelled ? "#FBEAEA" : "#FBF0D9", padding: "4px 10px", borderRadius: 999 }}>{o.status}</span>
             </div>
             {isCancelled && o.alasanDibatalkan && (
