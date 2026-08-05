@@ -811,7 +811,8 @@ export default function OrderApp() {
           : o.status === "menunggu_pembayaran" ? "Menunggu Pembayaran"
           : o.status === "menunggu_pengiriman" ? "Sedang Diproses"
           : o.status === "siap_dikirim" ? "Siap Dikirim"
-          : o.status === "proses_dikirim" || o.status === "dikirim" ? "Dikirim"
+          : o.status === "proses_dikirim" || o.status === "dikirim"
+            ? (o.dikonfirmasi_toko_at ? "Selesai" : "Dikirim")
           : o.status === "diretur" ? "Diretur"
           : o.status === "selesai" && o.alasan_retur ? "Retur Selesai"
           : o.status === "selesai" ? "Selesai"
@@ -827,6 +828,7 @@ export default function OrderApp() {
           selesai: o.selesai_at,
         },
         sudahBayar: o.status_bayar === "lunas",
+        dikonfirmasiToko: !!o.dikonfirmasi_toko_at,
         buktiTransferUrl: o.bukti_transfer_url || null,
         isDropship: o.is_dropship,
         pengirim: o.nama_pengirim_dropship,
@@ -1356,13 +1358,18 @@ export default function OrderApp() {
 
   // Simulasi progres status pesanan (dipakai di prototipe ini karena belum tersambung backend)
   async function advanceOrderStatus(orderId, nextStatus) {
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o)));
     const order = orders.find((o) => o.id === orderId);
+    // Konfirmasi Penerimaan dari toko TIDAK langsung menyelesaikan order DI
+    // DATABASE - status ASLI tetap "proses_dikirim" sampai Owner benar-benar
+    // selesaikan lewat Dashboard (supaya Owner tetap bisa review dokumen
+    // pengiriman dulu). TAPI di sisi TAMPILAN toko, biar terlihat simpel,
+    // status langsung ditampilkan "Selesai" begitu mereka konfirmasi.
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "Selesai", dikonfirmasiToko: true } : o)));
     if (order?.dbId) {
       try {
         await supabaseFetch(`orders?id=eq.${order.dbId}`, {
           method: "PATCH",
-          body: JSON.stringify({ status: "selesai" }),
+          body: JSON.stringify({ dikonfirmasi_toko_at: new Date().toISOString() }),
         }, authToken);
       } catch (e) {
         console.log("Gagal simpan konfirmasi penerimaan ke database:", e.message);
@@ -3882,10 +3889,15 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
             <button onClick={() => setDetailOrder(o)} style={{ background: "none", border: "1px solid #E4E1DA", borderRadius: 8, padding: "6px 12px", color: "#24272B", fontSize: 11.5, fontWeight: 600, marginBottom: 8 }}>
               Detail Pesanan
             </button>
-            {o.status === "Dikirim" && (
+            {o.status === "Dikirim" && !o.dikonfirmasiToko && (
               <button onClick={() => onAdvance(o.id, "Selesai")} style={{ width: "100%", marginTop: 4, padding: "9px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
                 Konfirmasi Penerimaan
               </button>
+            )}
+            {o.status === "Dikirim" && o.dikonfirmasiToko && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#B8860B", fontWeight: 600, marginTop: 4 }}>
+                <Check size={13} /> Penerimaan dikonfirmasi, menunggu review Owner
+              </div>
             )}
             {!o.sudahBayar && filterKey === "bayar" && (
               toko?.jenisBayar === "Transfer" ? (
