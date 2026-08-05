@@ -6157,9 +6157,9 @@ function SaldoScreen({ toko, onBack }) {
                 {va.map((v) => (
                   <div key={v.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                      <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{v.bank_code}</p>
-                      <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{v.va_number}</p>
-                      <p style={{ fontSize: 11.5, color: "#6B6F75", margin: "2px 0 0" }}>PT INDO GARUDA ABADI</p>
+                      <p style={{ fontSize: 13, color: "#24272B", margin: "0 0 2px", fontWeight: 700 }}>{v.bank_code}</p>
+                      <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: 0 }}>{v.va_number}</p>
+                      <p style={{ fontSize: 11.5, color: "#24272B", margin: "2px 0 0" }}>PT INDO GARUDA ABADI</p>
                     </div>
                   </div>
                 ))}
@@ -6169,9 +6169,9 @@ function SaldoScreen({ toko, onBack }) {
 
                 {rekeningPerusahaan.filter((r) => r.nama_bank?.toUpperCase().includes("BCA")).map((r, i) => (
                   <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginTop: 14 }}>
-                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
-                    <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{r.no_rekening}</p>
-                    <p style={{ fontSize: 12, color: "#6B6F75", margin: 0 }}>{r.atas_nama}</p>
+                    <p style={{ fontSize: 13, color: "#24272B", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
+                    <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{r.no_rekening}</p>
+                    <p style={{ fontSize: 12, color: "#24272B", margin: 0 }}>{r.atas_nama}</p>
                     <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "8px 0 0", lineHeight: 1.5 }}>
                       Transfer via Bank BCA mohon upload bukti pembayaran.
                     </p>
@@ -6191,9 +6191,9 @@ function SaldoScreen({ toko, onBack }) {
                 <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Rekening Bank Perusahaan</p>
                 {rekeningPerusahaan.map((r, i) => (
                   <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10 }}>
-                    <p style={{ fontSize: 11, color: "#9CA0A6", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
-                    <p className="disp" style={{ fontSize: 18, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
-                    <p style={{ fontSize: 11.5, color: "#6B6F75", margin: "4px 0 0" }}>{r.atas_nama}</p>
+                    <p style={{ fontSize: 13, color: "#24272B", margin: "0 0 2px", fontWeight: 700 }}>{r.nama_bank}</p>
+                    <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
+                    <p style={{ fontSize: 11.5, color: "#24272B", margin: "4px 0 0" }}>{r.atas_nama}</p>
                   </div>
                 ))}
                 <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
@@ -6306,14 +6306,14 @@ function RekeningScreen({ toko, onBack }) {
           ) : (
             vaList.map((r, i) => (
               <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.bank_code}</p>
+                <p style={{ fontSize: 13, color: "#24272B", margin: "0 0 4px" }}>{r.bank_code}</p>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.va_number}</p>
+                  <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.va_number}</p>
                   <button onClick={() => copyNumber(r.va_number, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
                     <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
                   </button>
                 </div>
-                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>PT INDO GARUDA ABADI</p>
+                <p style={{ fontSize: 12.5, color: "#24272B", margin: "6px 0 0" }}>PT INDO GARUDA ABADI</p>
               </div>
             ))
           )}
@@ -6336,14 +6336,14 @@ function RekeningScreen({ toko, onBack }) {
           ) : (
             rekeningPerusahaan.map((r, i) => (
               <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 12 }}>
-                <p style={{ fontSize: 12, color: "#9CA0A6", margin: "0 0 4px" }}>{r.nama_bank}</p>
+                <p style={{ fontSize: 13, color: "#24272B", margin: "0 0 4px" }}>{r.nama_bank}</p>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <p className="disp" style={{ fontSize: 20, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
+                  <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: 0 }}>{r.no_rekening}</p>
                   <button onClick={() => copyNumber(r.no_rekening, i)} style={{ display: "flex", alignItems: "center", gap: 5, background: "#F7F5F1", border: "none", borderRadius: 8, padding: "7px 10px", fontSize: 11.5, fontWeight: 700, color: "#24272B" }}>
                     <Copy size={13} /> {copiedIdx === i ? "Tersalin" : "Salin"}
                   </button>
                 </div>
-                <p style={{ fontSize: 12.5, color: "#6B6F75", margin: "6px 0 0" }}>{r.atas_nama}</p>
+                <p style={{ fontSize: 12.5, color: "#24272B", margin: "6px 0 0" }}>{r.atas_nama}</p>
               </div>
             ))
           )}
