@@ -6066,7 +6066,10 @@ function SaldoScreen({ toko, onBack }) {
   const [riwayat, setRiwayat] = useState([]);
   const [totalKurangBayar, setTotalKurangBayar] = useState(0);
   const [orderKurangBayar, setOrderKurangBayar] = useState([]);
-  const isAkunDemo = DAFTAR_EMAIL_DEMO.includes(toko?.email);
+  // Verifikasi Xendit sudah selesai - SEMUA akun sekarang pakai VA (bukan
+  // cuma demo lagi). Kalau suatu saat perlu revert ke rekening manual,
+  // ganti baris ini balik ke: DAFTAR_EMAIL_DEMO.includes(toko?.email)
+  const isAkunDemo = true;
 
   useEffect(() => {
     load();
@@ -6218,7 +6221,10 @@ function RekeningScreen({ toko, onBack }) {
   const [vaList, setVaList] = useState([]);
   const [rekeningPerusahaan, setRekeningPerusahaan] = useState([]);
   const [loadingVa, setLoadingVa] = useState(true);
-  const isAkunDemo = DAFTAR_EMAIL_DEMO.includes(toko?.email);
+  // Verifikasi Xendit sudah selesai - SEMUA akun sekarang pakai VA (bukan
+  // cuma demo lagi). Kalau suatu saat perlu revert ke rekening manual,
+  // ganti baris ini balik ke: DAFTAR_EMAIL_DEMO.includes(toko?.email)
+  const isAkunDemo = true;
 
   useEffect(() => {
     if (!toko?.id) { setLoadingVa(false); return; }
