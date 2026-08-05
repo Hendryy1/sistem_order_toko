@@ -6082,15 +6082,27 @@ function SaldoScreen({ toko, onBack }) {
       setRiwayat(ledgerRows);
 
       // Order yang statusnya "menunggu_pembayaran" (transfer) - saldo toko
-      // TIDAK cukup saat di-approve, jadi belum otomatis kepotong sama
-      // sekali. Toko perlu bayar penuh manual (transfer/upload bukti).
+      // BELUM cukup buat lunasi PENUH order ini (kalau sudah cukup, order
+      // otomatis lunas & pindah status oleh trigger database). Tampilan
+      // "kurang bayar" di sini memperhitungkan saldo yang SUDAH ada sebagai
+      // pengurang, supaya toko tahu persis berapa LAGI yang perlu ditransfer
+      // - dialokasikan FIFO (order terlama duluan), sama seperti cara
+      // trigger auto-bayar bekerja di database.
       const ordersMenunggu = await supabaseFetch(
-        `orders?select=no_nota,order_items(subtotal_setelah_diskon)&client_id=eq.${toko.id}&status=eq.menunggu_pembayaran&metode_bayar=eq.transfer`
+        `orders?select=no_nota,created_at,order_items(subtotal_setelah_diskon)&client_id=eq.${toko.id}&status=eq.menunggu_pembayaran&metode_bayar=eq.transfer&order=created_at.asc`
       );
-      const daftarKurang = ordersMenunggu.map((o) => ({
-        no_nota: o.no_nota,
-        kurang: (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0),
-      })).filter((o) => o.kurang > 0);
+      let sisaSaldo = Number(saldoRows[0]?.saldo || 0);
+      const daftarKurang = ordersMenunggu.map((o) => {
+        const totalOrder = (o.order_items || []).reduce((sum, it) => sum + Number(it.subtotal_setelah_diskon || 0), 0);
+        const kurang = Math.max(0, totalOrder - sisaSaldo);
+        // Saldo yang "terpakai" buat kurangi order ini cuma dianggap
+        // terpakai kalau order ini bisa dianggap sudah tercakup penuh -
+        // sisa saldo yang masih ada dilanjutkan ke order berikutnya kalau
+        // order ini sudah "habis" jatah saldonya (kurang > 0, artinya
+        // semua sisa saldo sudah "terserap" ke order ini duluan).
+        sisaSaldo = Math.max(0, sisaSaldo - totalOrder);
+        return { no_nota: o.no_nota, kurang };
+      }).filter((o) => o.kurang > 0);
       setOrderKurangBayar(daftarKurang);
       setTotalKurangBayar(daftarKurang.reduce((sum, o) => sum + o.kurang, 0));
     } catch (e) {
