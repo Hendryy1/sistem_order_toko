@@ -6153,7 +6153,7 @@ function SaldoScreen({ toko, onBack }) {
           {isAkunDemo ? (
             va.length > 0 ? (
               <div style={{ marginBottom: 20 }}>
-                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
+                <p style={{ fontSize: 11.5, color: "#24272B", margin: "0 0 8px", fontWeight: 700, textTransform: "uppercase" }}>Nomor Virtual Account</p>
                 {va.map((v) => (
                   <div key={v.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
@@ -6163,7 +6163,7 @@ function SaldoScreen({ toko, onBack }) {
                     </div>
                   </div>
                 ))}
-                <p style={{ fontSize: 11.5, color: "#9CA0A6", margin: "6px 0 0", lineHeight: 1.5 }}>
+                <p style={{ fontSize: 11.5, color: "#24272B", margin: "6px 0 0", lineHeight: 1.5 }}>
                   Transfer ke salah satu nomor VA di atas kapan saja - saldo Anda otomatis bertambah begitu dana masuk, dan bisa langsung dipakai membayar pesanan yang disetujui.
                 </p>
 
@@ -6232,7 +6232,7 @@ function SaldoScreen({ toko, onBack }) {
               <div key={r.id} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 12, padding: 14, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 600, color: "#24272B", margin: "0 0 2px" }}>{labelJenis[r.jenis] || r.jenis}</p>
-                  <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>{new Date(r.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</p>
+                  <p style={{ fontSize: 11, color: "#24272B", margin: 0 }}>{new Date(r.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</p>
                 </div>
                 <span style={{ fontSize: 14, fontWeight: 700, color: Number(r.jumlah) >= 0 ? "#28685D" : "#C0392B" }}>
                   {Number(r.jumlah) >= 0 ? "+" : ""}{rupiah(r.jumlah)}
