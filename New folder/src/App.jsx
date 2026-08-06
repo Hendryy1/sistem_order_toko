@@ -1243,6 +1243,7 @@ export default function OrderApp() {
     // Nomor Nota SELALU diambil dari database (supaya tidak bentrok antar toko) -
     // kode di bawah cuma dipakai fallback kalau memang toko sedang mode tanpa database.
     let noNota = "NOTA-" + String(1000 + orders.length + 1).slice(1);
+    let insertedOrderId = null; // diisi kalau berhasil simpan ke database - dipakai supaya order lokal (di state) langsung punya dbId, tanpa perlu refresh dulu buat bisa upload bukti transfer
 
     // Poin toko TIDAK PERNAH dipakai kalau order ini dibuatkan sales (jaga2
     // walau UI-nya sudah disembunyikan, ini lapis pengaman tambahan).
@@ -1274,6 +1275,7 @@ export default function OrderApp() {
           }),
         }, authToken);
         noNota = insertedOrder.no_nota; // pakai nomor resmi dari database
+        insertedOrderId = insertedOrder.id;
         await supabaseFetch("order_items", {
           method: "POST",
           body: JSON.stringify(
@@ -1312,8 +1314,8 @@ export default function OrderApp() {
     }
 
     const order = {
-      id: noNota, tanggal: new Date(), items: itemsWithDropship, total: cartTotal,
-      status: "Menunggu Persetujuan", tujuan, isDropship,
+      id: noNota, dbId: insertedOrderId, tanggal: new Date(), items: itemsWithDropship, total: cartTotal,
+      status: "Menunggu Persetujuan", tujuan, isDropship, metodeBayar,
       pengirim: isDropship ? dropshipSender : null,
       sudahBayar: toko.jenisBayar === "Tunai",
     };
