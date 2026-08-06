@@ -6258,21 +6258,14 @@ function RekeningScreen({ toko, onBack }) {
 
   useEffect(() => {
     if (!toko?.id) { setLoadingVa(false); return; }
-    if (isAkunDemo) {
-      // Akun demo Xendit - tetap pakai VA seperti biasa
-      supabaseFetch(`virtual_accounts?select=bank_code,va_number&client_id=eq.${toko.id}`)
-        .then(setVaList)
-        .catch(() => setVaList([]))
-        .finally(() => setLoadingVa(false));
-    } else {
-      // Akun toko ASLI - tampilkan rekening perusahaan manual (Xendit
-      // belum selesai verifikasi), bukan VA.
-      supabaseFetch(`rekening_bank_perusahaan?select=nama_bank,no_rekening,atas_nama&aktif=eq.true&order=urutan.asc`)
-        .then(setRekeningPerusahaan)
-        .catch(() => setRekeningPerusahaan([]))
-        .finally(() => setLoadingVa(false));
-    }
-  }, [toko?.id, isAkunDemo]);
+    Promise.all([
+      supabaseFetch(`virtual_accounts?select=bank_code,va_number&client_id=eq.${toko.id}`).catch(() => []),
+      supabaseFetch(`rekening_bank_perusahaan?select=nama_bank,no_rekening,atas_nama&aktif=eq.true&order=urutan.asc`).catch(() => []),
+    ]).then(([va, rekening]) => {
+      setVaList(va);
+      setRekeningPerusahaan(rekening);
+    }).finally(() => setLoadingVa(false));
+  }, [toko?.id]);
 
   function copyNumber(nomor, idx) {
     if (navigator.clipboard) navigator.clipboard.writeText(nomor).catch(() => {});
@@ -6317,6 +6310,17 @@ function RekeningScreen({ toko, onBack }) {
               </div>
             ))
           )}
+
+          {rekeningPerusahaan.filter((r) => r.nama_bank?.toUpperCase().includes("BCA")).map((r, i) => (
+            <div key={i} style={{ background: "#fff", border: "1px solid #EDEAE3", borderRadius: 14, padding: 16, marginTop: 14 }}>
+              <p style={{ fontSize: 13, color: "#24272B", margin: "0 0 4px" }}>{r.nama_bank}</p>
+              <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "0 0 2px" }}>{r.no_rekening}</p>
+              <p style={{ fontSize: 12, color: "#24272B", margin: 0 }}>{r.atas_nama}</p>
+              <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: "8px 0 0", lineHeight: 1.5 }}>
+                Transfer via Bank BCA mohon upload bukti pembayaran.
+              </p>
+            </div>
+          ))}
         </>
       ) : (
         <>
