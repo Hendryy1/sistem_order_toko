@@ -1276,18 +1276,30 @@ export default function OrderApp() {
         }, authToken);
         noNota = insertedOrder.no_nota; // pakai nomor resmi dari database
         insertedOrderId = insertedOrder.id;
+        // Potongan poin dikurangkan LANGSUNG dari subtotal item (bukan cuma
+        // dicatat terpisah di kolom diskon_tambahan_nilai) - supaya total
+        // order di MANAPUN dihitung (Dashboard, trigger pembayaran, dll -
+        // yang semuanya jumlahkan order_items.subtotal_setelah_diskon)
+        // otomatis sudah benar, tidak perlu diubah satu-satu di banyak
+        // tempat. Dikurangkan berurutan dari item pertama sampai habis.
+        let sisaPotonganPoin = poinDipakaiValid;
         await supabaseFetch("order_items", {
           method: "POST",
           body: JSON.stringify(
-            itemsWithDropship.map((it) => ({
-              order_id: insertedOrder.id,
-              product_id: it.id,
-              qty: it.qty,
-              harga_satuan: it.harga,
-              kena_diskon_koli: false, // diskon koli sudah dinonaktifkan sepenuhnya
-              subtotal_setelah_diskon: hitungRincianItem(it, it.qty).totalSetelahDiskon,
-              harga_dropship: it.hargaDropship,
-            }))
+            itemsWithDropship.map((it) => {
+              const subtotalAsli = hitungRincianItem(it, it.qty).totalSetelahDiskon;
+              const potongItemIni = Math.min(sisaPotonganPoin, subtotalAsli);
+              sisaPotonganPoin -= potongItemIni;
+              return {
+                order_id: insertedOrder.id,
+                product_id: it.id,
+                qty: it.qty,
+                harga_satuan: it.harga,
+                kena_diskon_koli: false, // diskon koli sudah dinonaktifkan sepenuhnya
+                subtotal_setelah_diskon: subtotalAsli - potongItemIni,
+                harga_dropship: it.hargaDropship,
+              };
+            })
           ),
         }, authToken);
 
