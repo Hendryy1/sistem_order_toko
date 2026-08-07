@@ -1303,6 +1303,18 @@ export default function OrderApp() {
           ),
         }, authToken);
 
+        // Kalau toko SUDAH punya saldo cukup SEBELUM order ini dibuat,
+        // langsung auto-approve (skip Approve Pesanan) - tidak perlu
+        // nunggu topup baru, karena saldo yang sudah ada saja sudah cukup.
+        try {
+          await supabaseFetch("rpc/coba_auto_approve_saldo_cukup", {
+            method: "POST",
+            body: JSON.stringify({ p_order_id: insertedOrder.id }),
+          }, authToken);
+        } catch (eAutoApprove) {
+          console.log("Auto-approve saldo cukup dilewati:", eAutoApprove.message);
+        }
+
         // Kurangi saldo poin toko kalau tadi pakai potongan poin - dicatat
         // sebagai baris NEGATIF di points_ledger (jenis 'redeem')
         if (poinDipakaiValid > 0) {
