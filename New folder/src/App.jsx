@@ -1749,6 +1749,7 @@ export default function OrderApp() {
           toko={toko} useAltAddress={useAltAddress} altAddress={altAddress}
           cart={cart} products={productsHargaProvinsi} checkedItems={checkedItems}
           pointsBalance={pointsBalance} poinDipakai={poinDipakai} setPoinDipakai={setPoinDipakai}
+          orders={orders}
           onBack={() => setScreen("cart")}
           onSubmit={submitOrder}
         />
@@ -3376,7 +3377,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 // KONFIRMASI PEMBELIAN - review terakhir sebelum kirim order, di sini
 // baru bisa pakai potongan poin
 // ============================================================
-function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, altAddress, cart, products, checkedItems, pointsBalance, poinDipakai, setPoinDipakai, onBack, onSubmit }) {
+function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, altAddress, cart, products, checkedItems, pointsBalance, poinDipakai, setPoinDipakai, orders, onBack, onSubmit }) {
   const [mengirim, setMengirim] = useState(false);
   // ---- OTP konfirmasi pemilik toko (WAJIB kalau order ini dibuatkan sales -
   // supaya order tidak bisa terkirim tanpa toko benar-benar menyetujui) ----
@@ -3477,6 +3478,21 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
       handleSubmit();
     }
   }
+
+  // Toko cuma boleh punya 1 pesanan "Menunggu Pembayaran" (transfer) aktif
+  // sekaligus - supaya saldo yang nanti masuk (VA/manual) tidak salah
+  // sasaran ke pesanan yang berbeda dari yang dimaksud toko. Kalau masih
+  // ada 1 yang belum selesai, toko harus selesaikan/batalkan itu dulu
+  // sebelum bisa kirim pesanan transfer yang baru.
+  // Toko cuma boleh punya 1 pesanan TRANSFER aktif sekaligus (baik yang
+  // masih "Menunggu Persetujuan" ATAU "Menunggu Pembayaran") - kalau cuma
+  // dibatasi di "Menunggu Pembayaran" saja, masih ada celah: toko bisa
+  // buat beberapa pesanan yang semuanya masih "Menunggu Persetujuan", dan
+  // Admin sendiri tidak akan tahu mana yang benar-benar dimaksud toko saat
+  // meng-approve salah satunya duluan.
+  const pesananMenungguPembayaran = metodeBayar === "transfer"
+    ? (orders || []).find((o) => o.metodeBayar === "transfer" && (o.status === "Menunggu Persetujuan" || o.status === "Menunggu Pembayaran"))
+    : null;
 
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 100px" }}>
@@ -3623,11 +3639,19 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
       )}
 
       <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 480, background: "#fff", borderTop: "1px solid #EDEAE3", padding: "12px 20px calc(12px + env(safe-area-inset-bottom))" }}>
+        {pesananMenungguPembayaran && (
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FBEAEA", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
+            <AlertCircle size={15} color="#C0392B" style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 11.5, color: "#C0392B", margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
+              Anda masih punya pesanan <strong>{pesananMenungguPembayaran.id}</strong> yang {pesananMenungguPembayaran.status === "Menunggu Persetujuan" ? "belum disetujui Admin" : "menunggu pembayaran"}. Selesaikan atau batalkan pesanan itu dulu sebelum membuat pesanan transfer baru.
+            </p>
+          </div>
+        )}
         {!(toko?.dibuatOlehSales && otpStep === "input") && (
           <button
             onClick={handleTombolUtama}
-            disabled={mengirim || otpBusy || (poinDipakai > 0 && poinDipakai < 5000)}
-            style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            disabled={mengirim || otpBusy || (poinDipakai > 0 && poinDipakai < 5000) || !!pesananMenungguPembayaran}
+            style={{ width: "100%", padding: 13, borderRadius: 10, border: "none", background: pesananMenungguPembayaran ? "#E4E1DA" : "#E8A426", color: pesananMenungguPembayaran ? "#9CA0A6" : "#24272B", fontWeight: 700, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
           >
             {otpStep === "sending" ? "Mengirim kode ke email toko..." : mengirim ? "Mengirim..." : toko?.dibuatOlehSales ? <>Minta Konfirmasi Toko <ArrowRight size={14} /></> : <>Kirim Order <ArrowRight size={14} /></>}
           </button>
