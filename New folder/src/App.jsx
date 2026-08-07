@@ -200,6 +200,77 @@ function clearSession() {
   try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
 }
 
+// Catat error ke database (tabel error_logs) - sama seperti mekanisme di
+// Dashboard, supaya Owner bisa lihat error dari sisi toko juga di satu
+// tempat yang sama. Best-effort, tidak boleh sampai bikin error baru.
+async function catatErrorKeServerWebapp(pesanError, detailStack) {
+  try {
+    const session = loadSession();
+    if (!session?.token) return; // belum login - tidak ada token buat kirim log
+    await fetch(`${SUPABASE_URL}/rest/v1/error_logs`, {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${session.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sumber: "webapp",
+        pesan_error: String(pesanError).slice(0, 2000),
+        detail_stack: String(detailStack || "").slice(0, 4000),
+        halaman: window.location.href,
+        user_id: session.userId || null,
+        nama_user: session.email || null,
+        role_user: "toko",
+        user_agent: navigator.userAgent,
+      }),
+    });
+  } catch (e) { /* gagal catat error - diamkan */ }
+}
+
+if (typeof window !== "undefined" && !window.__errorLoggerTerpasangWebapp) {
+  window.__errorLoggerTerpasangWebapp = true;
+  window.addEventListener("error", (e) => {
+    catatErrorKeServerWebapp(e.message, e.error?.stack || `${e.filename}:${e.lineno}:${e.colno}`);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    catatErrorKeServerWebapp("Promise gagal (unhandled): " + (e.reason?.message || e.reason), e.reason?.stack || "");
+  });
+}
+
+// Error Boundary - nangkep error saat proses render React (penyebab utama
+// "blank putih"), tampilkan fallback yang ramah + catat ke server.
+class WebappErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    catatErrorKeServerWebapp(error?.message || String(error), error?.stack || info?.componentStack || "");
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "#F7F5F1" }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 380, textAlign: "center" }}>
+            <p style={{ fontSize: 40, margin: "0 0 12px" }}>⚠️</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: "#24272B", margin: "0 0 8px" }}>Ada Masalah Teknis</p>
+            <p style={{ fontSize: 13, color: "#6B6F75", margin: "0 0 20px", lineHeight: 1.5 }}>
+              Halaman ini mengalami error. Coba refresh halaman.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{ padding: "11px 24px", borderRadius: 10, border: "none", background: "#E8A426", color: "#24272B", fontWeight: 700, fontSize: 13.5 }}
+            >
+              Refresh Halaman
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Ubah baris tabel Supabase (snake_case) jadi bentuk yang dipakai komponen (camelCase)
 function mapSupabaseProduct(row) {
   return {
@@ -472,7 +543,7 @@ function ImgAutoRetry({ src, alt, style, onClick, draggable, className }) {
 // ============================================================
 // KOMPONEN UTAMA
 // ============================================================
-export default function OrderApp() {
+function OrderAppInner() {
   const [screen, setScreen] = useState(() => {
     // Deteksi kalau app dibuka dari link reset password email (Supabase
     // menambahkan token di URL fragment/hash: #access_token=...&type=recovery)
@@ -1907,6 +1978,17 @@ export default function OrderApp() {
         />
       )}
     </div>
+  );
+}
+
+// Bungkus dengan Error Boundary - kalau ada error saat render (penyebab
+// utama "blank putih"), otomatis tampilkan halaman fallback yang ramah
+// dan catat errornya ke server, bukan crash total tanpa penjelasan.
+export default function OrderApp() {
+  return (
+    <WebappErrorBoundary>
+      <OrderAppInner />
+    </WebappErrorBoundary>
   );
 }
 
