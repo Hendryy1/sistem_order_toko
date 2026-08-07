@@ -953,6 +953,22 @@ export default function OrderApp() {
     }
   }
 
+  // Auto-refresh data setiap kali pindah ke halaman tertentu - supaya data
+  // selalu "hidup"/terbaru begitu dibuka, tanpa perlu reload browser sama
+  // sekali. Cuma jalan kalau memang sudah login (toko & authToken ada).
+  useEffect(() => {
+    if (!toko?.id || !authToken) return;
+    if (screen === "history" || screen === "akun-orderlist" || screen === "order-ulang-list") {
+      loadOrderHistory(toko.id, authToken);
+    } else if (screen === "akun-poin") {
+      loadPointsData(toko.id, authToken);
+    } else if (screen === "cart") {
+      loadCart(toko.id);
+    } else if (screen === "akun-alamat") {
+      loadSavedAddresses(toko.id);
+    }
+  }, [screen, toko?.id, authToken]);
+
   async function handleLogin() {
     setLoginError("");
     if (!loginForm.email.trim() || !loginForm.password) {
