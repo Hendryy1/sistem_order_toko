@@ -3938,7 +3938,9 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
               </div>
             )}
             {!o.sudahBayar && (filterKey === "bayar" || filterKey === "pesanan") && (
-              toko?.jenisBayar === "Transfer" ? (
+              o.metodeBayar === "cod" ? (
+                <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Bayar tunai (COD) setelah barang sampai.</p>
+              ) : toko?.jenisBayar === "Transfer" ? (
                 o.buktiTransferUrl ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px", background: "#FBF0D9", borderRadius: 9, fontSize: 11.5, color: "#B8860B", fontWeight: 600 }}>
                     <Check size={13} /> Bukti transfer terkirim, menunggu konfirmasi Owner
