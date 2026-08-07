@@ -4126,7 +4126,13 @@ function OrderTrackingTimeline({ status, waktuTahap }) {
   const stepIndex = {
     "Menunggu Persetujuan": 0,
     "Menunggu Pembayaran": 1,
-    "Sedang Diproses": 2,
+    // "Sedang Diproses" = order sudah disetujui (baik manual maupun
+    // auto-approve VA), TAPI staff belum tentu sudah konfirmasi picking
+    // (picking_selesai_at). Kalau BELUM ada picking_selesai_at, tampilkan
+    // "setengah jalan" antara Disetujui dan Dikemas (1.5) - supaya toko
+    // tidak salah kira pesanannya SUDAH pasti dikemas, padahal staff
+    // belum sempat verifikasi stok fisiknya.
+    "Sedang Diproses": waktuTahap?.dikemas ? 2 : 1.5,
     "Siap Dikirim": 3,
     "Dikirim": 4,
     "Selesai": 5,
@@ -4145,13 +4151,24 @@ function OrderTrackingTimeline({ status, waktuTahap }) {
               {i < stepIndex ? <Check size={13} /> : <span style={{ fontSize: 10, fontWeight: 700 }}>{i + 1}</span>}
             </div>
             {i < langkah.length - 1 && (
-              <div style={{ width: 2, flex: 1, minHeight: 22, background: i < stepIndex ? "#28685D" : "#F0EDE6" }} />
+              <div style={{
+                width: 2, flex: 1, minHeight: 22,
+                background: i < Math.floor(stepIndex)
+                  ? "#28685D" // sudah sepenuhnya lewati tahap ini
+                  : i === Math.floor(stepIndex) && stepIndex % 1 !== 0
+                    ? "linear-gradient(to bottom, #28685D 50%, #F0EDE6 50%)" // lagi "setengah jalan" - garis separuh terisi
+                    : "#F0EDE6",
+              }} />
             )}
           </div>
           <div style={{ margin: "0 0 20px" }}>
-            <p style={{ fontSize: 13, fontWeight: i === stepIndex ? 700 : 600, color: i <= stepIndex ? "#24272B" : "#B8B4AB", margin: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: i === Math.floor(stepIndex) ? 700 : 600, color: i <= stepIndex ? "#24272B" : "#B8B4AB", margin: 0 }}>
               {step.label}
-              {i === stepIndex && <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#28685D", marginTop: 2 }}>Tahap saat ini</span>}
+              {i === Math.floor(stepIndex) && (
+                <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#28685D", marginTop: 2 }}>
+                  {stepIndex % 1 !== 0 ? "Sudah disetujui, menunggu konfirmasi pengemasan" : "Tahap saat ini"}
+                </span>
+              )}
             </p>
             {formatWaktu(step.waktu) && (
               <p style={{ fontSize: 11, color: "#9CA0A6", margin: "3px 0 0" }}>{formatWaktu(step.waktu)}</p>
