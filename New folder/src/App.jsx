@@ -3639,7 +3639,7 @@ function KonfirmasiPembelianScreen({ rincian, metodeBayar, toko, useAltAddress, 
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8, background: "#FBEAEA", borderRadius: 10, padding: "10px 12px", marginBottom: 10 }}>
             <AlertCircle size={15} color="#C0392B" style={{ flexShrink: 0, marginTop: 1 }} />
             <p style={{ fontSize: 11.5, color: "#C0392B", margin: 0, fontWeight: 600, lineHeight: 1.5 }}>
-              Anda masih punya pesanan <strong>{pesananMenungguPembayaran.id}</strong> yang {pesananMenungguPembayaran.status === "Menunggu Persetujuan" ? "belum disetujui Admin" : "menunggu pembayaran"}. Selesaikan atau batalkan pesanan itu dulu sebelum membuat pesanan baru.
+              Anda masih punya pesanan <strong>{pesananMenungguPembayaran.id}</strong> yang belum dibayarkan. Selesaikan pembayaran atau batalkan pesanan itu dulu sebelum membuat pesanan baru.
             </p>
           </div>
         )}
