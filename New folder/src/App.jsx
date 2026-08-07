@@ -3090,7 +3090,7 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>Dikirim untuk</p>
-              <p className="disp" style={{ fontSize: 17, fontWeight: 700, color: "#24272B", margin: 0 }}>{altAddress.nama || toko.nama}</p>
+              <p className="disp" style={{ fontSize: 17, fontWeight: 700, color: "#24272B", margin: 0 }}>{useAltAddress ? (altAddress.nama || toko.nama) : toko.nama}</p>
             </div>
           </div>
 
