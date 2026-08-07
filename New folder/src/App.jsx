@@ -3921,7 +3921,8 @@ function OrderListScreen({ filterKey, toko, orders, onAdvance, onUploadBukti, on
                 <p style={{ fontSize: 11, color: "#9CA0A6", margin: "4px 0 0" }}>Menunggu konfirmasi pembayaran dari Owner.</p>
               )
             )}
-            {!o.sudahBayar && filterKey === "bayar" && o.status !== "Dibatalkan" && (
+            {!o.sudahBayar && filterKey === "bayar" && o.status !== "Dibatalkan"
+              && (o.metodeBayar === "cod" ? o.status === "Menunggu Persetujuan" : !o.buktiTransferUrl) && (
               confirmCancelId === o.id ? (
                 <div style={{ marginTop: 8, background: "#FBEAEA", borderRadius: 9, padding: 10 }}>
                   <p style={{ fontSize: 11.5, color: "#C0392B", fontWeight: 600, margin: "0 0 8px" }}>Yakin batalkan pesanan ini?</p>
