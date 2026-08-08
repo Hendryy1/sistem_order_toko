@@ -5,7 +5,7 @@ import {
   Store, ClipboardList, User, Check, Clock, ArrowRight, AlertCircle,
   Truck, PackageCheck, Wallet, RotateCcw, CreditCard, Headphones,
   HelpCircle, ChevronRight, Phone, MessageCircle, Copy, MapPin, LogOut, Lock, Star, Upload, Share2, RefreshCw,
-  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical, Download, FileEdit
+  Smile, Camera, Image as ImageIcon, Bell, History, MoreVertical, Download, FileEdit, Home
 } from "lucide-react";
 
 // ============================================================
@@ -1708,7 +1708,7 @@ function OrderAppInner() {
   }
 
   return (
-    <div style={{ fontFamily: "'Inter', sans-serif", background: "#F7F5F1", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative", paddingBottom: screen === "catalog" || screen === "cart" || screen === "history" ? 72 : 0 }}>
+    <div style={{ fontFamily: "'Inter', sans-serif", background: "#F7F5F1", minHeight: "100vh", maxWidth: 480, margin: "0 auto", position: "relative", paddingBottom: screen === "beranda" || screen === "catalog" || screen === "cart" || screen === "history" ? 72 : 0 }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
@@ -1775,6 +1775,10 @@ function OrderAppInner() {
           onVerifikasiOtp={verifikasiOtpRegistrasi}
           onBack={() => { setScreen("login"); setRegSubmitted(false); setRegError(""); setRegStep("form"); setRegOtpKode(""); setRegForm({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "" }); }}
         />
+      )}
+
+      {screen === "beranda" && (
+        <BerandaScreen />
       )}
 
       {screen === "catalog" && (
@@ -1967,9 +1971,10 @@ function OrderAppInner() {
         />
       )}
 
-      {(screen === "catalog" || screen === "cart" || screen === "history" || screen === "akun") && (
+      {(screen === "beranda" || screen === "catalog" || screen === "cart" || screen === "history" || screen === "akun") && (
         <BottomNav
           screen={screen} cartCount={cartCount} isGuest={isGuest}
+          onBeranda={() => setScreen("beranda")}
           onCatalog={() => setScreen("catalog")}
           onCart={() => setScreen("cart")}
           onHistory={() => setScreen("history")}
@@ -5217,13 +5222,58 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
 
 
 // ============================================================
+// BERANDA - Halaman utama, tampilkan promo/program perusahaan (banner
+// yang sama diupload Owner lewat menu "Banner Promo" di Dashboard).
+// ============================================================
+function BerandaScreen() {
+  const [galeri, setGaleri] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabaseFetch("campaign_banner_images?select=*&tipe=eq.beranda&order=urutan.asc")
+      .then((rows) => setGaleri(rows))
+      .catch(() => setGaleri([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <div style={{ padding: "20px 16px" }}>
+      <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>Beranda</p>
+      <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>Promo & program terbaru dari kami</p>
+
+      {loading ? (
+        <div style={{ padding: "60px 0", textAlign: "center" }}>
+          <p style={{ fontSize: 13, color: "#9CA0A6" }}>Memuat...</p>
+        </div>
+      ) : galeri.length === 0 ? (
+        <div style={{ padding: "60px 20px", textAlign: "center" }}>
+          <ImageIcon size={40} color="#D8D6D0" style={{ marginBottom: 12 }} />
+          <p style={{ fontSize: 13, color: "#9CA0A6", margin: 0 }}>Belum ada promo yang ditampilkan saat ini.</p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {galeri.map((g) => (
+            <img
+              key={g.id}
+              src={g.url}
+              alt="Promo"
+              style={{ width: "100%", borderRadius: 14, display: "block", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
 // DETAIL KAMPANYE
 // ============================================================
 function CampaignDetailScreen({ onBack, cartCount, onGoToCart, judul, deskripsi }) {
   const [galeri, setGaleri] = useState([]);
 
   useEffect(() => {
-    supabaseFetch("campaign_banner_images?select=*&order=urutan.asc")
+    supabaseFetch("campaign_banner_images?select=*&tipe=eq.popup&order=urutan.asc")
       .then(setGaleri)
       .catch(() => setGaleri([]));
   }, []);
@@ -6912,8 +6962,9 @@ function PoinScreen({ pointsBalance, dailyClaims, onClaim, spinTickets, onSpin, 
 }
 
 
-function BottomNav({ screen, cartCount, isGuest, onCatalog, onCart, onHistory, onAkun, onRequireLogin }) {
+function BottomNav({ screen, cartCount, isGuest, onBeranda, onCatalog, onCart, onHistory, onAkun, onRequireLogin }) {
   const items = [
+    { key: "beranda", label: "Beranda", icon: Home, onClick: onBeranda },
     { key: "catalog", label: "Katalog", icon: Package, onClick: onCatalog },
     { key: "cart", label: "Keranjang", icon: ShoppingCart, onClick: isGuest ? onRequireLogin : onCart, badge: isGuest ? 0 : cartCount },
     { key: "history", label: "Riwayat", icon: ClipboardList, onClick: isGuest ? onRequireLogin : onHistory },
