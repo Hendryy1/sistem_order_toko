@@ -550,8 +550,8 @@ function OrderAppInner() {
     // ATAU kalau linknya sudah tidak valid/kedaluwarsa/sudah dipakai, Supabase
     // kirim pola beda: #error=...&error_description=...
     if (window.location.hash.includes("type=recovery") || window.location.hash.includes("error=")) return "reset-password-form";
-    return "catalog";
-  }); // login | register | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail | reset-password-form
+    return "beranda";
+  }); // login | register | beranda | catalog | product | cart | success | history | akun | akun-rekening | akun-cs | akun-bantuan | campaign-detail | reset-password-form
   const [recoveryToken, setRecoveryToken] = useState(() => {
     const hash = window.location.hash.replace(/^#/, "");
     const params = new URLSearchParams(hash);
@@ -982,7 +982,7 @@ function OrderAppInner() {
     setAuthToken(token);
     setIsGuest(false);
     setShowPilihToko(false);
-    setScreen("catalog");
+    setScreen("beranda");
     if (!salesIdPembuat) saveSession({ token, userId, email, refreshToken });
     loadOrderHistory(r.id, token);
     loadPointsData(r.id, token);
@@ -1073,7 +1073,7 @@ function OrderAppInner() {
       // Kalau akun demo belum siap/gagal - tetap fallback ke mode browse biasa
       setToko(null);
       setIsGuest(true);
-      setScreen("catalog");
+      setScreen("beranda");
     }
     setLoggingIn(false);
   }
@@ -1778,7 +1778,13 @@ function OrderAppInner() {
       )}
 
       {screen === "beranda" && (
-        <BerandaScreen />
+        <BerandaScreen
+          toko={toko} isGuest={isGuest}
+          onRequireLogin={() => setScreen("login")}
+          onOpenChat={() => setScreen("cs-chat-choice")}
+          onOpenNotifikasi={() => setScreen("notifikasi")}
+          onOpenSearch={() => setScreen("catalog")}
+        />
       )}
 
       {screen === "catalog" && (
@@ -1802,13 +1808,13 @@ function OrderAppInner() {
       )}
 
       {screen === "notifikasi" && (
-        <NotifikasiScreen toko={toko} onBack={() => setScreen("catalog")} />
+        <NotifikasiScreen toko={toko} onBack={() => setScreen("beranda")} />
       )}
 
       {screen === "cs-chat-choice" && (
         <CsChatChoiceScreen
           toko={toko}
-          onBack={() => setScreen("catalog")}
+          onBack={() => setScreen("beranda")}
           onContactCS={() => { setCsReturnScreen("cs-chat-choice"); setScreen("akun-cs"); }}
           products={productsHargaProvinsi} orders={orders} cart={cart} rincian={cartRincian}
         />
@@ -2696,69 +2702,19 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 function CatalogScreen({ toko, isGuest, products, productsLoading, dbError, onRetry, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi, showInstallButton, isIOS, onInstallClick }) {
   const [showIosTip, setShowIosTip] = useState(false);
   const categories = availableCategories || ["Semua"];
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [showSearch, setShowSearch] = useState(false);
-
-  useEffect(() => {
-    if (!toko?.id) return;
-    function loadUnread() {
-      supabaseFetch(`notifications?select=id&client_id=eq.${toko.id}&is_read=eq.false`)
-        .then((rows) => setUnreadCount(rows.length))
-        .catch(() => {});
-    }
-    loadUnread();
-    const interval = setInterval(loadUnread, 15000);
-    return () => clearInterval(interval);
-  }, [toko?.id]);
 
   return (
     <div>
-      <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22, position: "sticky", top: 0, zIndex: 10 }}>
-        {showSearch ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ flex: 1, position: "relative" }}>
-              <Search size={17} color="#6B6F75" style={{ position: "absolute", left: 14, top: 13 }} />
-              <input
-                autoFocus
-                value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari barang..."
-                style={{ width: "100%", padding: "12px 14px 12px 40px", borderRadius: 10, border: "none", fontSize: 14, outline: "none" }}
-              />
-            </div>
-            <button
-              onClick={() => { setShowSearch(false); setSearchQuery(""); }}
-              style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-            >
-              <X size={18} color="#fff" />
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <p style={{ color: "#9CA0A6", fontSize: 12, margin: 0 }}>Distributor</p>
-              <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: "2px 0 0" }}>INDO GARUDA ABADI</p>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setShowSearch(true)} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Search size={18} color="#fff" />
-              </button>
-              {!toko?.dibuatOlehSales && (
-                <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <MessageCircle size={18} color="#fff" />
-                </button>
-              )}
-              <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
-                <Bell size={18} color="#fff" />
-                {unreadCount > 0 && (
-                  <span style={{ position: "absolute", top: -3, right: -3, background: "#E4453A", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid #24272B" }}>
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-        {!showSearch && isGuest && (
+      <div style={{ padding: "16px 20px 4px", position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1" }}>
+        <div style={{ position: "relative" }}>
+          <Search size={17} color="#6B6F75" style={{ position: "absolute", left: 14, top: 13 }} />
+          <input
+            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari barang..."
+            style={{ width: "100%", padding: "12px 14px 12px 40px", borderRadius: 10, border: "1.5px solid #E4E1DA", fontSize: 14, outline: "none", background: "#fff", boxSizing: "border-box" }}
+          />
+        </div>
+        {isGuest && (
           <button onClick={onRequireLogin} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
             Login / Daftar untuk lihat harga & order
           </button>
@@ -5225,9 +5181,10 @@ function CsChatChoiceScreen({ toko, onBack, onContactCS, products, orders, cart,
 // BERANDA - Halaman utama, tampilkan promo/program perusahaan (banner
 // yang sama diupload Owner lewat menu "Banner Promo" di Dashboard).
 // ============================================================
-function BerandaScreen() {
+function BerandaScreen({ toko, isGuest, onRequireLogin, onOpenChat, onOpenNotifikasi, onOpenSearch }) {
   const [galeri, setGaleri] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     supabaseFetch("campaign_banner_images?select=*&tipe=eq.beranda&order=urutan.asc")
@@ -5236,32 +5193,77 @@ function BerandaScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <div style={{ padding: "20px 16px" }}>
-      <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>Beranda</p>
-      <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>Promo & program terbaru dari kami</p>
+  useEffect(() => {
+    if (!toko?.id) return;
+    function loadUnread() {
+      supabaseFetch(`notifications?select=id&client_id=eq.${toko.id}&is_read=eq.false`)
+        .then((rows) => setUnreadCount(rows.length))
+        .catch(() => {});
+    }
+    loadUnread();
+    const interval = setInterval(loadUnread, 15000);
+    return () => clearInterval(interval);
+  }, [toko?.id]);
 
-      {loading ? (
-        <div style={{ padding: "60px 0", textAlign: "center" }}>
-          <p style={{ fontSize: 13, color: "#9CA0A6" }}>Memuat...</p>
+  return (
+    <div>
+      <div style={{ background: "#24272B", padding: "20px 20px 16px", borderBottomLeftRadius: 22, borderBottomRightRadius: 22, position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <p className="disp" style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: 0 }}>INDO GARUDA ABADI</p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onOpenSearch} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Search size={18} color="#fff" />
+            </button>
+            {!toko?.dibuatOlehSales && (
+              <button onClick={onOpenChat} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <MessageCircle size={18} color="#fff" />
+              </button>
+            )}
+            <button onClick={onOpenNotifikasi} style={{ width: 40, height: 40, borderRadius: "50%", border: "none", background: "#24272B", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+              <Bell size={18} color="#fff" />
+              {unreadCount > 0 && (
+                <span style={{ position: "absolute", top: -3, right: -3, background: "#E4453A", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 999, minWidth: 16, height: 16, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "2px solid #24272B" }}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
-      ) : galeri.length === 0 ? (
-        <div style={{ padding: "60px 20px", textAlign: "center" }}>
-          <ImageIcon size={40} color="#D8D6D0" style={{ marginBottom: 12 }} />
-          <p style={{ fontSize: 13, color: "#9CA0A6", margin: 0 }}>Belum ada promo yang ditampilkan saat ini.</p>
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {galeri.map((g) => (
-            <img
-              key={g.id}
-              src={g.url}
-              alt="Promo"
-              style={{ width: "100%", borderRadius: 14, display: "block", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}
-            />
-          ))}
-        </div>
-      )}
+        {isGuest && (
+          <button onClick={onRequireLogin} style={{ marginTop: 12, width: "100%", padding: "10px", borderRadius: 9, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12.5, fontWeight: 700 }}>
+            Login / Daftar untuk lihat harga & order
+          </button>
+        )}
+      </div>
+
+      <div style={{ padding: "20px 16px" }}>
+        <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>Promo & Program</p>
+        <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>Info promo terbaru dari kami</p>
+
+        {loading ? (
+          <div style={{ padding: "60px 0", textAlign: "center" }}>
+            <p style={{ fontSize: 13, color: "#9CA0A6" }}>Memuat...</p>
+          </div>
+        ) : galeri.length === 0 ? (
+          <div style={{ padding: "60px 20px", textAlign: "center" }}>
+            <ImageIcon size={40} color="#D8D6D0" style={{ marginBottom: 12 }} />
+            <p style={{ fontSize: 13, color: "#9CA0A6", margin: 0 }}>Belum ada promo yang ditampilkan saat ini.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {galeri.map((g) => (
+              <img
+                key={g.id}
+                src={g.url}
+                alt="Promo"
+                style={{ width: "100%", borderRadius: 14, display: "block", boxShadow: "0 2px 10px rgba(0,0,0,0.06)" }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
