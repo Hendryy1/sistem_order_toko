@@ -1035,7 +1035,7 @@ function OrderAppInner() {
   // ditambahkan (race condition).
   useEffect(() => {
     if (!toko?.id || !authToken) return;
-    if (screen === "history" || screen === "akun-orderlist" || screen === "order-ulang-list") {
+    if (screen === "history" || screen === "akun-orderlist" || screen === "order-ulang-list" || screen === "akun") {
       loadOrderHistory(toko.id, authToken);
     } else if (screen === "akun-poin") {
       loadPointsData(toko.id, authToken);
