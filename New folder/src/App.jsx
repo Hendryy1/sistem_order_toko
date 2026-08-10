@@ -1027,14 +1027,18 @@ function OrderAppInner() {
   // Auto-refresh data setiap kali pindah ke halaman tertentu - supaya data
   // selalu "hidup"/terbaru begitu dibuka, tanpa perlu reload browser sama
   // sekali. Cuma jalan kalau memang sudah login (toko & authToken ada).
+  // CATATAN: screen "cart" SENGAJA tidak di-refresh ulang dari database di
+  // sini - keranjang itu selalu up-to-date secara lokal (state React),
+  // dan penyimpanannya ke database di-debounce 600ms - kalau tetap
+  // di-refresh di sini, pindah tab dengan cepat setelah klik "+ Tambah"
+  // bisa bikin data lama dari database menimpa produk yang baru saja
+  // ditambahkan (race condition).
   useEffect(() => {
     if (!toko?.id || !authToken) return;
     if (screen === "history" || screen === "akun-orderlist" || screen === "order-ulang-list") {
       loadOrderHistory(toko.id, authToken);
     } else if (screen === "akun-poin") {
       loadPointsData(toko.id, authToken);
-    } else if (screen === "cart") {
-      loadCart(toko.id);
     } else if (screen === "akun-alamat") {
       loadSavedAddresses(toko.id);
     }
