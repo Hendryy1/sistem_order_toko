@@ -306,9 +306,17 @@ const COMPANY_INFO = {
 
 const CS_INFO = {
   jamOperasional: "Senin - Sabtu, 08.00 - 17.00 WIB",
-  whatsapp: "6281234567890",
-  whatsappDisplay: "0812-3456-7890",
+  whatsappDefault: "6281234567890", // fallback kalau belum diatur Owner di Dashboard
 };
+
+// Ubah "6281234567890" jadi format lebih enak dibaca "0812-3456-7890"
+function formatNomorWa(nomor) {
+  if (!nomor) return "-";
+  const digitSaja = nomor.replace(/\D/g, "");
+  const lokal = digitSaja.startsWith("62") ? "0" + digitSaja.slice(2) : digitSaja;
+  const bagian = [lokal.slice(0, 4), lokal.slice(4, 8), lokal.slice(8)].filter(Boolean);
+  return bagian.join("-");
+}
 
 const HELP_STEPS = [
   { judul: "Cara pesan barang", isi: "Masuk pakai Kode Toko, pilih kategori atau cari barang, tambahkan ke keranjang, lalu Kirim Order." },
@@ -544,6 +552,17 @@ function ImgAutoRetry({ src, alt, style, onClick, draggable, className }) {
 // KOMPONEN UTAMA
 // ============================================================
 function OrderAppInner() {
+  // Nomor WhatsApp Customer Service - diambil dari database (diatur Owner
+  // lewat Dashboard > Format Nota), bukan hardcode lagi. Di-fetch sekali
+  // saat app dimuat, tidak perlu tunggu login (Service Center bisa
+  // dilihat siapa saja).
+  const [whatsappCs, setWhatsappCs] = useState(CS_INFO.whatsappDefault);
+  useEffect(() => {
+    supabaseFetch("nota_settings?select=whatsapp_cs&limit=1")
+      .then((rows) => { if (rows[0]?.whatsapp_cs) setWhatsappCs(rows[0].whatsapp_cs); })
+      .catch((e) => console.log("Gagal muat nomor WA CS:", e.message));
+  }, []);
+
   const [screen, setScreen] = useState(() => {
     // Deteksi kalau app dibuka dari link reset password email (Supabase
     // menambahkan token di URL fragment/hash: #access_token=...&type=recovery)
@@ -1958,7 +1977,7 @@ function OrderAppInner() {
         <RekeningScreen toko={toko} onBack={() => setScreen("akun")} />
       )}
       {screen === "akun-cs" && (
-        <ServiceCentreScreen onBack={() => setScreen(csReturnScreen)} />
+        <ServiceCentreScreen onBack={() => setScreen(csReturnScreen)} whatsappCs={whatsappCs} />
       )}
       {screen === "akun-bantuan" && (
         <BantuanScreen onBack={() => setScreen("akun")} />
@@ -6612,7 +6631,7 @@ function RekeningScreen({ toko, onBack }) {
 // ============================================================
 // SERVICE CENTRE
 // ============================================================
-function ServiceCentreScreen({ onBack }) {
+function ServiceCentreScreen({ onBack, whatsappCs }) {
   return (
     <div style={{ minHeight: "100vh", padding: "18px 20px 40px" }}>
       <div style={{ position: "sticky", top: 0, zIndex: 10, background: "#F7F5F1", margin: "-18px -20px 0", padding: "18px 20px 10px" }}>
@@ -6635,9 +6654,9 @@ function ServiceCentreScreen({ onBack }) {
           <MessageCircle size={17} color="#24272B" />
           <p style={{ fontSize: 13, fontWeight: 700, color: "#24272B", margin: 0 }}>WhatsApp Customer Service</p>
         </div>
-        <p className="disp" style={{ fontSize: 19, fontWeight: 700, color: "#24272B", margin: "0 0 12px", paddingLeft: 27 }}>{CS_INFO.whatsappDisplay}</p>
+        <p className="disp" style={{ fontSize: 19, fontWeight: 700, color: "#24272B", margin: "0 0 12px", paddingLeft: 27 }}>{formatNomorWa(whatsappCs)}</p>
         <a
-          href={`https://wa.me/${CS_INFO.whatsapp}`}
+          href={`https://wa.me/${whatsappCs}`}
           target="_blank" rel="noopener noreferrer"
           style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, textDecoration: "none", background: "#24272B", color: "#fff", padding: "12px", borderRadius: 10, fontSize: 13.5, fontWeight: 700 }}
         >
