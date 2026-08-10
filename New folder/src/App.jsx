@@ -2164,7 +2164,7 @@ function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister
           <Package size={28} color="#24272B" strokeWidth={2.2} />
         </div>
         <h1 className="disp" style={{ color: "#FFFFFF", fontSize: 36, fontWeight: 700, margin: 0, lineHeight: 1.05 }}>
-          Pesan stok,<br />bukan basa-basi.
+          Pesan dan Kirim<br />Orderan tanpa ribet.
         </h1>
         <p style={{ color: "#9CA0A6", fontSize: 14, marginTop: 10, lineHeight: 1.5 }}>
           Masuk pakai email untuk lihat katalog dan kirim orderan.
