@@ -1083,6 +1083,12 @@ function OrderAppInner() {
     }
   }, [screen, toko?.id, authToken]);
 
+  // Katalog di-refresh terpisah dari yang di atas - TIDAK menunggu login,
+  // karena Katalog bisa dilihat siapa saja termasuk mode tamu/belum login.
+  useEffect(() => {
+    if (screen === "catalog") loadProducts();
+  }, [screen]);
+
   async function handleLogin() {
     setLoginError("");
     if (!loginForm.email.trim() || !loginForm.password) {
