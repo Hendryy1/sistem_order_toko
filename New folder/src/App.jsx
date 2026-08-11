@@ -693,6 +693,22 @@ function OrderAppInner() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [dbError, setDbError] = useState("");
   const [hargaProvinsiMap, setHargaProvinsiMap] = useState({}); // { kodeProduk: { provinsi: harga } }
+  const [hargaKotaMap, setHargaKotaMap] = useState({}); // { kodeProduk: { kota: harga } } - lebih diutamakan dari provinsi
+
+  useEffect(() => {
+    supabaseFetch("harga_produk_kota?select=kota,harga,products(kode)")
+      .then((rows) => {
+        const map = {};
+        rows.forEach((r) => {
+          const kode = r.products?.kode;
+          if (!kode) return;
+          if (!map[kode]) map[kode] = {};
+          map[kode][r.kota] = r.harga;
+        });
+        setHargaKotaMap(map);
+      })
+      .catch(() => {}); // biarkan kosong (fallback ke provinsi/default) kalau gagal muat
+  }, []);
 
   useEffect(() => {
     supabaseFetch("harga_produk_provinsi?select=provinsi,harga,products(kode)")
@@ -806,22 +822,26 @@ function OrderAppInner() {
   const [metodeBayar, setMetodeBayar] = useState("transfer"); // "transfer" | "cod"
   const [savedAddresses, setSavedAddresses] = useState([]); // [{ id, nama, telp, alamat, provinsi, kota, kecamatan, kelurahan, kodePos }]
 
-  // Provinsi yang dipakai buat tentukan harga produk - kalau order dropship
-  // DAN kirim ke alamat lain, pakai provinsi TUJUAN (bukan provinsi toko
-  // sendiri), karena ongkirnya beda. Kalau bukan dropship, tetap pakai
-  // provinsi toko sendiri seperti biasa.
+  // Provinsi & kota yang dipakai buat tentukan harga produk - kalau order
+  // dropship DAN kirim ke alamat lain, pakai provinsi/kota TUJUAN (bukan
+  // punya toko sendiri), karena ongkirnya beda. Kalau bukan dropship,
+  // tetap pakai punya toko sendiri seperti biasa.
   const provinsiUntukHarga = (useAltAddress && altAddress.provinsi) ? altAddress.provinsi : (toko?.provinsi || "");
+  const kotaUntukHarga = (useAltAddress && altAddress.kota) ? altAddress.kota : (toko?.kota || "");
 
-  // Produk dengan harga yang SUDAH disesuaikan otomatis sesuai provinsi
-  // aktif - kalau ada harga khusus provinsi itu, dipakai; kalau tidak,
-  // tetap pakai harga default produk apa adanya.
+  // Produk dengan harga yang SUDAH disesuaikan otomatis sesuai kota/provinsi
+  // aktif - prioritas: harga KOTA dulu (paling spesifik) kalau ada, baru
+  // harga PROVINSI kalau kota tidak diatur, baru harga default produk
+  // kalau keduanya tidak diatur.
   const productsHargaProvinsi = useMemo(() => {
-    if (!provinsiUntukHarga) return products;
+    if (!provinsiUntukHarga && !kotaUntukHarga) return products;
     return products.map((p) => {
-      const hargaKhusus = hargaProvinsiMap[p.kode]?.[provinsiUntukHarga];
-      return hargaKhusus !== undefined ? { ...p, harga: hargaKhusus } : p;
+      const hargaKota = hargaKotaMap[p.kode]?.[kotaUntukHarga];
+      if (hargaKota !== undefined) return { ...p, harga: hargaKota };
+      const hargaProvinsi = hargaProvinsiMap[p.kode]?.[provinsiUntukHarga];
+      return hargaProvinsi !== undefined ? { ...p, harga: hargaProvinsi } : p;
     });
-  }, [products, hargaProvinsiMap, provinsiUntukHarga]);
+  }, [products, hargaProvinsiMap, hargaKotaMap, provinsiUntukHarga, kotaUntukHarga]);
 
   // Alamat tersimpan sekarang disimpan PERMANEN di database (bukan cuma
   // localStorage HP lagi - itu bisa hilang, terutama di Safari/iPhone yang
