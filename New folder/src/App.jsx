@@ -793,7 +793,7 @@ function OrderAppInner() {
   // Simpan ke database setiap kali isi keranjang berubah (jeda sedikit biar
   // tidak nembak database tiap klik +/- secara beruntun)
   useEffect(() => {
-    if (!toko?.id || !cartLoaded) return;
+    if (!toko?.id || !cartLoaded || toko?.modeAkunSales) return; // mode Akun Sales cuma keranjang lokal, tidak disimpan (bukan client sungguhan di database)
     const timer = setTimeout(() => {
       supabaseFetch(`keranjang_toko?on_conflict=client_id`, {
         method: "POST",
@@ -1158,6 +1158,42 @@ function OrderAppInner() {
       // Simpan toko yang dipilih ke sesi - supaya kalau di-refresh, sales
       // TETAP di toko yang sama, tidak balik ke layar pilih toko lagi.
       saveSession({ token: salesAuthCache.token, userId: salesAuthCache.userId, email: salesAuthCache.email, refreshToken: salesAuthCache.refreshToken, selectedClientId: clientId, salesIdPembuat: salesInfo2?.id });
+    } catch (e) {
+      setLoginError(e.message);
+    }
+    setLoggingIn(false);
+  }
+
+  // Sales belum punya toko sungguhan tapi mau lihat harga/promo untuk
+  // ditunjukkan ke calon konsumen - masuk pakai data PROFIL SALES sendiri
+  // (bukan client sungguhan di database) sebagai "toko virtual": kode
+  // toko ikut kode sales, alamat ikut alamat yang diisi sales sendiri di
+  // Profil Saya. Checkout DINONAKTIFKAN total di mode ini (lihat cek
+  // toko?.modeAkunSales di CartScreen dan penyimpanan keranjang).
+  async function masukAkunSales() {
+    setLoggingIn(true);
+    setLoginError("");
+    try {
+      const salesRows = await supabaseFetch(`sales?select=id,nama,kode,alamat,kota,provinsi&id=eq.${salesInfo2.id}`, {}, salesAuthCache.token);
+      const s = salesRows?.[0];
+      if (!s) throw new Error("Data profil sales tidak ditemukan.");
+      if (!s.alamat || !s.kota || !s.provinsi) {
+        throw new Error("Lengkapi dulu Alamat, Kota, dan Provinsi di Profil Saya (Dashboard) sebelum pakai mode ini.");
+      }
+      setToko({
+        id: salesInfo2.id, kode: s.kode || "SALES", nama: `${s.nama} (Akun Sales)`,
+        alamat: s.alamat, telp: null, kota: s.kota, provinsi: s.provinsi,
+        jenisBayar: "Transfer", email: null, salesId: salesInfo2.id,
+        statusVerifikasi: "belum_upload", status: "aktif",
+        dibuatOlehSales: salesInfo2.id, namaSalesPembuat: salesInfo2.nama,
+        modeAkunSales: true, // penanda khusus - nonaktifkan checkout
+      });
+      setAuthToken(salesAuthCache.token);
+      setIsGuest(false);
+      setShowPilihToko(false);
+      setScreen("beranda");
+      setCart({});
+      setCartLoaded(true); // tidak perlu loadCart dari database - keranjang mode ini cuma lokal, tidak disimpan
     } catch (e) {
       setLoginError(e.message);
     }
@@ -1782,7 +1818,11 @@ function OrderAppInner() {
 
       {toko?.dibuatOlehSales && screen !== "login" && screen !== "register" && (
         <div style={{ position: "sticky", top: 0, zIndex: 200, background: "#24272B", color: "#fff", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, fontSize: 11.5 }}>
-          <span>🎧 Mode Sales - Order untuk <strong>{toko.nama}</strong></span>
+          <span>
+            {toko.modeAkunSales
+              ? "👤 Akun Saya - Lihat Harga & Promo (checkout dinonaktifkan)"
+              : <>🎧 Mode Sales - Order untuk <strong>{toko.nama}</strong></>}
+          </span>
           <button onClick={keluarDariTokoSales} style={{ background: "#E8A426", border: "none", color: "#24272B", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999, flexShrink: 0 }}>
             Ganti Toko
           </button>
@@ -1812,6 +1852,7 @@ function OrderAppInner() {
           token={salesAuthCache?.token}
           onPilih={pilihTokoUntukSales} loading={loggingIn}
           onLogout={handleLogout}
+          onAkunSales={masukAkunSales}
         />
       )}
 
@@ -2284,7 +2325,7 @@ function LoginScreen({ form, setForm, loginError, onLogin, loading, onGoRegister
 // PILIH TOKO (khusus akun Sales) - sales pilih toko mana yang mau
 // dibantu order-kan
 // ============================================================
-function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLogout }) {
+function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLogout, onAkunSales }) {
   const [cari, setCari] = useState("");
   const [daftarAkses, setDaftarAkses] = useState([]); // [{ client_id, berlaku_sampai }]
   const [loadingAkses, setLoadingAkses] = useState(true);
@@ -2446,6 +2487,17 @@ function PilihTokoScreen({ salesInfo, daftarToko, token, onPilih, loading, onLog
         </div>
       ) : (
         <>
+          <button
+            onClick={onAkunSales}
+            disabled={loading}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 14px", borderRadius: 10, border: "1.5px dashed #E8A426", background: "#FFFBF0", color: "#8A6A1A", fontWeight: 700, fontSize: 13, marginBottom: 14 }}
+          >
+            👤 {loading ? "Memuat..." : "Akun Saya (Lihat Harga & Promo)"}
+          </button>
+          <p style={{ fontSize: 11, color: "#9CA0A6", textAlign: "center", margin: "-8px 0 16px" }}>
+            Belum punya toko untuk ditunjukkan? Pakai akun sendiri untuk lihat katalog & promo ke calon konsumen (tidak bisa checkout).
+          </p>
+
           <div style={{ position: "relative", marginBottom: 16 }}>
             <Search size={16} color="#9CA0A6" style={{ position: "absolute", left: 14, top: 13 }} />
             <input
@@ -3482,12 +3534,14 @@ function CartScreen({ toko, useAltAddress, setUseAltAddress, editingAlt, setEdit
 
         <button
           onClick={onCheckout}
-          disabled={belowMinimum}
-          style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", background: belowMinimum ? "#E4E1DA" : "#E8A426", color: belowMinimum ? "#9CA0A6" : "#24272B", fontWeight: 700, fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+          disabled={belowMinimum || toko?.modeAkunSales}
+          style={{ width: "100%", padding: "10px", borderRadius: 10, border: "none", background: (belowMinimum || toko?.modeAkunSales) ? "#E4E1DA" : "#E8A426", color: (belowMinimum || toko?.modeAkunSales) ? "#9CA0A6" : "#24272B", fontWeight: 700, fontSize: 12.5, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
         >
-          Pembelian {!belowMinimum && <ArrowRight size={13} />}
+          {toko?.modeAkunSales ? "Checkout Dinonaktifkan (Mode Akun Sales)" : <>Pembelian {!belowMinimum && <ArrowRight size={13} />}</>}
         </button>
-        <p style={{ textAlign: "center", fontSize: 10, color: "#9CA0A6", marginTop: 6, marginBottom: 0 }}>Order menunggu persetujuan sebelum diproses</p>
+        <p style={{ textAlign: "center", fontSize: 10, color: "#9CA0A6", marginTop: 6, marginBottom: 0 }}>
+          {toko?.modeAkunSales ? "Ini akun demo untuk tunjukkan harga ke calon konsumen - tidak bisa membuat pesanan sungguhan." : "Order menunggu persetujuan sebelum diproses"}
+        </p>
       </div>
     </div>
   );
