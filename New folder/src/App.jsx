@@ -298,7 +298,7 @@ const COMPANY_INFO = {
     { bank: "Mandiri", nomor: "9876543210", atasNama: "PT Nama Perusahaan Anda" },
   ],
   ketentuan: [
-    "Pembayaran Tunai/Transfer dilakukan maksimal 1x24 jam setelah barang diterima.",
+    "Pembayaran perlu dilakukan setelah order dibuat agar bisa diproses.",
     "Pembayaran Tempo mengikuti jangka waktu yang berlaku untuk toko Anda (lihat Data Client), dihitung sejak tanggal nota.",
     "Kirim bukti transfer ke WhatsApp Customer Service untuk konfirmasi lebih cepat.",
   ],
