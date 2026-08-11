@@ -1182,7 +1182,7 @@ function OrderAppInner() {
       }
       setToko({
         id: salesInfo2.id, kode: s.kode || "SALES", nama: `${s.nama} (Akun Sales)`,
-        alamat: s.alamat, telp: null, kota: s.kota, provinsi: s.provinsi,
+        alamat: `${s.alamat}, ${s.kota}, ${s.provinsi}`, telp: null, kota: s.kota, provinsi: s.provinsi,
         jenisBayar: "Transfer", email: null, salesId: salesInfo2.id,
         statusVerifikasi: "belum_upload", status: "aktif",
         dibuatOlehSales: salesInfo2.id, namaSalesPembuat: salesInfo2.nama,
