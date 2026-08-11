@@ -693,7 +693,14 @@ function OrderAppInner() {
   const [productsLoading, setProductsLoading] = useState(true);
   const [dbError, setDbError] = useState("");
   const [hargaProvinsiMap, setHargaProvinsiMap] = useState({}); // { kodeProduk: { provinsi: harga } }
-  const [hargaKotaMap, setHargaKotaMap] = useState({}); // { kodeProduk: { kota: harga } } - lebih diutamakan dari provinsi
+  const [hargaKotaMap, setHargaKotaMap] = useState({}); // { kodeProduk: { kotaDinormalisasi: harga } } - lebih diutamakan dari provinsi
+
+  // Supaya "pekanbaru", "Pekanbaru ", "PEKANBARU" semua dianggap sama -
+  // penting karena kota/provinsi di Profil Sales itu teks bebas (bukan
+  // dropdown terstruktur), gampang beda penulisan dari yang diatur Owner.
+  function normalisasiTeksLokasi(teks) {
+    return String(teks ?? "").trim().toLowerCase();
+  }
 
   useEffect(() => {
     supabaseFetch("harga_produk_kota?select=kota,harga,products(kode)")
@@ -703,7 +710,7 @@ function OrderAppInner() {
           const kode = r.products?.kode;
           if (!kode) return;
           if (!map[kode]) map[kode] = {};
-          map[kode][r.kota] = r.harga;
+          map[kode][normalisasiTeksLokasi(r.kota)] = r.harga;
         });
         setHargaKotaMap(map);
       })
@@ -718,7 +725,7 @@ function OrderAppInner() {
           const kode = r.products?.kode;
           if (!kode) return;
           if (!map[kode]) map[kode] = {};
-          map[kode][r.provinsi] = r.harga;
+          map[kode][normalisasiTeksLokasi(r.provinsi)] = r.harga;
         });
         setHargaProvinsiMap(map);
       })
@@ -835,10 +842,12 @@ function OrderAppInner() {
   // kalau keduanya tidak diatur.
   const productsHargaProvinsi = useMemo(() => {
     if (!provinsiUntukHarga && !kotaUntukHarga) return products;
+    const kotaCari = normalisasiTeksLokasi(kotaUntukHarga);
+    const provinsiCari = normalisasiTeksLokasi(provinsiUntukHarga);
     return products.map((p) => {
-      const hargaKota = hargaKotaMap[p.kode]?.[kotaUntukHarga];
+      const hargaKota = hargaKotaMap[p.kode]?.[kotaCari];
       if (hargaKota !== undefined) return { ...p, harga: hargaKota };
-      const hargaProvinsi = hargaProvinsiMap[p.kode]?.[provinsiUntukHarga];
+      const hargaProvinsi = hargaProvinsiMap[p.kode]?.[provinsiCari];
       return hargaProvinsi !== undefined ? { ...p, harga: hargaProvinsi } : p;
     });
   }, [products, hargaProvinsiMap, hargaKotaMap, provinsiUntukHarga, kotaUntukHarga]);
