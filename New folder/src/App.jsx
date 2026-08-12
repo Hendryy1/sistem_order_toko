@@ -5297,12 +5297,19 @@ function BerandaScreen({ toko, isGuest, onRequireLogin, onOpenChat, onOpenNotifi
   const [galeri, setGaleri] = useState([]);
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [teksBeranda, setTeksBeranda] = useState({ judul: "Promo & Program", subjudul: "Info promo terbaru dari kami" });
 
   useEffect(() => {
     supabaseFetch("campaign_banner_images?select=*&tipe=eq.beranda&order=urutan.asc")
       .then((rows) => setGaleri(rows))
       .catch(() => setGaleri([]))
       .finally(() => setLoading(false));
+    supabaseFetch("campaign_banner?select=teks_judul_beranda,teks_subjudul_beranda&limit=1")
+      .then((rows) => {
+        const b = rows[0];
+        if (b) setTeksBeranda({ judul: b.teks_judul_beranda || "Promo & Program", subjudul: b.teks_subjudul_beranda || "Info promo terbaru dari kami" });
+      })
+      .catch(() => {}); // biarkan pakai teks default kalau gagal muat
   }, []);
 
   useEffect(() => {
@@ -5351,8 +5358,8 @@ function BerandaScreen({ toko, isGuest, onRequireLogin, onOpenChat, onOpenNotifi
       </div>
 
       <div style={{ padding: "20px 16px" }}>
-        <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>Promo & Program</p>
-        <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>Info promo terbaru dari kami</p>
+        <p className="disp" style={{ fontSize: 22, fontWeight: 700, color: "#24272B", margin: "4px 0 4px" }}>{teksBeranda.judul}</p>
+        <p style={{ fontSize: 12.5, color: "#9CA0A6", margin: "0 0 20px" }}>{teksBeranda.subjudul}</p>
 
         {loading ? (
           <div style={{ padding: "60px 0", textAlign: "center" }}>
