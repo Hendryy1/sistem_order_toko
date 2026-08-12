@@ -306,7 +306,7 @@ const COMPANY_INFO = {
 
 const CS_INFO = {
   jamOperasional: "Senin - Sabtu, 08.00 - 17.00 WIB",
-  whatsappDefault: "6281234567890", // fallback kalau belum diatur Owner di Dashboard
+  whatsappDefault: "6282388759949", // fallback kalau belum diatur Owner di Dashboard
 };
 
 // Ubah "6281234567890" jadi format lebih enak dibaca "0812-3456-7890"
