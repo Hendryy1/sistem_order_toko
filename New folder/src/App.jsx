@@ -673,12 +673,15 @@ function OrderAppInner() {
   }, []);
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  const [showIosTip, setShowIosTip] = useState(false);
+  const [installBannerDitutup, setInstallBannerDitutup] = useState(false);
 
   async function handleInstallClick() {
     if (installPromptEvent) {
       installPromptEvent.prompt();
       const { outcome } = await installPromptEvent.userChoice;
       if (outcome === "accepted") setInstallPromptEvent(null);
+      else setInstallBannerDitutup(true);
     }
   }
 
@@ -1838,6 +1841,39 @@ function OrderAppInner() {
         </div>
       )}
 
+      {!isStandalone && (installPromptEvent || isIOS) && !installBannerDitutup && screen !== "login" && screen !== "register" && (
+        <div style={{ position: "fixed", left: 0, right: 0, bottom: (screen === "beranda" || screen === "catalog" || screen === "cart" || screen === "history" || screen === "akun") ? 72 : 0, zIndex: 999, maxWidth: 480, margin: "0 auto", background: "#fff", borderTop: "1.5px solid #E8A426", padding: 12, boxShadow: "0 -2px 12px rgba(0,0,0,0.15)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 9, background: "#FBF0D9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <Download size={17} color="#8A6A1A" />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: 0 }}>Pasang Aplikasi di HP</p>
+              <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Akses lebih cepat lewat layar utama</p>
+            </div>
+            <button onClick={() => setInstallBannerDitutup(true)} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #E4E1DA", background: "#fff", color: "#9CA0A6", fontSize: 11.5, fontWeight: 600, flexShrink: 0 }}>
+              Nanti
+            </button>
+            <button
+              onClick={() => { if (isIOS) setShowIosTip(true); else handleInstallClick(); }}
+              style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12, fontWeight: 700, flexShrink: 0 }}
+            >
+              Pasang
+            </button>
+          </div>
+          {showIosTip && (
+            <div style={{ marginTop: 8, background: "#FFFBF0", borderRadius: 10, padding: 12 }}>
+              <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: 0, lineHeight: 1.6 }}>
+                Di Safari: tekan ikon <strong>Share</strong> (kotak dengan panah ke atas) di bagian bawah layar, lalu pilih <strong>"Add to Home Screen"</strong>.
+              </p>
+              <button onClick={() => { setShowIosTip(false); setInstallBannerDitutup(true); }} style={{ marginTop: 8, background: "none", border: "none", color: "#8A6A1A", fontSize: 11, fontWeight: 700, padding: 0, textDecoration: "underline" }}>
+                Tutup
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {campaignVisible && campaignBanner?.aktif && campaignBanner?.gambar_url && screen !== "login" && screen !== "register" && screen !== "campaign-detail" && (
         <FloatingCampaignWidget
           imageUrl={campaignBanner.gambar_url}
@@ -1900,9 +1936,6 @@ function OrderAppInner() {
           onRequireLogin={() => setScreen("login")}
           onOpenChat={() => setScreen("cs-chat-choice")}
           onOpenNotifikasi={() => setScreen("notifikasi")}
-          showInstallButton={!isStandalone && (installPromptEvent || isIOS)}
-          isIOS={isIOS}
-          onInstallClick={handleInstallClick}
         />
       )}
 
@@ -2809,8 +2842,7 @@ function AutocompleteField({ value, onSelect, options, placeholder, disabled }) 
 // ============================================================
 // KATALOG
 // ============================================================
-function CatalogScreen({ toko, isGuest, products, productsLoading, dbError, onRetry, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi, showInstallButton, isIOS, onInstallClick }) {
-  const [showIosTip, setShowIosTip] = useState(false);
+function CatalogScreen({ toko, isGuest, products, productsLoading, dbError, onRetry, availableCategories, activeCategory, setActiveCategory, searchQuery, setSearchQuery, cart, addToCart, onOpenProduct, onRequireLogin, onOpenChat, onOpenNotifikasi }) {
   const categories = availableCategories || ["Semua"];
 
   return (
@@ -2830,36 +2862,6 @@ function CatalogScreen({ toko, isGuest, products, productsLoading, dbError, onRe
           </button>
         )}
       </div>
-
-      {showInstallButton && (
-        <div style={{ padding: "14px 20px 0" }}>
-          <div style={{ background: "#fff", border: "1.5px solid #E8A426", borderRadius: 12, padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 9, background: "#FBF0D9", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Download size={17} color="#8A6A1A" />
-            </div>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 12.5, fontWeight: 700, color: "#24272B", margin: 0 }}>Pasang Aplikasi di HP</p>
-              <p style={{ fontSize: 11, color: "#9CA0A6", margin: 0 }}>Akses lebih cepat lewat layar utama</p>
-            </div>
-            <button
-              onClick={() => { if (isIOS) setShowIosTip(true); else onInstallClick(); }}
-              style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "#E8A426", color: "#24272B", fontSize: 12, fontWeight: 700, flexShrink: 0 }}
-            >
-              Pasang
-            </button>
-          </div>
-          {showIosTip && (
-            <div style={{ marginTop: 8, background: "#FFFBF0", borderRadius: 10, padding: 12 }}>
-              <p style={{ fontSize: 11.5, color: "#8A6A1A", margin: 0, lineHeight: 1.6 }}>
-                Di Safari: tekan ikon <strong>Share</strong> (kotak dengan panah ke atas) di bagian bawah layar, lalu pilih <strong>"Add to Home Screen"</strong>.
-              </p>
-              <button onClick={() => setShowIosTip(false)} style={{ marginTop: 8, background: "none", border: "none", color: "#8A6A1A", fontSize: 11, fontWeight: 700, padding: 0, textDecoration: "underline" }}>
-                Tutup
-              </button>
-            </div>
-          )}
-        </div>
-      )}
 
       <div style={{ display: "flex", gap: 8, overflowX: "auto", padding: "16px 20px 4px", scrollbarWidth: "none" }}>
         {categories.map((cat) => {
