@@ -814,13 +814,14 @@ function OrderAppInner() {
     return () => clearTimeout(timer);
   }, [cart, toko?.id, cartLoaded]);
   const [orders, setOrders] = useState([]);
-  const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "", namaOwner: "", tanggalLahir: "", jenisUsaha: "" });
+  const [regForm, setRegForm] = useState({ email: "", password: "", nama: "", alamat: "", telp: "", jenisBayar: "Transfer", tempo: "0", provinsi: "", provinsiId: "", kota: "", kotaId: "", kecamatan: "", kecamatanId: "", kelurahan: "", kodePos: "", namaOwner: "", tanggalLahir: "", jenisUsaha: "", kodeSales: "" });
   const [regSubmitted, setRegSubmitted] = useState(false);
   const [regError, setRegError] = useState("");
   const [regLoading, setRegLoading] = useState(false);
   const [regStep, setRegStep] = useState("form"); // "form" | "otp"
   const [regOtpKode, setRegOtpKode] = useState("");
   const [regAuthSementara, setRegAuthSementara] = useState(null); // simpan hasil signUp sementara sambil tunggu verifikasi OTP
+  const [regSalesIdSementara, setRegSalesIdSementara] = useState(null); // sales_id yang ditemukan dari kodeSales (kalau diisi), dipakai saat insert clients setelah OTP
   const [useAltAddress, setUseAltAddress] = useState(false);
   const [editingAlt, setEditingAlt] = useState(false);
   const [altAddress, setAltAddress] = useState({
@@ -1702,6 +1703,19 @@ function OrderAppInner() {
     setRegError("");
     setRegLoading(true);
     try {
+      // Kalau Kode Sales diisi, cek dulu valid atau tidak SEBELUM lanjut ke
+      // OTP - supaya kalau salah ketik, user langsung tahu dari awal, tidak
+      // perlu tunggu sampai verifikasi email selesai baru ketahuan salah.
+      let salesIdDitemukan = null;
+      if (regForm.kodeSales.trim()) {
+        const salesRows = await supabaseFetch(`sales?select=id&kode=eq.${encodeURIComponent(regForm.kodeSales.trim())}`);
+        if (!salesRows || salesRows.length === 0) {
+          throw new Error(`Kode Sales "${regForm.kodeSales.trim()}" tidak ditemukan. Periksa lagi kodenya, atau kosongkan kalau tidak ada.`);
+        }
+        salesIdDitemukan = salesRows[0].id;
+      }
+      setRegSalesIdSementara(salesIdDitemukan);
+
       const auth = await supabaseSignUp(regForm.email.trim(), regForm.password);
       setRegAuthSementara(auth);
 
@@ -1758,6 +1772,7 @@ function OrderAppInner() {
           tanggal_lahir: regForm.tanggalLahir || null,
           jenis_usaha: regForm.jenisUsaha || null,
           status: "pending",
+          sales_id: regSalesIdSementara,
           // kode TIDAK diisi -> otomatis dibuatkan nomor berikutnya oleh database
         }),
       }, auth.access_token);
@@ -2731,6 +2746,7 @@ function RegisterScreen({ regForm, setRegForm, submitted, onSubmit, onBack, erro
       <Field label="Nama Pemilik (Owner)"><input value={regForm.namaOwner} onChange={set("namaOwner")} placeholder="Nama lengkap pemilik toko" style={inputStyle} /></Field>
       <Field label="Tanggal Lahir Pemilik"><input type="date" value={regForm.tanggalLahir} onChange={set("tanggalLahir")} style={inputStyle} /></Field>
       <Field label="Jenis Usaha"><input value={regForm.jenisUsaha} onChange={set("jenisUsaha")} placeholder="misal Toko Bangunan, Toko Sparepart" style={inputStyle} /></Field>
+      <Field label="Kode Sales (opsional)"><input value={regForm.kodeSales} onChange={set("kodeSales")} placeholder="Isi kalau ada sales yang mengajak Anda daftar, misal S004" style={inputStyle} /></Field>
 
       <Field label="Provinsi">
         <AutocompleteField value={regForm.provinsi} onSelect={selectProvinsi} options={provinces.map((p) => p.name)} placeholder="Ketik nama provinsi..." />
